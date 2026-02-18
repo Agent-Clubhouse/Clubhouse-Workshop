@@ -1,0 +1,33 @@
+{
+  "id": "standup",
+  "name": "Standup",
+  "version": "0.1.0",
+  "description": "AI-generated daily standup summaries across all your projects.",
+  "author": "Clubhouse Workshop",
+  "engine": { "api": 0.5 },
+  "scope": "app",
+  "main": "./dist/main.js",
+  "permissions": ["logging", "storage", "notifications", "agents", "projects", "git"],
+  "contributes": {
+    "railItem": {
+      "label": "Standup",
+      "icon": "<svg width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'><rect x='3' y='4' width='18' height='18' rx='2' ry='2'/><line x1='16' y1='2' x2='16' y2='6'/><line x1='8' y1='2' x2='8' y2='6'/><line x1='3' y1='10' x2='21' y2='10'/></svg>",
+      "position": "top"
+    },
+    "commands": [
+      {
+        "id": "standup.generate",
+        "title": "Generate Standup"
+      }
+    ],
+    "help": {
+      "topics": [
+        {
+          "id": "overview",
+          "title": "Standup",
+          "content": "# Standup Plugin\n\nGenerates a daily standup summary from your recent git activity across all open projects.\n\n## Usage\n\nClick the Standup item in the sidebar rail to view today's standup. Click \"Generate\" to create a fresh summary based on your recent commits.\n\nStandup history is stored globally so you can review past summaries."
+        }
+      ]
+    }
+  }
+}

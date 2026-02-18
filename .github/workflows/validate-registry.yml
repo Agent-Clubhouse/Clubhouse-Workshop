@@ -1,0 +1,66 @@
+name: Validate Registry
+
+on:
+  pull_request:
+    paths:
+      - 'registry/registry.json'
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Validate registry.json
+        run: |
+          node -e "
+            const fs = require('fs');
+            const registry = JSON.parse(fs.readFileSync('registry/registry.json', 'utf8'));
+
+            // Check top-level fields
+            if (typeof registry.version !== 'number') throw new Error('Missing or invalid version field');
+            if (!Array.isArray(registry.plugins)) throw new Error('Missing or invalid plugins array');
+
+            const ids = new Set();
+            for (const plugin of registry.plugins) {
+              // Required fields
+              const required = ['id', 'name', 'description', 'author', 'source', 'repo', 'latest', 'releases'];
+              for (const field of required) {
+                if (!(field in plugin)) throw new Error('Plugin ' + plugin.id + ' missing field: ' + field);
+              }
+
+              // Unique IDs
+              if (ids.has(plugin.id)) throw new Error('Duplicate plugin ID: ' + plugin.id);
+              ids.add(plugin.id);
+
+              // ID format
+              if (!/^[a-z0-9-]+$/.test(plugin.id)) {
+                throw new Error('Invalid plugin ID format: ' + plugin.id + ' (must be lowercase alphanumeric with hyphens)');
+              }
+
+              // Source must be first-party or community
+              if (!['first-party', 'community'].includes(plugin.source)) {
+                throw new Error('Invalid source for ' + plugin.id + ': ' + plugin.source);
+              }
+
+              // Latest must exist in releases
+              if (!(plugin.latest in plugin.releases)) {
+                throw new Error('Plugin ' + plugin.id + ' latest version ' + plugin.latest + ' not found in releases');
+              }
+
+              // Validate each release
+              for (const [version, release] of Object.entries(plugin.releases)) {
+                if (typeof release.api !== 'number') throw new Error(plugin.id + '@' + version + ' missing api version');
+                if (typeof release.asset !== 'string') throw new Error(plugin.id + '@' + version + ' missing asset URL');
+                if (!Array.isArray(release.permissions)) throw new Error(plugin.id + '@' + version + ' missing permissions');
+              }
+            }
+
+            console.log('Registry valid:', registry.plugins.length, 'plugin(s)');
+          "

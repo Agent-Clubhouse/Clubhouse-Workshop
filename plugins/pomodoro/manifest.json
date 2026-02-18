@@ -1,0 +1,31 @@
+{
+  "id": "pomodoro",
+  "name": "Pomodoro",
+  "version": "0.1.0",
+  "description": "A simple Pomodoro timer to keep your work sessions focused.",
+  "author": "Clubhouse Workshop",
+  "engine": { "api": 0.5 },
+  "scope": "app",
+  "main": "./dist/main.js",
+  "permissions": ["logging", "storage", "notifications", "commands", "widgets"],
+  "contributes": {
+    "railItem": {
+      "label": "Pomodoro",
+      "icon": "<svg width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'><circle cx='12' cy='12' r='10'/><polyline points='12 6 12 12 16 14'/></svg>",
+      "position": "bottom"
+    },
+    "commands": [
+      { "id": "pomodoro.start", "title": "Start Pomodoro" },
+      { "id": "pomodoro.stop", "title": "Stop Pomodoro" }
+    ],
+    "help": {
+      "topics": [
+        {
+          "id": "overview",
+          "title": "Pomodoro",
+          "content": "# Pomodoro Plugin\n\nA simple timer that follows the Pomodoro technique: 25 minutes of focused work, then a 5-minute break.\n\n## Usage\n\nClick the Pomodoro icon in the sidebar rail, then click Start. A timer widget appears in the status bar. When the timer ends, you'll get a notification. Completed sessions are tracked across restarts."
+        }
+      ]
+    }
+  }
+}

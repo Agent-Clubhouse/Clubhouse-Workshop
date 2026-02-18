@@ -1,0 +1,143 @@
+name: Release Plugin
+
+on:
+  push:
+    tags:
+      - '*-v*'  # e.g., example-hello-world-v0.1.0, code-review-v1.0.0
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Parse tag
+        id: tag
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          # Extract plugin ID and version from tag like "code-review-v0.1.0"
+          PLUGIN_ID=$(echo "$TAG" | sed 's/-v[0-9].*//')
+          VERSION=$(echo "$TAG" | sed 's/.*-v//')
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "plugin_id=$PLUGIN_ID" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "plugin_dir=plugins/$PLUGIN_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Verify plugin directory exists
+        run: |
+          if [ ! -d "${{ steps.tag.outputs.plugin_dir }}" ]; then
+            echo "Error: Plugin directory ${{ steps.tag.outputs.plugin_dir }} not found"
+            exit 1
+          fi
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install and build
+        working-directory: ${{ steps.tag.outputs.plugin_dir }}
+        run: |
+          npm ci
+          npm run build
+          if [ -f package.json ] && grep -q '"test"' package.json; then
+            npm test || true
+          fi
+
+      - name: Validate manifest
+        working-directory: ${{ steps.tag.outputs.plugin_dir }}
+        run: |
+          # Basic manifest validation
+          node -e "
+            const fs = require('fs');
+            const m = JSON.parse(fs.readFileSync('manifest.json', 'utf8'));
+            const required = ['id', 'name', 'version', 'description', 'author', 'engine', 'scope', 'main', 'permissions', 'contributes'];
+            const missing = required.filter(f => !(f in m));
+            if (missing.length > 0) {
+              console.error('Missing required fields:', missing.join(', '));
+              process.exit(1);
+            }
+            if (m.id !== '${{ steps.tag.outputs.plugin_id }}') {
+              console.error('Manifest id does not match tag. Expected: ${{ steps.tag.outputs.plugin_id }}, got:', m.id);
+              process.exit(1);
+            }
+            console.log('Manifest valid:', m.id, 'v' + m.version);
+          "
+
+      - name: Create release zip
+        id: zip
+        working-directory: ${{ steps.tag.outputs.plugin_dir }}
+        run: |
+          ZIP_NAME="${{ steps.tag.outputs.tag }}.zip"
+          zip -r "../../$ZIP_NAME" manifest.json dist/ README.md
+          echo "zip_path=$ZIP_NAME" >> "$GITHUB_OUTPUT"
+          SHA=$(shasum -a 256 "../../$ZIP_NAME" | cut -d' ' -f1)
+          echo "sha256=$SHA" >> "$GITHUB_OUTPUT"
+          SIZE=$(stat -f%z "../../$ZIP_NAME" 2>/dev/null || stat -c%s "../../$ZIP_NAME")
+          echo "size=$SIZE" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "${{ steps.tag.outputs.plugin_id }} v${{ steps.tag.outputs.version }}"
+          body: |
+            ## ${{ steps.tag.outputs.plugin_id }} v${{ steps.tag.outputs.version }}
+
+            ### Install
+            ```bash
+            cp -r plugins/${{ steps.tag.outputs.plugin_id }} ~/.clubhouse/plugins/
+            ```
+
+            Or download the zip and extract to `~/.clubhouse/plugins/${{ steps.tag.outputs.plugin_id }}/`.
+          files: ${{ steps.zip.outputs.zip_path }}
+
+      - name: Update registry
+        run: |
+          node -e "
+            const fs = require('fs');
+            const registry = JSON.parse(fs.readFileSync('registry/registry.json', 'utf8'));
+            const pluginId = '${{ steps.tag.outputs.plugin_id }}';
+            const version = '${{ steps.tag.outputs.version }}';
+            const manifest = JSON.parse(fs.readFileSync('${{ steps.tag.outputs.plugin_dir }}/manifest.json', 'utf8'));
+
+            let plugin = registry.plugins.find(p => p.id === pluginId);
+            if (!plugin) {
+              plugin = {
+                id: pluginId,
+                name: manifest.name,
+                description: manifest.description,
+                author: manifest.author,
+                source: 'first-party',
+                repo: 'https://github.com/\${{ github.repository }}',
+                path: 'plugins/' + pluginId,
+                tags: [],
+                latest: version,
+                releases: {}
+              };
+              registry.plugins.push(plugin);
+            }
+
+            plugin.latest = version;
+            plugin.releases[version] = {
+              api: manifest.engine.api,
+              asset: 'https://github.com/\${{ github.repository }}/releases/download/${{ steps.tag.outputs.tag }}/${{ steps.tag.outputs.tag }}.zip',
+              sha256: '${{ steps.zip.outputs.sha256 }}',
+              permissions: manifest.permissions,
+              size: parseInt('${{ steps.zip.outputs.size }}', 10)
+            };
+
+            registry.updated = new Date().toISOString();
+            fs.writeFileSync('registry/registry.json', JSON.stringify(registry, null, 2) + '\n');
+          "
+
+      - name: Commit registry update
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add registry/registry.json
+          git diff --cached --quiet || git commit -m "registry: update ${{ steps.tag.outputs.plugin_id }} to v${{ steps.tag.outputs.version }}"
+          git push origin HEAD:main
