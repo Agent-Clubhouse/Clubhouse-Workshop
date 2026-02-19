@@ -10,4 +10,4 @@ Email **contact@agent-clubhouse.com** with:
 - Steps to reproduce it
 - Any relevant logs or screenshots
 
-We will acknowledge your report within 72 hours and work with you to understand and address the issue before any public disclosure.
+We will work with you to understand and address the issue before any public disclosure.
