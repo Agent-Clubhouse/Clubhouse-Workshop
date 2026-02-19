@@ -1,0 +1,5 @@
+# Default owner for everything
+* @masra91
+
+# Registry changes require explicit review
+registry/registry.json @masra91
