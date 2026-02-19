@@ -232,10 +232,12 @@ See the [Testing section](https://github.com/masra91/Clubhouse-Workshop/wiki/API
 This repo is designed to be forked. Take it, make it yours, and build something great.
 
 1. Fork the repo
-2. Customize the SDK, plugins, or registry for your needs
+2. Build your plugin
 3. Ship it
 
-If you find a bug or have a suggestion, [open an issue](https://github.com/masra91/Clubhouse-Workshop/issues) — we appreciate the heads-up.
+Want your plugin in the official registry? Open a PR back to this upstream repo — see [Contributing a Plugin](registry/CONTRIBUTING.md) for the process.
+
+Found a bug or have a suggestion? [Open an issue](https://github.com/masra91/Clubhouse-Workshop/issues) — we appreciate the heads-up.
 
 ---
 
