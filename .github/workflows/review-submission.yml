@@ -73,8 +73,8 @@ jobs:
                 errors.push(plugin.id + ': Invalid ID format');
               }
 
-              // Check reserved prefix
-              if (plugin.id.startsWith('example-')) {
+              // Check reserved prefix (allow first-party plugins)
+              if (plugin.id.startsWith('example-') && plugin.source !== 'first-party') {
                 errors.push(plugin.id + ': The example- prefix is reserved for official examples');
               }
 
