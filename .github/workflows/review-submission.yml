@@ -74,12 +74,12 @@ jobs:
               }
 
               // Check reserved prefix (allow first-party plugins)
-              if (plugin.id.startsWith('example-') && plugin.source !== 'first-party') {
+              if (plugin.id.startsWith('example-') && !plugin.official) {
                 errors.push(plugin.id + ': The example- prefix is reserved for official examples');
               }
 
               // Check required fields
-              const required = ['name', 'description', 'author', 'source', 'repo', 'latest', 'releases'];
+              const required = ['name', 'description', 'author', 'repo', 'latest', 'releases'];
               for (const field of required) {
                 if (!(field in plugin)) {
                   errors.push(plugin.id + ': Missing required field: ' + field);

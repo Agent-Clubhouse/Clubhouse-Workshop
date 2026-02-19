@@ -45,7 +45,7 @@ See `registry.json` for the full schema. Each plugin entry contains:
 | `name` | Display name |
 | `description` | Short description |
 | `author` | Author name |
-| `source` | `first-party` or `community` |
+| `official` | `true` for Clubhouse Workshop-maintained plugins, omitted or `false` for community |
 | `repo` | Source repository URL |
 | `path` | Path within the repo (for monorepo plugins) |
 | `tags` | Searchable keywords |

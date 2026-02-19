@@ -42,7 +42,6 @@ Edit `registry/registry.json` and add your plugin entry to the `plugins` array:
   "name": "Your Plugin",
   "description": "What your plugin does in one sentence.",
   "author": "Your Name",
-  "source": "community",
   "repo": "https://github.com/yourname/your-plugin",
   "tags": ["relevant", "keywords"],
   "latest": "1.0.0",

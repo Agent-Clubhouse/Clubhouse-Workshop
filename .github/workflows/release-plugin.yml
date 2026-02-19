@@ -111,7 +111,7 @@ jobs:
                 name: manifest.name,
                 description: manifest.description,
                 author: manifest.author,
-                source: 'first-party',
+                official: manifest.official || true,
                 repo: 'https://github.com/\${{ github.repository }}',
                 path: 'plugins/' + pluginId,
                 tags: [],

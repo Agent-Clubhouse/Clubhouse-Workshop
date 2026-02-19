@@ -167,7 +167,7 @@ P1 is done when:
          "name": "Code Review",
          "description": "AI-powered code review for your commits",
          "author": "Clubhouse",
-         "source": "first-party",
+         "official": true,
          "repo": "https://github.com/masra91/Clubhouse-Workshop",
          "path": "plugins/code-review",
          "latest": "1.0.0",
@@ -219,7 +219,7 @@ This milestone is more directional than prescriptive — the right specifics wil
 
 #### What goes in this repo (P3)
 
-1. **Community plugins in the registry** — Third-party plugins listed alongside first-party ones, with clear labeling of source (`first-party` vs `community`).
+1. **Community plugins in the registry** — Third-party plugins listed alongside official ones, with clear labeling (`official: true` vs omitted).
 
 2. **Plugin quality guidelines** — Documentation on what makes a good plugin: permission minimality, error handling, accessibility, performance, testing expectations.
 
@@ -229,7 +229,7 @@ This milestone is more directional than prescriptive — the right specifics wil
 
 | # | Change | Why |
 |---|--------|-----|
-| 1 | **Trust indicators in UI** | Show `first-party` badge, permission summary, install count (if tracked). Users should understand what a plugin can do before installing. |
+| 1 | **Trust indicators in UI** | Show `official` badge, permission summary, install count (if tracked). Users should understand what a plugin can do before installing. |
 | 2 | **Permission consent on install** | When installing a plugin that requires powerful permissions (`terminal`, `process`, `files.external`), show a confirmation dialog listing what it can access. Not a block — just informed consent. |
 | 3 | **Plugin isolation improvements** | Investigate stronger sandboxing: running community plugins in a separate renderer/webview, limiting IPC surface. This is a big architectural decision — may not be worth the complexity if the permission system is sufficient. |
 | 4 | **Telemetry hooks (opt-in)** | Anonymous install/usage counts so plugin authors (and the registry) know what's popular. Strictly opt-in. |
