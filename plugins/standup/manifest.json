@@ -4,6 +4,7 @@
   "version": "0.1.0",
   "description": "AI-generated daily standup summaries across all your projects.",
   "author": "Clubhouse Workshop",
+  "official": true,
   "engine": { "api": 0.5 },
   "scope": "app",
   "main": "./dist/main.js",
