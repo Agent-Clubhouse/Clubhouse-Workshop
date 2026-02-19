@@ -12,7 +12,7 @@ AI-powered code review for your staged changes or branch diff. Spawns a quick ag
 ## Install
 
 ```bash
-git clone https://github.com/masra91/Clubhouse-Workshop.git
+git clone https://github.com/Agent-Clubhouse/Clubhouse-Workshop.git
 cp -r Clubhouse-Workshop/plugins/code-review ~/.clubhouse/plugins/
 ```
 

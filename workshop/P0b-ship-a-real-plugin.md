@@ -45,7 +45,7 @@ The plugin goes in `plugins/<plugin-name>/` with the same structure as hello-wor
 **Commit the built `dist/main.js`** so users can install without building:
 
 ```bash
-git clone https://github.com/masra91/Clubhouse-Workshop.git
+git clone https://github.com/Agent-Clubhouse/Clubhouse-Workshop.git
 cp -r Clubhouse-Workshop/plugins/<plugin-name> ~/.clubhouse/plugins/
 # Restart Clubhouse, enable in Settings > Plugins
 ```

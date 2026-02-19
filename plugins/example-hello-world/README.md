@@ -13,7 +13,7 @@ A minimal example plugin for Clubhouse. This is the starting point for plugin au
 
 ```bash
 # Clone the Workshop repo (if you haven't already)
-git clone https://github.com/masra91/Clubhouse-Workshop.git
+git clone https://github.com/Agent-Clubhouse/Clubhouse-Workshop.git
 
 # Copy the plugin into your Clubhouse plugins directory
 cp -r Clubhouse-Workshop/plugins/example-hello-world ~/.clubhouse/plugins/

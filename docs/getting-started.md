@@ -4,7 +4,7 @@ Build, install, and run your first Clubhouse plugin in under 5 minutes.
 
 ## Prerequisites
 
-- [Clubhouse](https://github.com/masra91/Clubhouse) installed and running
+- [Clubhouse](https://github.com/Agent-Clubhouse/Clubhouse) installed and running
 - [Node.js](https://nodejs.org/) 18+ (for building plugins from source)
 
 ## 1. Install the example plugin
@@ -13,7 +13,7 @@ The fastest way to see a plugin in action:
 
 ```bash
 # Clone the Workshop repo
-git clone https://github.com/masra91/Clubhouse-Workshop.git
+git clone https://github.com/Agent-Clubhouse/Clubhouse-Workshop.git
 
 # Copy the hello-world plugin to your plugins directory
 cp -r Clubhouse-Workshop/plugins/example-hello-world ~/.clubhouse/plugins/

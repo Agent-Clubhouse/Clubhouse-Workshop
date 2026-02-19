@@ -30,7 +30,7 @@ shasum -a 256 your-plugin-v1.0.0.zip
 
 ### 2. Fork this repo
 
-Fork [Clubhouse-Workshop](https://github.com/masra91/Clubhouse-Workshop) and clone your fork.
+Fork [Clubhouse-Workshop](https://github.com/Agent-Clubhouse/Clubhouse-Workshop) and clone your fork.
 
 ### 3. Add your plugin to the registry
 

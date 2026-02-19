@@ -11,7 +11,7 @@ Whether you're a seasoned developer or just getting started, you're in the right
 ### 1. Clone the repo
 
 ```bash
-git clone https://github.com/masra91/Clubhouse-Workshop.git
+git clone https://github.com/Agent-Clubhouse/Clubhouse-Workshop.git
 cd Clubhouse-Workshop
 ```
 
@@ -75,12 +75,12 @@ Clubhouse-Workshop/
 | Guide | What you'll learn |
 |---|---|
 | [Getting Started](docs/getting-started.md) | Install, build, and run your first plugin in 5 minutes |
-| [Scaffolding Guide](https://github.com/masra91/Clubhouse-Workshop/wiki/Scaffolding-Guide) | Use the CLI to generate any type of plugin |
-| [API Reference](https://github.com/masra91/Clubhouse-Workshop/wiki/API-Reference) | Every method on the plugin API with examples |
-| [Manifest Reference](https://github.com/masra91/Clubhouse-Workshop/wiki/Manifest-Reference) | Every field in `manifest.json` explained |
-| [Plugin Patterns](https://github.com/masra91/Clubhouse-Workshop/wiki/Plugin-Patterns) | Recipes for agents, storage, commands, and more |
-| [FAQ](https://github.com/masra91/Clubhouse-Workshop/wiki/FAQ) | Common questions answered |
-| [Quality Guidelines](https://github.com/masra91/Clubhouse-Workshop/wiki/Quality-Guidelines) | Best practices for reliable, trustworthy plugins |
+| [Scaffolding Guide](https://github.com/Agent-Clubhouse/Clubhouse-Workshop/wiki/Scaffolding-Guide) | Use the CLI to generate any type of plugin |
+| [API Reference](https://github.com/Agent-Clubhouse/Clubhouse-Workshop/wiki/API-Reference) | Every method on the plugin API with examples |
+| [Manifest Reference](https://github.com/Agent-Clubhouse/Clubhouse-Workshop/wiki/Manifest-Reference) | Every field in `manifest.json` explained |
+| [Plugin Patterns](https://github.com/Agent-Clubhouse/Clubhouse-Workshop/wiki/Plugin-Patterns) | Recipes for agents, storage, commands, and more |
+| [FAQ](https://github.com/Agent-Clubhouse/Clubhouse-Workshop/wiki/FAQ) | Common questions answered |
+| [Quality Guidelines](https://github.com/Agent-Clubhouse/Clubhouse-Workshop/wiki/Quality-Guidelines) | Best practices for reliable, trustworthy plugins |
 
 ---
 
@@ -223,7 +223,7 @@ test("activate registers commands", async () => {
 });
 ```
 
-See the [Testing section](https://github.com/masra91/Clubhouse-Workshop/wiki/API-Reference#testing) in the API Reference for more.
+See the [Testing section](https://github.com/Agent-Clubhouse/Clubhouse-Workshop/wiki/API-Reference#testing) in the API Reference for more.
 
 ---
 
@@ -237,7 +237,7 @@ This repo is designed to be forked. Take it, make it yours, and build something 
 
 Want your plugin in the official registry? Open a PR back to this upstream repo — see [Contributing a Plugin](registry/CONTRIBUTING.md) for the process.
 
-Found a bug or have a suggestion? [Open an issue](https://github.com/masra91/Clubhouse-Workshop/issues) — we appreciate the heads-up.
+Found a bug or have a suggestion? [Open an issue](https://github.com/Agent-Clubhouse/Clubhouse-Workshop/issues) — we appreciate the heads-up.
 
 ---
 
