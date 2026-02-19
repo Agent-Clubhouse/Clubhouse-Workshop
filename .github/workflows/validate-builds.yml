@@ -1,0 +1,50 @@
+name: Validate Plugin Builds
+
+on:
+  pull_request:
+    paths:
+      - 'plugins/*/src/**'
+      - 'plugins/*/package.json'
+      - 'plugins/*/tsconfig.json'
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Rebuild and check dist files
+        run: |
+          stale=""
+          for plugin_dir in plugins/*/; do
+            plugin=$(basename "$plugin_dir")
+            if [ ! -f "$plugin_dir/package.json" ]; then
+              continue
+            fi
+
+            echo "Building $plugin..."
+            cd "$plugin_dir"
+            npm install --ignore-scripts
+            npm run build
+            cd - > /dev/null
+
+            if ! git diff --quiet "$plugin_dir/dist/"; then
+              stale="$stale $plugin"
+            fi
+          done
+
+          if [ -n "$stale" ]; then
+            echo ""
+            echo "ERROR: dist/ is out of date for:$stale"
+            echo ""
+            echo "Run 'npm run build' in each plugin directory and commit the updated dist files."
+            exit 1
+          fi
+
+          echo "All dist files are up to date."
