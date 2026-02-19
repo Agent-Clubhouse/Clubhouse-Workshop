@@ -7,7 +7,7 @@
   "engine": { "api": 0.5 },
   "scope": "app",
   "main": "./dist/main.js",
-  "permissions": ["logging", "storage", "notifications", "agents", "projects", "git"],
+  "permissions": ["logging", "storage", "notifications", "agents", "projects", "git", "commands"],
   "contributes": {
     "railItem": {
       "label": "Standup",

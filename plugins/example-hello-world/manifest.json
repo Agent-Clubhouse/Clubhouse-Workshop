@@ -7,7 +7,7 @@
   "engine": { "api": 0.5 },
   "scope": "project",
   "main": "./dist/main.js",
-  "permissions": ["logging", "storage", "notifications"],
+  "permissions": ["logging", "storage", "notifications", "commands"],
   "contributes": {
     "tab": {
       "label": "Hello",
