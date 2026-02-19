@@ -29,7 +29,10 @@ jobs:
           node -e "
             const fs = require('fs');
             const prRegistry = JSON.parse(fs.readFileSync('registry/registry.json', 'utf8'));
-            const baseRegistry = JSON.parse(fs.readFileSync('base/registry/registry.json', 'utf8'));
+            const basePath = 'base/registry/registry.json';
+            const baseRegistry = fs.existsSync(basePath)
+              ? JSON.parse(fs.readFileSync(basePath, 'utf8'))
+              : { plugins: [] };
 
             const baseIds = new Set(baseRegistry.plugins.map(p => p.id));
             const newPlugins = prRegistry.plugins.filter(p => !baseIds.has(p.id));
