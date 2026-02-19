@@ -1,0 +1,52 @@
+{
+  "id": "code-review",
+  "name": "Code Review",
+  "version": "0.1.0",
+  "description": "AI-powered code review for your staged changes.",
+  "author": "Clubhouse Workshop",
+  "engine": { "api": 0.5 },
+  "scope": "project",
+  "main": "./dist/main.js",
+  "permissions": ["logging", "storage", "notifications", "files", "git", "agents", "commands", "process"],
+  "allowedCommands": ["git"],
+  "contributes": {
+    "tab": {
+      "label": "Review",
+      "icon": "<svg width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'><path d='M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z'/><polyline points='14 2 14 8 20 8'/><line x1='16' y1='13' x2='8' y2='13'/><line x1='16' y1='17' x2='8' y2='17'/><polyline points='10 9 9 9 8 9'/></svg>",
+      "layout": "full"
+    },
+    "commands": [
+      {
+        "id": "code-review.reviewStaged",
+        "title": "Review Staged Changes"
+      },
+      {
+        "id": "code-review.reviewBranch",
+        "title": "Review Branch Changes"
+      }
+    ],
+    "settings": [
+      {
+        "id": "model",
+        "title": "Review model",
+        "description": "Which model to use for code reviews",
+        "type": "select",
+        "default": "auto",
+        "options": [
+          { "label": "Auto (recommended)", "value": "auto" },
+          { "label": "Fast", "value": "fast" },
+          { "label": "Thorough", "value": "thorough" }
+        ]
+      }
+    ],
+    "help": {
+      "topics": [
+        {
+          "id": "overview",
+          "title": "Code Review",
+          "content": "# Code Review Plugin\n\nAI-powered code review for your staged changes or branch diff.\n\n## Usage\n\n1. Stage your changes with `git add`\n2. Open the **Review** tab\n3. Click **Review Staged Changes**\n4. The plugin spawns an AI agent that analyzes your diff and provides feedback\n\nYou can also review all changes on your branch relative to main.\n\n## Review history\n\nPast reviews are stored in project-local storage and displayed in the Review tab."
+        }
+      ]
+    }
+  }
+}

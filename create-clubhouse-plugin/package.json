@@ -1,0 +1,36 @@
+{
+  "name": "create-clubhouse-plugin",
+  "version": "0.1.0",
+  "description": "Scaffold a new Clubhouse plugin",
+  "license": "MIT",
+  "bin": {
+    "create-clubhouse-plugin": "./dist/index.js"
+  },
+  "files": [
+    "dist",
+    "templates"
+  ],
+  "scripts": {
+    "build": "tsup src/index.ts --format esm --target node18",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "prompts": "^2.4.2"
+  },
+  "devDependencies": {
+    "@types/prompts": "^2.4.9",
+    "typescript": "^5.7.0",
+    "tsup": "^8.0.0"
+  },
+  "keywords": [
+    "clubhouse",
+    "plugin",
+    "scaffold",
+    "create"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/masra91/Clubhouse-Workshop",
+    "directory": "create-clubhouse-plugin"
+  }
+}

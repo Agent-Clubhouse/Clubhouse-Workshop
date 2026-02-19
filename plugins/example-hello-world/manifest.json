@@ -1,0 +1,33 @@
+{
+  "id": "example-hello-world",
+  "name": "Hello World",
+  "version": "0.1.0",
+  "description": "A minimal example plugin for Clubhouse.",
+  "author": "Clubhouse Workshop",
+  "engine": { "api": 0.5 },
+  "scope": "project",
+  "main": "./dist/main.js",
+  "permissions": ["logging", "storage", "notifications"],
+  "contributes": {
+    "tab": {
+      "label": "Hello",
+      "icon": "<svg width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'><circle cx='12' cy='12' r='10'/><path d='M8 14s1.5 2 4 2 4-2 4-2'/><line x1='9' y1='9' x2='9.01' y2='9'/><line x1='15' y1='9' x2='15.01' y2='9'/></svg>",
+      "layout": "full"
+    },
+    "commands": [
+      {
+        "id": "hello-world.greet",
+        "title": "Say Hello"
+      }
+    ],
+    "help": {
+      "topics": [
+        {
+          "id": "overview",
+          "title": "Hello World",
+          "content": "# Hello World Plugin\n\nA minimal example plugin from the Clubhouse Workshop.\n\n## Features\n\n- Displays a greeting with a persistent counter\n- Demonstrates storage, logging, and notification APIs\n- Registers a command that triggers a notification\n\n## Usage\n\nOpen the **Hello** tab in any project to see the plugin in action. Click the button to increment the counter and trigger a notification."
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "name": "@clubhouse/plugin-types",
+  "version": "0.5.0",
+  "description": "TypeScript type definitions for the Clubhouse plugin API",
+  "license": "MIT",
+  "types": "./index.d.ts",
+  "files": [
+    "index.d.ts"
+  ],
+  "keywords": [
+    "clubhouse",
+    "plugin",
+    "types",
+    "typescript"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/masra91/Clubhouse-Workshop",
+    "directory": "sdk/plugin-types"
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "updated": "2026-02-18T00:00:00Z",
+  "featured": [
+    {
+      "id": "code-review",
+      "reason": "AI-powered code review — the most popular way to use Clubhouse's agent API from a plugin."
+    },
+    {
+      "id": "standup",
+      "reason": "Cross-project daily summaries — demonstrates app-scoped plugins and the projects API."
+    }
+  ]
+}

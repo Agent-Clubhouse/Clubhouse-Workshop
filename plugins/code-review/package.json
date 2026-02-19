@@ -1,0 +1,17 @@
+{
+  "name": "code-review",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AI-powered code review for Clubhouse",
+  "scripts": {
+    "build": "esbuild src/main.tsx --bundle --format=esm --platform=browser --external:react --outfile=dist/main.js",
+    "watch": "esbuild src/main.tsx --bundle --format=esm --platform=browser --external:react --outfile=dist/main.js --watch",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@clubhouse/plugin-types": "file:../../sdk/plugin-types",
+    "@types/react": "^19.0.0",
+    "esbuild": "^0.24.0",
+    "typescript": "^5.7.0"
+  }
+}
