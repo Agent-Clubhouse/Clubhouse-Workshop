@@ -91,7 +91,7 @@ export interface AgentInfo {
   kind: AgentKind;
   status: AgentStatus;
   color: string;
-  emoji?: string;
+  icon?: string;
   exitCode?: number;
   mission?: string;
   projectId: string;
