@@ -64,7 +64,6 @@ Clubhouse-Workshop/
     code-review/          AI-powered code review via quick agents
     standup/              Cross-project standup generator (app-scoped)
     pomodoro/             Focus timer with session tracking
-  docs/                   Detailed guides and references
   registry/               Plugin registry catalog
 ```
 
@@ -74,7 +73,7 @@ Clubhouse-Workshop/
 
 | Guide | What you'll learn |
 |---|---|
-| [Getting Started](docs/getting-started.md) | Install, build, and run your first plugin in 5 minutes |
+| [Getting Started](https://github.com/Agent-Clubhouse/Clubhouse-Workshop/wiki/Getting-Started) | Install, build, and run your first plugin in 5 minutes |
 | [Scaffolding Guide](https://github.com/Agent-Clubhouse/Clubhouse-Workshop/wiki/Scaffolding-Guide) | Use the CLI to generate any type of plugin |
 | [API Reference](https://github.com/Agent-Clubhouse/Clubhouse-Workshop/wiki/API-Reference) | Every method on the plugin API with examples |
 | [Manifest Reference](https://github.com/Agent-Clubhouse/Clubhouse-Workshop/wiki/Manifest-Reference) | Every field in `manifest.json` explained |
