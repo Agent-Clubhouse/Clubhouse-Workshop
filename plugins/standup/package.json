@@ -2,6 +2,7 @@
   "name": "standup",
   "version": "0.1.0",
   "private": true,
+  "license": "MIT",
   "description": "Daily standup summaries for Clubhouse",
   "scripts": {
     "build": "esbuild src/main.tsx --bundle --format=esm --platform=browser --external:react --outfile=dist/main.js",

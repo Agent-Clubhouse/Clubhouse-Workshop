@@ -227,16 +227,15 @@ See the [Testing section](https://github.com/masra91/Clubhouse-Workshop/wiki/API
 
 ---
 
-## Contributing
+## Building on This
 
-We'd love your contributions! Whether it's a new example plugin, a docs improvement, or a bug fix — all are welcome.
+This repo is designed to be forked. Take it, make it yours, and build something great.
 
 1. Fork the repo
-2. Create a feature branch (`git checkout -b my-feature`)
-3. Make your changes
-4. Submit a pull request
+2. Customize the SDK, plugins, or registry for your needs
+3. Ship it
 
-For plugin submissions to the registry, see the [Quality Guidelines](https://github.com/masra91/Clubhouse-Workshop/wiki/Quality-Guidelines).
+If you find a bug or have a suggestion, [open an issue](https://github.com/masra91/Clubhouse-Workshop/issues) — we appreciate the heads-up.
 
 ---
 
@@ -251,4 +250,4 @@ For plugin submissions to the registry, see the [Quality Guidelines](https://git
 
 ## License
 
-MIT
+[MIT](LICENSE)
