@@ -8,14 +8,14 @@
       "description": "A minimal example plugin for Clubhouse.",
       "author": "Clubhouse Workshop",
       "official": true,
-      "repo": "https://github.com/masra91/Clubhouse-Workshop",
+      "repo": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop",
       "path": "plugins/example-hello-world",
       "tags": ["example", "starter"],
       "latest": "0.1.0",
       "releases": {
         "0.1.0": {
           "api": 0.5,
-          "asset": "https://github.com/masra91/Clubhouse-Workshop/releases/download/example-hello-world-v0.1.0/example-hello-world-v0.1.0.zip",
+          "asset": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop/releases/download/example-hello-world-v0.1.0/example-hello-world-v0.1.0.zip",
           "sha256": "",
           "permissions": ["logging", "storage", "notifications"],
           "size": 0
@@ -28,14 +28,14 @@
       "description": "AI-powered code review for your staged changes.",
       "author": "Clubhouse Workshop",
       "official": true,
-      "repo": "https://github.com/masra91/Clubhouse-Workshop",
+      "repo": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop",
       "path": "plugins/code-review",
       "tags": ["ai", "code-review", "git"],
       "latest": "0.1.0",
       "releases": {
         "0.1.0": {
           "api": 0.5,
-          "asset": "https://github.com/masra91/Clubhouse-Workshop/releases/download/code-review-v0.1.0/code-review-v0.1.0.zip",
+          "asset": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop/releases/download/code-review-v0.1.0/code-review-v0.1.0.zip",
           "sha256": "",
           "permissions": ["logging", "storage", "notifications", "files", "git", "agents", "commands"],
           "size": 0
@@ -48,14 +48,14 @@
       "description": "AI-generated daily standup summaries across all your projects.",
       "author": "Clubhouse Workshop",
       "official": true,
-      "repo": "https://github.com/masra91/Clubhouse-Workshop",
+      "repo": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop",
       "path": "plugins/standup",
       "tags": ["ai", "standup", "productivity"],
       "latest": "0.1.0",
       "releases": {
         "0.1.0": {
           "api": 0.5,
-          "asset": "https://github.com/masra91/Clubhouse-Workshop/releases/download/standup-v0.1.0/standup-v0.1.0.zip",
+          "asset": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop/releases/download/standup-v0.1.0/standup-v0.1.0.zip",
           "sha256": "",
           "permissions": ["logging", "storage", "notifications", "agents", "projects", "git"],
           "size": 0
@@ -68,14 +68,14 @@
       "description": "A simple Pomodoro timer to keep your work sessions focused.",
       "author": "Clubhouse Workshop",
       "official": true,
-      "repo": "https://github.com/masra91/Clubhouse-Workshop",
+      "repo": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop",
       "path": "plugins/pomodoro",
       "tags": ["productivity", "timer"],
       "latest": "0.1.0",
       "releases": {
         "0.1.0": {
           "api": 0.5,
-          "asset": "https://github.com/masra91/Clubhouse-Workshop/releases/download/pomodoro-v0.1.0/pomodoro-v0.1.0.zip",
+          "asset": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop/releases/download/pomodoro-v0.1.0/pomodoro-v0.1.0.zip",
           "sha256": "",
           "permissions": ["logging", "storage", "notifications", "commands", "widgets"],
           "size": 0

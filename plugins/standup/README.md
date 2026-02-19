@@ -12,7 +12,7 @@ AI-generated daily standup summaries across all your projects. Spawns a quick ag
 ## Install
 
 ```bash
-git clone https://github.com/masra91/Clubhouse-Workshop.git
+git clone https://github.com/Agent-Clubhouse/Clubhouse-Workshop.git
 cp -r Clubhouse-Workshop/.clubhouse/agents/nimble-corgi/plugins/standup ~/.clubhouse/plugins/
 ```
 

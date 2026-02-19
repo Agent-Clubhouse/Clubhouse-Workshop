@@ -168,13 +168,13 @@ P1 is done when:
          "description": "AI-powered code review for your commits",
          "author": "Clubhouse",
          "official": true,
-         "repo": "https://github.com/masra91/Clubhouse-Workshop",
+         "repo": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop",
          "path": "plugins/code-review",
          "latest": "1.0.0",
          "releases": {
            "1.0.0": {
              "api": 0.5,
-             "asset": "https://github.com/masra91/Clubhouse-Workshop/releases/download/code-review-v1.0.0/code-review-v1.0.0.zip",
+             "asset": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop/releases/download/code-review-v1.0.0/code-review-v1.0.0.zip",
              "sha256": "abc123...",
              "permissions": ["files", "git", "agents", "notifications"]
            }

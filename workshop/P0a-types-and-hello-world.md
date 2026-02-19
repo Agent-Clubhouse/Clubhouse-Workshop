@@ -111,7 +111,7 @@ plugins/example-hello-world/
 1. Prerequisites (Node.js, Clubhouse installed)
 2. Install the hello-world plugin:
    ```bash
-   git clone https://github.com/masra91/Clubhouse-Workshop.git
+   git clone https://github.com/Agent-Clubhouse/Clubhouse-Workshop.git
    cp -r Clubhouse-Workshop/plugins/example-hello-world ~/.clubhouse/plugins/
    ```
 3. Enable it: Settings > Plugins > Hello World > Enable

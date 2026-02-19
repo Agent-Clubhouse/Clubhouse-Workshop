@@ -21,14 +21,14 @@
       "description": "A minimal example plugin for Clubhouse.",
       "author": "Clubhouse Workshop",
       "official": true,
-      "repo": "https://github.com/masra91/Clubhouse-Workshop",
+      "repo": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop",
       "path": "plugins/example-hello-world",
       "tags": ["example", "starter"],
       "latest": "0.1.0",
       "releases": {
         "0.1.0": {
           "api": 0.5,
-          "asset": "https://github.com/masra91/Clubhouse-Workshop/releases/download/example-hello-world-v0.1.0/example-hello-world-v0.1.0.zip",
+          "asset": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop/releases/download/example-hello-world-v0.1.0/example-hello-world-v0.1.0.zip",
           "sha256": "...",
           "permissions": ["logging", "storage", "notifications"],
           "size": 12345
