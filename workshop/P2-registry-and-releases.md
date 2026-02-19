@@ -20,7 +20,7 @@
       "name": "Hello World",
       "description": "A minimal example plugin for Clubhouse.",
       "author": "Clubhouse Workshop",
-      "source": "first-party",
+      "official": true,
       "repo": "https://github.com/masra91/Clubhouse-Workshop",
       "path": "plugins/example-hello-world",
       "tags": ["example", "starter"],
@@ -42,7 +42,7 @@
 **Fields per plugin:**
 - `id` — matches the plugin's manifest ID
 - `name`, `description`, `author` — display metadata
-- `source` — `first-party` or `community`
+- `official` — `true` for Clubhouse Workshop-maintained plugins, omitted for community
 - `repo` — link to the source repository
 - `path` — path within the repo (for first-party plugins in this monorepo)
 - `tags` — searchable keywords

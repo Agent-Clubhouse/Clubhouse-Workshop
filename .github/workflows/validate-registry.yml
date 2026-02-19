@@ -30,7 +30,7 @@ jobs:
             const ids = new Set();
             for (const plugin of registry.plugins) {
               // Required fields
-              const required = ['id', 'name', 'description', 'author', 'source', 'repo', 'latest', 'releases'];
+              const required = ['id', 'name', 'description', 'author', 'repo', 'latest', 'releases'];
               for (const field of required) {
                 if (!(field in plugin)) throw new Error('Plugin ' + plugin.id + ' missing field: ' + field);
               }
@@ -44,9 +44,9 @@ jobs:
                 throw new Error('Invalid plugin ID format: ' + plugin.id + ' (must be lowercase alphanumeric with hyphens)');
               }
 
-              // Source must be first-party or community
-              if (!['first-party', 'community'].includes(plugin.source)) {
-                throw new Error('Invalid source for ' + plugin.id + ': ' + plugin.source);
+              // official must be boolean if present
+              if ('official' in plugin && typeof plugin.official !== 'boolean') {
+                throw new Error('Invalid official field for ' + plugin.id + ': must be boolean');
               }
 
               // Latest must exist in releases

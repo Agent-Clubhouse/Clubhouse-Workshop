@@ -61,6 +61,16 @@ A short description of what the plugin does. Shown in Settings > Plugins and the
 
 The plugin author's name or organization.
 
+### `official`
+
+Optional boolean. When `true`, marks this plugin as maintained by Clubhouse Workshop.
+
+```json
+"official": true
+```
+
+Community plugins should omit this field (it defaults to `false`/`undefined`). The Clubhouse app uses this flag to display trust indicators in the Workshop browser.
+
 ### `engine` (required)
 
 ```json

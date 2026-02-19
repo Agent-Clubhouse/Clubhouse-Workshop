@@ -13,8 +13,8 @@ This is less prescriptive than earlier milestones. The right moves depend on wha
 Once the submission process (P2) is proven with first-party plugins, open it to community submissions.
 
 **Labeling:**
-- `first-party` — built and maintained in this repo
-- `community` — third-party, listed in the registry after review
+- `official: true` — built and maintained by Clubhouse Workshop
+- `official` omitted or `false` — community-submitted, listed in the registry after review
 
 The distinction is visible in the app's Workshop browser (Clubhouse P3 — trust indicators).
 
