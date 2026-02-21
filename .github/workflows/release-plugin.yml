@@ -53,7 +53,7 @@ jobs:
       - name: Install and build
         working-directory: ${{ steps.tag.outputs.plugin_dir }}
         run: |
-          npm ci
+          npm install
           npm run build
           if [ -f package.json ] && grep -q '"test"' package.json; then
             npm test || true
@@ -94,6 +94,7 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ steps.tag.outputs.tag }}
           name: "${{ steps.tag.outputs.plugin_id }} v${{ steps.tag.outputs.version }}"
           body: |
             ## ${{ steps.tag.outputs.plugin_id }} v${{ steps.tag.outputs.version }}
@@ -149,6 +150,14 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -b registry-update/${{ steps.tag.outputs.tag }}
           git add registry/registry.json
-          git diff --cached --quiet || git commit -m "registry: update ${{ steps.tag.outputs.plugin_id }} to v${{ steps.tag.outputs.version }}"
-          git push origin HEAD:main
+          git diff --cached --quiet && echo "No registry changes" && exit 0
+          git commit -m "registry: update ${{ steps.tag.outputs.plugin_id }} to v${{ steps.tag.outputs.version }}"
+          git push origin registry-update/${{ steps.tag.outputs.tag }}
+          gh pr create \
+            --title "registry: update ${{ steps.tag.outputs.plugin_id }} to v${{ steps.tag.outputs.version }}" \
+            --body "Automated registry update from release workflow." \
+            --base main
+        env:
+          GH_TOKEN: ${{ github.token }}
