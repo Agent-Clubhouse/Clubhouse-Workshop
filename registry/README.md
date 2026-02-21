@@ -16,23 +16,31 @@ cd plugins/my-plugin
 # edit manifest.json: bump "version"
 # edit package.json: bump "version"
 
-# 2. Build and test
+# 2. Build and test locally
 npm run build
 npm test
 
-# 3. Commit the version bump
+# 3. Commit the version bump (via PR — branch protection requires it)
+git checkout -b my-plugin/v1.0.0
 git add -A && git commit -m "my-plugin: bump to v1.0.0"
+git push origin my-plugin/v1.0.0
+# Open and merge a PR
 
-# 4. Tag the release
-git tag my-plugin-v1.0.0
-git push origin main --tags
+# 4. Tag the release on main
+git checkout main && git pull
+git tag -m "Release my-plugin v1.0.0" my-plugin-v1.0.0
+git push origin my-plugin-v1.0.0
+```
 
-# 5. CI handles the rest:
-#    - Builds the plugin
-#    - Validates the manifest
-#    - Creates a zip artifact
-#    - Creates a GitHub Release
-#    - Updates registry.json with the new version
+CI handles the rest:
+1. Builds the plugin and validates the manifest
+2. Creates a zip artifact and GitHub Release
+3. Opens a PR to update `registry.json` with the new version's sha256, size, and permissions
+4. Merge the registry PR to complete the release
+
+You can also trigger a release manually:
+```bash
+gh workflow run "Release Plugin" -f tag=my-plugin-v1.0.0
 ```
 
 ## Registry format
