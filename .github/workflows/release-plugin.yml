@@ -154,7 +154,7 @@ jobs:
           git add registry/registry.json
           git diff --cached --quiet && echo "No registry changes" && exit 0
           git commit -m "registry: update ${{ steps.tag.outputs.plugin_id }} to v${{ steps.tag.outputs.version }}"
-          git push origin registry-update/${{ steps.tag.outputs.tag }}
+          git push --force origin registry-update/${{ steps.tag.outputs.tag }}
           gh pr create \
             --title "registry: update ${{ steps.tag.outputs.plugin_id }} to v${{ steps.tag.outputs.version }}" \
             --body "Automated registry update from release workflow." \
