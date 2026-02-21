@@ -60,21 +60,22 @@
 
 **Path:** `.github/workflows/release-plugin.yml`
 
-**Trigger:** Push a git tag matching `<plugin-id>-v*` (e.g., `example-hello-world-v0.1.0`)
+**Triggers:**
+- Push a git tag matching `<plugin-id>-v*` (e.g., `example-hello-world-v0.1.0`)
+- Manual dispatch: `gh workflow run "Release Plugin" -f tag=<tag>`
 
 **Steps:**
-1. Checkout the repo
+1. Checkout the repo (for manual dispatch, checkout the tag)
 2. Navigate to the plugin directory (`plugins/<plugin-id>/`)
-3. `npm ci && npm run build && npm test`
+3. `npm install && npm run build && npm test`
 4. Validate the manifest (run the same validation the app does)
 5. Create a zip containing: `manifest.json`, `dist/main.js`, `README.md` (and any other declared assets)
 6. Compute sha256 of the zip
 7. Create a GitHub Release with the zip attached
-8. Update `registry/registry.json`:
+8. Open a PR to update `registry/registry.json`:
    - Add or update the plugin entry
-   - Set the new version's asset URL, sha256, permissions
+   - Set the new version's asset URL, sha256, permissions, size
    - Update `latest` field
-9. Commit and push the registry update
 
 **Separate workflow for registry validation:**
 - On PR, validate that `registry.json` is valid JSON matching the schema
@@ -92,10 +93,12 @@ For first-party plugins developed in this repo:
 # 1. Update the plugin version in manifest.json and package.json
 # 2. Build and test
 cd plugins/my-plugin && npm run build && npm test
-# 3. Tag the release
-git tag my-plugin-v1.0.0
+# 3. Commit via PR (branch protection requires it)
+# 4. Tag the release on main
+git tag -m "Release my-plugin v1.0.0" my-plugin-v1.0.0
 git push origin my-plugin-v1.0.0
-# 4. CI handles the rest
+# 5. CI creates a GitHub Release and opens a registry update PR
+# 6. Merge the registry PR
 ```
 
 ---
