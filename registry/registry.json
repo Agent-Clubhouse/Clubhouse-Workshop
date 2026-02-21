@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated": "2026-02-18T00:00:00Z",
+  "updated": "2026-02-21T22:50:08.578Z",
   "plugins": [
     {
       "id": "example-hello-world",
@@ -10,15 +10,23 @@
       "official": true,
       "repo": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop",
       "path": "plugins/example-hello-world",
-      "tags": ["example", "starter"],
+      "tags": [
+        "example",
+        "starter"
+      ],
       "latest": "0.1.0",
       "releases": {
         "0.1.0": {
           "api": 0.5,
           "asset": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop/releases/download/example-hello-world-v0.1.0/example-hello-world-v0.1.0.zip",
-          "sha256": "",
-          "permissions": ["logging", "storage", "notifications"],
-          "size": 0
+          "sha256": "e772faf55bf613252c69b7d072776a0d60cb285d8ccf980bb5e4d678c062c743",
+          "permissions": [
+            "logging",
+            "storage",
+            "notifications",
+            "commands"
+          ],
+          "size": 3116
         }
       }
     },
@@ -30,14 +38,26 @@
       "official": true,
       "repo": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop",
       "path": "plugins/code-review",
-      "tags": ["ai", "code-review", "git"],
+      "tags": [
+        "ai",
+        "code-review",
+        "git"
+      ],
       "latest": "0.1.0",
       "releases": {
         "0.1.0": {
           "api": 0.5,
           "asset": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop/releases/download/code-review-v0.1.0/code-review-v0.1.0.zip",
           "sha256": "",
-          "permissions": ["logging", "storage", "notifications", "files", "git", "agents", "commands"],
+          "permissions": [
+            "logging",
+            "storage",
+            "notifications",
+            "files",
+            "git",
+            "agents",
+            "commands"
+          ],
           "size": 0
         }
       }
@@ -50,14 +70,25 @@
       "official": true,
       "repo": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop",
       "path": "plugins/standup",
-      "tags": ["ai", "standup", "productivity"],
+      "tags": [
+        "ai",
+        "standup",
+        "productivity"
+      ],
       "latest": "0.1.0",
       "releases": {
         "0.1.0": {
           "api": 0.5,
           "asset": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop/releases/download/standup-v0.1.0/standup-v0.1.0.zip",
           "sha256": "",
-          "permissions": ["logging", "storage", "notifications", "agents", "projects", "git"],
+          "permissions": [
+            "logging",
+            "storage",
+            "notifications",
+            "agents",
+            "projects",
+            "git"
+          ],
           "size": 0
         }
       }
@@ -70,14 +101,23 @@
       "official": true,
       "repo": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop",
       "path": "plugins/pomodoro",
-      "tags": ["productivity", "timer"],
+      "tags": [
+        "productivity",
+        "timer"
+      ],
       "latest": "0.1.0",
       "releases": {
         "0.1.0": {
           "api": 0.5,
           "asset": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop/releases/download/pomodoro-v0.1.0/pomodoro-v0.1.0.zip",
           "sha256": "",
-          "permissions": ["logging", "storage", "notifications", "commands", "widgets"],
+          "permissions": [
+            "logging",
+            "storage",
+            "notifications",
+            "commands",
+            "widgets"
+          ],
           "size": 0
         }
       }
