@@ -4,6 +4,14 @@ import type {
   PanelProps,
   AgentInfo,
 } from "@clubhouse/plugin-types";
+import {
+  relativeTime,
+  typeColor,
+  stateColor,
+  priorityLabel,
+  statusBadgeStyle,
+  stripHtml,
+} from "./helpers";
 
 const React = globalThis.React;
 const { useState, useEffect, useCallback, useRef, useMemo } = React;
@@ -144,21 +152,6 @@ const workItemState = {
 // Helpers
 // ---------------------------------------------------------------------------
 
-function relativeTime(dateStr: string): string {
-  const now = Date.now();
-  const then = new Date(dateStr).getTime();
-  const diffMs = now - then;
-  const diffMin = Math.floor(diffMs / 60000);
-  if (diffMin < 1) return "just now";
-  if (diffMin < 60) return `${diffMin}m ago`;
-  const diffH = Math.floor(diffMin / 60);
-  if (diffH < 24) return `${diffH}h ago`;
-  const diffD = Math.floor(diffH / 24);
-  if (diffD < 30) return `${diffD}d ago`;
-  const diffMo = Math.floor(diffD / 30);
-  return `${diffMo}mo ago`;
-}
-
 function getConfig(api: PluginAPI): AdoConfig {
   return {
     organization: (api.settings.get<string>("organization") || "").replace(/\/+$/, ""),
@@ -176,43 +169,6 @@ function baseArgs(config: AdoConfig): string[] {
   if (config.organization) args.push("--org", config.organization);
   if (config.project) args.push("--project", config.project);
   return args;
-}
-
-function typeColor(type: string): string {
-  switch (type.toLowerCase()) {
-    case "bug": return "#cc293d";
-    case "task": return "#f2cb1d";
-    case "user story": return "#009ccc";
-    case "product backlog item": return "#009ccc";
-    case "feature": return "#773b93";
-    case "epic": return "#ff7b00";
-    case "issue": return "#009ccc";
-    case "impediment": return "#cc293d";
-    default: return "#888";
-  }
-}
-
-function stateColor(state: string): { bg: string; fg: string; border: string } {
-  const s = state.toLowerCase();
-  if (s === "new" || s === "to do" || s === "proposed")
-    return { bg: "rgba(180,180,180,0.1)", fg: "#b4b4b4", border: "rgba(180,180,180,0.3)" };
-  if (s === "active" || s === "in progress" || s === "committed" || s === "doing")
-    return { bg: "rgba(0,122,204,0.1)", fg: "#007acc", border: "rgba(0,122,204,0.3)" };
-  if (s === "resolved" || s === "done")
-    return { bg: "rgba(64,200,100,0.1)", fg: "#4ade80", border: "rgba(64,200,100,0.3)" };
-  if (s === "closed" || s === "removed")
-    return { bg: "rgba(168,85,247,0.1)", fg: "#c084fc", border: "rgba(168,85,247,0.3)" };
-  return { bg: "rgba(180,180,180,0.1)", fg: "#b4b4b4", border: "rgba(180,180,180,0.3)" };
-}
-
-function priorityLabel(p: number): string {
-  switch (p) {
-    case 1: return "Critical";
-    case 2: return "High";
-    case 3: return "Medium";
-    case 4: return "Low";
-    default: return "";
-  }
 }
 
 function buildWorkItemUrl(config: AdoConfig, id: number): string {
@@ -430,43 +386,6 @@ function buildAgentPrompt(item: WorkItemDetail): string {
   ].filter(Boolean).join("\n");
 }
 
-/** Strip HTML tags for plain-text display. */
-function stripHtml(html: string): string {
-  return html
-    .replace(/<br\s*\/?>/gi, "\n")
-    .replace(/<\/p>/gi, "\n")
-    .replace(/<\/div>/gi, "\n")
-    .replace(/<\/li>/gi, "\n")
-    .replace(/<[^>]+>/g, "")
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/&nbsp;/g, " ")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
-}
-
-function statusBadgeStyle(status: AgentInfo["status"]): React.CSSProperties {
-  const base: React.CSSProperties = {
-    fontSize: "9px",
-    padding: "1px 4px",
-    borderRadius: "3px",
-    display: "inline-block",
-  };
-  switch (status) {
-    case "sleeping":
-      return { ...base, background: "rgba(64,200,100,0.15)", color: "#4ade80" };
-    case "running":
-      return { ...base, background: "rgba(234,179,8,0.15)", color: "#facc15" };
-    case "error":
-      return { ...base, background: "rgba(239,68,68,0.15)", color: "#f87171" };
-    default:
-      return base;
-  }
-}
-
 function SendToAgentDialog({
   api,
   item,
@@ -565,8 +484,8 @@ function SendToAgentDialog({
     >
       <div
         style={{
-          background: "var(--panel-bg, #1e1e2e)",
-          border: "1px solid var(--border-color, #333)",
+          background: "var(--bg-primary, #18181b)",
+          border: "1px solid var(--border-primary, #3f3f46)",
           borderRadius: "8px",
           padding: "16px",
           width: "320px",
@@ -575,10 +494,10 @@ function SendToAgentDialog({
           boxShadow: "0 8px 32px rgba(0,0,0,0.4)",
         }}
       >
-        <div style={{ fontSize: "14px", fontWeight: 500, color: "var(--text-primary, #e0e0e0)", marginBottom: "4px" }}>
+        <div style={{ fontSize: "14px", fontWeight: 500, color: "var(--text-primary, #e4e4e7)", marginBottom: "4px" }}>
           Assign to Agent
         </div>
-        <div style={{ fontSize: "10px", color: "var(--text-secondary, #888)", marginBottom: "12px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+        <div style={{ fontSize: "10px", color: "var(--text-secondary, #a1a1aa)", marginBottom: "12px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
           #{item.id} {item.title}
         </div>
 
@@ -594,19 +513,19 @@ function SendToAgentDialog({
             width: "100%",
             padding: "6px 8px",
             fontSize: "12px",
-            background: "var(--input-bg, #1a1a2e)",
-            border: "1px solid var(--border-color, #333)",
+            background: "var(--bg-secondary, #27272a)",
+            border: "1px solid var(--border-primary, #3f3f46)",
             borderRadius: "4px",
-            color: "var(--text-primary, #e0e0e0)",
+            color: "var(--text-primary, #e4e4e7)",
             resize: "none",
-            fontFamily: "var(--font-family)",
+            fontFamily: "var(--font-family, system-ui, -apple-system, sans-serif)",
             boxSizing: "border-box",
           }}
         />
 
         <div style={{ marginTop: "12px", display: "flex", flexDirection: "column", gap: "4px" }}>
           {durableAgents.length === 0 ? (
-            <div style={{ fontSize: "12px", color: "var(--text-secondary, #888)", textAlign: "center", padding: "16px 0" }}>
+            <div style={{ fontSize: "12px", color: "var(--text-secondary, #a1a1aa)", textAlign: "center", padding: "16px 0" }}>
               No durable agents found
             </div>
           ) : (
@@ -621,12 +540,12 @@ function SendToAgentDialog({
                     textAlign: "left",
                     padding: "8px 10px",
                     fontSize: "12px",
-                    color: "var(--text-primary, #e0e0e0)",
+                    color: "var(--text-primary, #e4e4e7)",
                     borderRadius: "4px",
-                    border: isSelected ? "1px solid var(--accent-color, #4a6cf7)" : "1px solid transparent",
-                    background: isSelected ? "rgba(74,108,247,0.1)" : "transparent",
+                    border: isSelected ? "1px solid var(--text-accent, #8b5cf6)" : "1px solid transparent",
+                    background: isSelected ? "var(--bg-accent, rgba(139, 92, 246, 0.15))" : "transparent",
                     cursor: "pointer",
-                    fontFamily: "var(--font-family)",
+                    fontFamily: "var(--font-family, system-ui, -apple-system, sans-serif)",
                   }}
                 >
                   <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
@@ -634,7 +553,7 @@ function SendToAgentDialog({
                     <span style={{ fontWeight: 500 }}>{agent.name}</span>
                     <span style={statusBadgeStyle(agent.status)}>{agent.status}</span>
                   </div>
-                  <div style={{ fontSize: "10px", color: "var(--text-secondary, #888)", marginTop: "2px", paddingLeft: "22px" }}>
+                  <div style={{ fontSize: "10px", color: "var(--text-secondary, #a1a1aa)", marginTop: "2px", paddingLeft: "22px" }}>
                     {agent.status === "running" ? "Will interrupt current work" : "Assign work item to this agent"}
                   </div>
                 </button>
@@ -647,7 +566,7 @@ function SendToAgentDialog({
           style={{
             marginTop: "12px",
             paddingTop: "12px",
-            borderTop: "1px solid var(--border-color, #333)",
+            borderTop: "1px solid var(--border-primary, #3f3f46)",
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
@@ -670,7 +589,7 @@ function SendToAgentDialog({
                   setSaveAsDefault((e.target as HTMLInputElement).checked)
                 }
               />
-              <span style={{ fontSize: "10px", color: "var(--text-secondary, #888)" }}>
+              <span style={{ fontSize: "10px", color: "var(--text-secondary, #a1a1aa)" }}>
                 Save as default
               </span>
             </label>
@@ -786,23 +705,23 @@ function StatePickerDialog({
     >
       <div
         style={{
-          background: "var(--panel-bg, #1e1e2e)",
-          border: "1px solid var(--border-color, #333)",
+          background: "var(--bg-primary, #18181b)",
+          border: "1px solid var(--border-primary, #3f3f46)",
           borderRadius: "8px",
           padding: "16px",
           width: "260px",
           boxShadow: "0 8px 32px rgba(0,0,0,0.4)",
         }}
       >
-        <div style={{ fontSize: "14px", fontWeight: 500, color: "var(--text-primary, #e0e0e0)", marginBottom: "4px" }}>
+        <div style={{ fontSize: "14px", fontWeight: 500, color: "var(--text-primary, #e4e4e7)", marginBottom: "4px" }}>
           Change State
         </div>
-        <div style={{ fontSize: "10px", color: "var(--text-secondary, #888)", marginBottom: "12px" }}>
+        <div style={{ fontSize: "10px", color: "var(--text-secondary, #a1a1aa)", marginBottom: "12px" }}>
           Current: {item.state}
         </div>
 
         {loadingStates ? (
-          <div style={{ fontSize: "12px", color: "var(--text-secondary, #888)", textAlign: "center", padding: "8px" }}>
+          <div style={{ fontSize: "12px", color: "var(--text-secondary, #a1a1aa)", textAlign: "center", padding: "8px" }}>
             Loading{"\u2026"}
           </div>
         ) : (
@@ -823,7 +742,7 @@ function StatePickerDialog({
                     border: `1px solid ${colors.border}`,
                     background: colors.bg,
                     cursor: "pointer",
-                    fontFamily: "var(--font-family)",
+                    fontFamily: "var(--font-family, system-ui, -apple-system, sans-serif)",
                   }}
                 >
                   {s}
@@ -852,7 +771,7 @@ function ConfigWarning() {
         <div style={{ fontSize: "12px", color: "var(--text-error, #f87171)", marginBottom: "8px" }}>
           Plugin not configured
         </div>
-        <div style={{ fontSize: "11px", color: "var(--text-secondary, #888)", marginBottom: "12px", lineHeight: 1.5 }}>
+        <div style={{ fontSize: "11px", color: "var(--text-secondary, #a1a1aa)", marginBottom: "12px", lineHeight: 1.5 }}>
           Open the plugin settings and configure your Azure DevOps Organization URL and Project name.
           The Azure CLI must also be installed with the azure-devops extension.
         </div>
@@ -1035,7 +954,7 @@ export function SidebarPanel({ api }: PanelProps) {
           <div style={{ fontSize: "12px", color: "var(--text-error, #f87171)", marginBottom: "8px" }}>
             Could not load work items
           </div>
-          <div style={{ fontSize: "11px", color: "var(--text-secondary, #888)", marginBottom: "12px" }}>
+          <div style={{ fontSize: "11px", color: "var(--text-secondary, #a1a1aa)", marginBottom: "12px" }}>
             {error}
           </div>
           <button onClick={() => fetchItems()} style={btnSecondarySmall}>
@@ -1050,7 +969,7 @@ export function SidebarPanel({ api }: PanelProps) {
     <div style={sidebarContainer}>
       {/* Header */}
       <div style={sidebarHeader}>
-        <span style={{ fontSize: "12px", fontWeight: 500, color: "var(--text-primary, #e0e0e0)" }}>
+        <span style={{ fontSize: "12px", fontWeight: 500, color: "var(--text-primary, #e4e4e7)" }}>
           Work Items
         </span>
         <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
@@ -1073,7 +992,7 @@ export function SidebarPanel({ api }: PanelProps) {
       </div>
 
       {/* Search + filters */}
-      <div style={{ padding: "6px 8px", borderBottom: "1px solid var(--border-color, #222)", display: "flex", gap: "4px", alignItems: "center", flexWrap: "wrap" }}>
+      <div style={{ padding: "6px 8px", borderBottom: "1px solid var(--border-primary, #3f3f46)", display: "flex", gap: "4px", alignItems: "center", flexWrap: "wrap" }}>
         <input
           type="text"
           value={searchQuery}
@@ -1086,11 +1005,11 @@ export function SidebarPanel({ api }: PanelProps) {
             minWidth: "60px",
             padding: "4px 6px",
             fontSize: "11px",
-            border: "1px solid var(--border-color, #333)",
+            border: "1px solid var(--border-primary, #3f3f46)",
             borderRadius: "4px",
-            background: "var(--input-bg, #1a1a2e)",
-            color: "var(--text-primary, #e0e0e0)",
-            fontFamily: "var(--font-family)",
+            background: "var(--bg-secondary, #27272a)",
+            color: "var(--text-primary, #e4e4e7)",
+            fontFamily: "var(--font-family, system-ui, -apple-system, sans-serif)",
             outline: "none",
           }}
         />
@@ -1119,11 +1038,11 @@ export function SidebarPanel({ api }: PanelProps) {
       {/* Work item list */}
       <div style={{ flex: 1, overflowY: "auto" }}>
         {loading && items.length === 0 ? (
-          <div style={{ padding: "16px", textAlign: "center", fontSize: "12px", color: "var(--text-secondary, #888)" }}>
+          <div style={{ padding: "16px", textAlign: "center", fontSize: "12px", color: "var(--text-secondary, #a1a1aa)" }}>
             Loading work items{"\u2026"}
           </div>
         ) : filteredItems.length === 0 ? (
-          <div style={{ padding: "16px", textAlign: "center", fontSize: "12px", color: "var(--text-secondary, #888)" }}>
+          <div style={{ padding: "16px", textAlign: "center", fontSize: "12px", color: "var(--text-secondary, #a1a1aa)" }}>
             {searchQuery ? "No matching work items" : "No work items found"}
           </div>
         ) : (
@@ -1135,7 +1054,7 @@ export function SidebarPanel({ api }: PanelProps) {
                 style={{
                   padding: "8px 10px",
                   cursor: "pointer",
-                  background: item.id === selected ? "var(--item-active-bg, #2a2a4a)" : "transparent",
+                  background: item.id === selected ? "var(--bg-active, #3f3f46)" : "transparent",
                 }}
               >
                 {/* Top row: type indicator + ID + title */}
@@ -1149,10 +1068,10 @@ export function SidebarPanel({ api }: PanelProps) {
                       flexShrink: 0,
                     }}
                   />
-                  <span style={{ fontSize: "10px", color: "var(--text-secondary, #888)", flexShrink: 0 }}>
+                  <span style={{ fontSize: "10px", color: "var(--text-secondary, #a1a1aa)", flexShrink: 0 }}>
                     #{item.id}
                   </span>
-                  <span style={{ fontSize: "12px", color: "var(--text-primary, #e0e0e0)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  <span style={{ fontSize: "12px", color: "var(--text-primary, #e4e4e7)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     {item.title}
                   </span>
                 </div>
@@ -1180,11 +1099,11 @@ export function SidebarPanel({ api }: PanelProps) {
                     );
                   })()}
                   {item.assignedTo && (
-                    <span style={{ fontSize: "9px", color: "var(--text-secondary, #666)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    <span style={{ fontSize: "9px", color: "var(--text-tertiary, #71717a)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                       {item.assignedTo}
                     </span>
                   )}
-                  <span style={{ fontSize: "10px", color: "var(--text-secondary, #888)", marginLeft: "auto", flexShrink: 0 }}>
+                  <span style={{ fontSize: "10px", color: "var(--text-secondary, #a1a1aa)", marginLeft: "auto", flexShrink: 0 }}>
                     {relativeTime(item.changedDate)}
                   </span>
                 </div>
@@ -1454,7 +1373,7 @@ export function MainPanel({ api }: PanelProps) {
     return (
       <div style={mainContainer}>
         <div style={mainHeader}>
-          <span style={{ fontSize: "13px", fontWeight: 500, color: "var(--text-primary, #e0e0e0)" }}>
+          <span style={{ fontSize: "13px", fontWeight: 500, color: "var(--text-primary, #e4e4e7)" }}>
             New Work Item
           </span>
         </div>
@@ -1596,7 +1515,7 @@ export function MainPanel({ api }: PanelProps) {
   if (selected === null) {
     return (
       <div style={{ ...mainContainer, justifyContent: "center", alignItems: "center" }}>
-        <span style={{ fontSize: "12px", color: "var(--text-secondary, #888)" }}>
+        <span style={{ fontSize: "12px", color: "var(--text-secondary, #a1a1aa)" }}>
           Select a work item to view details
         </span>
       </div>
@@ -1606,7 +1525,7 @@ export function MainPanel({ api }: PanelProps) {
   if (loading) {
     return (
       <div style={{ ...mainContainer, justifyContent: "center", alignItems: "center" }}>
-        <span style={{ fontSize: "12px", color: "var(--text-secondary, #888)" }}>
+        <span style={{ fontSize: "12px", color: "var(--text-secondary, #a1a1aa)" }}>
           Loading work item{"\u2026"}
         </span>
       </div>
@@ -1616,7 +1535,7 @@ export function MainPanel({ api }: PanelProps) {
   if (!detail) {
     return (
       <div style={{ ...mainContainer, justifyContent: "center", alignItems: "center" }}>
-        <span style={{ fontSize: "12px", color: "var(--text-secondary, #888)" }}>
+        <span style={{ fontSize: "12px", color: "var(--text-secondary, #a1a1aa)" }}>
           Failed to load work item details
         </span>
       </div>
@@ -1662,10 +1581,10 @@ export function MainPanel({ api }: PanelProps) {
                 flexShrink: 0,
               }}
             />
-            <span style={{ fontSize: "12px", color: "var(--text-secondary, #888)", flexShrink: 0 }}>
+            <span style={{ fontSize: "12px", color: "var(--text-secondary, #a1a1aa)", flexShrink: 0 }}>
               #{detail.id}
             </span>
-            <span style={{ fontSize: "13px", fontWeight: 500, color: "var(--text-primary, #e0e0e0)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            <span style={{ fontSize: "13px", fontWeight: 500, color: "var(--text-primary, #e4e4e7)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
               {detail.title}
             </span>
           </div>
@@ -1690,7 +1609,7 @@ export function MainPanel({ api }: PanelProps) {
       </div>
 
       {/* Metadata row */}
-      <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: "6px", padding: "8px 16px", borderBottom: "1px solid var(--border-color, #222)", background: "var(--panel-bg-alt, rgba(0,0,0,0.15))" }}>
+      <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: "6px", padding: "8px 16px", borderBottom: "1px solid var(--border-primary, #3f3f46)", background: "var(--bg-tertiary, #333338)" }}>
         <button onClick={() => setShowStateDialog(true)} style={stateBadge} title="Change state">
           {detail.state}
         </button>
@@ -1698,14 +1617,14 @@ export function MainPanel({ api }: PanelProps) {
           {detail.workItemType}
         </span>
         {detail.priority > 0 && (
-          <span style={{ fontSize: "10px", color: "var(--text-secondary, #888)" }}>
+          <span style={{ fontSize: "10px", color: "var(--text-secondary, #a1a1aa)" }}>
             P{detail.priority} ({priorityLabel(detail.priority)})
           </span>
         )}
-        <span style={{ fontSize: "10px", color: "var(--text-secondary, #888)" }}>
+        <span style={{ fontSize: "10px", color: "var(--text-secondary, #a1a1aa)" }}>
           by {detail.createdBy}
         </span>
-        <span style={{ fontSize: "10px", color: "var(--text-secondary, #888)" }}>
+        <span style={{ fontSize: "10px", color: "var(--text-secondary, #a1a1aa)" }}>
           created {relativeTime(detail.createdDate)}
         </span>
 
@@ -1718,22 +1637,22 @@ export function MainPanel({ api }: PanelProps) {
               setEditAssignedTo((e.target as HTMLInputElement).value)
             }
             placeholder="Assigned to"
-            style={{ fontSize: "10px", padding: "2px 6px", background: "var(--input-bg, #1a1a2e)", border: "1px solid var(--border-color, #333)", borderRadius: "4px", color: "var(--text-primary, #e0e0e0)", fontFamily: "var(--font-family)", outline: "none" }}
+            style={{ fontSize: "10px", padding: "2px 6px", background: "var(--bg-secondary, #27272a)", border: "1px solid var(--border-primary, #3f3f46)", borderRadius: "4px", color: "var(--text-primary, #e4e4e7)", fontFamily: "var(--font-family, system-ui, -apple-system, sans-serif)", outline: "none" }}
           />
         ) : detail.assignedTo ? (
-          <span style={{ fontSize: "10px", padding: "1px 6px", background: "var(--item-active-bg, #2a2a4a)", color: "var(--text-secondary, #aaa)", borderRadius: "4px" }}>
+          <span style={{ fontSize: "10px", padding: "1px 6px", background: "var(--bg-active, #3f3f46)", color: "var(--text-secondary, #a1a1aa)", borderRadius: "4px" }}>
             {detail.assignedTo}
           </span>
         ) : null}
 
         {/* Area + Iteration paths */}
         {detail.areaPath && (
-          <span style={{ fontSize: "9px", color: "var(--text-secondary, #666)" }}>
+          <span style={{ fontSize: "9px", color: "var(--text-tertiary, #71717a)" }}>
             Area: {detail.areaPath}
           </span>
         )}
         {detail.iterationPath && (
-          <span style={{ fontSize: "9px", color: "var(--text-secondary, #666)" }}>
+          <span style={{ fontSize: "9px", color: "var(--text-tertiary, #71717a)" }}>
             Iter: {detail.iterationPath}
           </span>
         )}
@@ -1747,7 +1666,7 @@ export function MainPanel({ api }: PanelProps) {
               setEditTags((e.target as HTMLInputElement).value)
             }
             placeholder="Tags (semicolon separated)"
-            style={{ fontSize: "10px", padding: "2px 6px", background: "var(--input-bg, #1a1a2e)", border: "1px solid var(--border-color, #333)", borderRadius: "4px", color: "var(--text-primary, #e0e0e0)", fontFamily: "var(--font-family)", outline: "none" }}
+            style={{ fontSize: "10px", padding: "2px 6px", background: "var(--bg-secondary, #27272a)", border: "1px solid var(--border-primary, #3f3f46)", borderRadius: "4px", color: "var(--text-primary, #e4e4e7)", fontFamily: "var(--font-family, system-ui, -apple-system, sans-serif)", outline: "none" }}
           />
         ) : detail.tags ? (
           detail.tags.split(";").map(tag => tag.trim()).filter(Boolean).map(tag => (
@@ -1757,9 +1676,9 @@ export function MainPanel({ api }: PanelProps) {
                 fontSize: "9px",
                 padding: "0 5px",
                 borderRadius: "10px",
-                backgroundColor: "rgba(100,100,200,0.15)",
-                color: "#8888cc",
-                border: "1px solid rgba(100,100,200,0.3)",
+                backgroundColor: "var(--bg-accent, rgba(139, 92, 246, 0.15))",
+                color: "var(--text-accent, #8b5cf6)",
+                border: "1px solid var(--border-secondary, #52525b)",
               }}
             >
               {tag}
@@ -1772,7 +1691,7 @@ export function MainPanel({ api }: PanelProps) {
       <div style={{ flex: 1, overflowY: "auto" }}>
         {/* Description */}
         {editing ? (
-          <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--border-color, #222)" }}>
+          <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--border-primary, #3f3f46)" }}>
             <textarea
               value={editDescription}
               onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
@@ -1784,19 +1703,19 @@ export function MainPanel({ api }: PanelProps) {
             />
           </div>
         ) : detail.description ? (
-          <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--border-color, #222)" }}>
+          <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--border-primary, #3f3f46)" }}>
             <pre style={preStyle}>{stripHtml(detail.description)}</pre>
           </div>
         ) : (
-          <div style={{ padding: "12px 16px", fontSize: "12px", color: "var(--text-secondary, #888)", fontStyle: "italic", borderBottom: "1px solid var(--border-color, #222)" }}>
+          <div style={{ padding: "12px 16px", fontSize: "12px", color: "var(--text-secondary, #a1a1aa)", fontStyle: "italic", borderBottom: "1px solid var(--border-primary, #3f3f46)" }}>
             No description provided.
           </div>
         )}
 
         {/* Discussion / Comments */}
         {detail.comments.length > 0 && (
-          <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--border-color, #222)" }}>
-            <div style={{ fontSize: "12px", fontWeight: 500, color: "var(--text-primary, #e0e0e0)", marginBottom: "12px" }}>
+          <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--border-primary, #3f3f46)" }}>
+            <div style={{ fontSize: "12px", fontWeight: 500, color: "var(--text-primary, #e4e4e7)", marginBottom: "12px" }}>
               {detail.comments.length} comment{detail.comments.length === 1 ? "" : "s"}
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
@@ -1804,16 +1723,16 @@ export function MainPanel({ api }: PanelProps) {
                 <div
                   key={i}
                   style={{
-                    border: "1px solid var(--border-color, #222)",
+                    border: "1px solid var(--border-primary, #3f3f46)",
                     borderRadius: "6px",
                     overflow: "hidden",
                   }}
                 >
-                  <div style={{ display: "flex", alignItems: "center", gap: "8px", padding: "6px 10px", background: "var(--panel-bg-alt, rgba(0,0,0,0.15))", borderBottom: "1px solid var(--border-color, #222)" }}>
-                    <span style={{ fontSize: "12px", fontWeight: 500, color: "var(--text-primary, #e0e0e0)" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px", padding: "6px 10px", background: "var(--bg-tertiary, #333338)", borderBottom: "1px solid var(--border-primary, #3f3f46)" }}>
+                    <span style={{ fontSize: "12px", fontWeight: 500, color: "var(--text-primary, #e4e4e7)" }}>
                       {comment.author}
                     </span>
-                    <span style={{ fontSize: "10px", color: "var(--text-secondary, #888)" }}>
+                    <span style={{ fontSize: "10px", color: "var(--text-secondary, #a1a1aa)" }}>
                       {relativeTime(comment.createdDate)}
                     </span>
                   </div>
@@ -1828,7 +1747,7 @@ export function MainPanel({ api }: PanelProps) {
 
         {/* Add comment */}
         <div style={{ padding: "12px 16px" }}>
-          <div style={{ fontSize: "12px", fontWeight: 500, color: "var(--text-primary, #e0e0e0)", marginBottom: "8px" }}>
+          <div style={{ fontSize: "12px", fontWeight: 500, color: "var(--text-primary, #e4e4e7)", marginBottom: "8px" }}>
             Add a comment
           </div>
           <textarea
@@ -1889,8 +1808,8 @@ const sidebarContainer: React.CSSProperties = {
   display: "flex",
   flexDirection: "column",
   height: "100%",
-  fontFamily: "var(--font-family)",
-  background: "var(--sidebar-bg, #181825)",
+  fontFamily: "var(--font-family, system-ui, -apple-system, sans-serif)",
+  background: "var(--bg-secondary, #27272a)",
 };
 
 const sidebarHeader: React.CSSProperties = {
@@ -1898,34 +1817,34 @@ const sidebarHeader: React.CSSProperties = {
   alignItems: "center",
   justifyContent: "space-between",
   padding: "8px 10px",
-  borderBottom: "1px solid var(--border-color, #222)",
+  borderBottom: "1px solid var(--border-primary, #3f3f46)",
 };
 
 const sidebarHeaderBtn: React.CSSProperties = {
   padding: "2px 8px",
   fontSize: "12px",
-  color: "var(--text-secondary, #888)",
+  color: "var(--text-secondary, #a1a1aa)",
   background: "transparent",
   border: "none",
   borderRadius: "4px",
   cursor: "pointer",
-  fontFamily: "var(--font-family)",
+  fontFamily: "var(--font-family, system-ui, -apple-system, sans-serif)",
 };
 
 const mainContainer: React.CSSProperties = {
   display: "flex",
   flexDirection: "column",
   height: "100%",
-  fontFamily: "var(--font-family)",
-  background: "var(--panel-bg, #1e1e2e)",
+  fontFamily: "var(--font-family, system-ui, -apple-system, sans-serif)",
+  background: "var(--bg-primary, #18181b)",
 };
 
 const mainHeader: React.CSSProperties = {
   display: "flex",
   alignItems: "center",
   padding: "8px 16px",
-  borderBottom: "1px solid var(--border-color, #222)",
-  background: "var(--sidebar-bg, #181825)",
+  borderBottom: "1px solid var(--border-primary, #3f3f46)",
+  background: "var(--bg-secondary, #27272a)",
   flexShrink: 0,
 };
 
@@ -1935,8 +1854,8 @@ const mainFooter: React.CSSProperties = {
   justifyContent: "flex-end",
   gap: "8px",
   padding: "10px 16px",
-  borderTop: "1px solid var(--border-color, #222)",
-  background: "var(--sidebar-bg, #181825)",
+  borderTop: "1px solid var(--border-primary, #3f3f46)",
+  background: "var(--bg-secondary, #27272a)",
   flexShrink: 0,
 };
 
@@ -1944,7 +1863,7 @@ const formLabel: React.CSSProperties = {
   display: "block",
   fontSize: "12px",
   fontWeight: 500,
-  color: "var(--text-secondary, #aaa)",
+  color: "var(--text-secondary, #a1a1aa)",
   marginBottom: "4px",
 };
 
@@ -1952,11 +1871,11 @@ const formInput: React.CSSProperties = {
   width: "100%",
   padding: "6px 10px",
   borderRadius: "6px",
-  border: "1px solid var(--border-color, #333)",
-  background: "var(--input-bg, #1a1a2e)",
-  color: "var(--text-primary, #e0e0e0)",
+  border: "1px solid var(--border-primary, #3f3f46)",
+  background: "var(--bg-secondary, #27272a)",
+  color: "var(--text-primary, #e4e4e7)",
   fontSize: "13px",
-  fontFamily: "var(--font-family)",
+  fontFamily: "var(--font-family, system-ui, -apple-system, sans-serif)",
   boxSizing: "border-box",
   outline: "none",
 };
@@ -1964,21 +1883,21 @@ const formInput: React.CSSProperties = {
 const filterSelect: React.CSSProperties = {
   padding: "4px 4px",
   fontSize: "10px",
-  border: "1px solid var(--border-color, #333)",
+  border: "1px solid var(--border-primary, #3f3f46)",
   borderRadius: "4px",
-  background: "var(--input-bg, #1a1a2e)",
-  color: "var(--text-primary, #e0e0e0)",
-  fontFamily: "var(--font-family)",
+  background: "var(--bg-secondary, #27272a)",
+  color: "var(--text-primary, #e4e4e7)",
+  fontFamily: "var(--font-family, system-ui, -apple-system, sans-serif)",
   cursor: "pointer",
 };
 
 const preStyle: React.CSSProperties = {
   whiteSpace: "pre-wrap",
   wordWrap: "break-word",
-  fontFamily: "var(--font-mono, monospace)",
+  fontFamily: "var(--font-mono, ui-monospace, monospace)",
   fontSize: "13px",
   lineHeight: 1.6,
-  color: "var(--text-primary, #e0e0e0)",
+  color: "var(--text-primary, #e4e4e7)",
   margin: 0,
 };
 
@@ -1988,19 +1907,19 @@ const btnPrimarySmall: React.CSSProperties = {
   fontWeight: 500,
   borderRadius: "4px",
   border: "none",
-  background: "var(--accent-color, #4a6cf7)",
+  background: "var(--text-accent, #8b5cf6)",
   color: "#fff",
   cursor: "pointer",
-  fontFamily: "var(--font-family)",
+  fontFamily: "var(--font-family, system-ui, -apple-system, sans-serif)",
 };
 
 const btnSecondarySmall: React.CSSProperties = {
   padding: "4px 12px",
   fontSize: "12px",
   borderRadius: "4px",
-  border: "1px solid var(--border-color, #333)",
+  border: "1px solid var(--border-primary, #3f3f46)",
   background: "transparent",
-  color: "var(--text-primary, #e0e0e0)",
+  color: "var(--text-primary, #e4e4e7)",
   cursor: "pointer",
-  fontFamily: "var(--font-family)",
+  fontFamily: "var(--font-family, system-ui, -apple-system, sans-serif)",
 };
