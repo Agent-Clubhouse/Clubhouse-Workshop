@@ -1,7 +1,7 @@
 {
   "id": "github-issues",
   "name": "GitHub Issue Tracker",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Create and manage GitHub issues with template support, label validation, and agent assignment",
   "author": "Clubhouse Workshop",
   "engine": { "api": 0.5 },
