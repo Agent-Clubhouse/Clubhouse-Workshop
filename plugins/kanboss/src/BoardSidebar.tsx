@@ -5,6 +5,7 @@ import type { PluginAPI } from '@clubhouse/plugin-types';
 import type { Board } from './types';
 import { BOARDS_KEY, cardsKey, generateId } from './types';
 import { kanBossState } from './state';
+import { mutateStorage } from './storageQueue';
 import * as S from './styles';
 
 // ── Default board factory ───────────────────────────────────────────────
@@ -175,8 +176,10 @@ export function BoardSidebar({ api }: { api: PluginAPI }) {
 
   const handleCreate = useCallback(async (name: string, gitHistory: boolean) => {
     const board = createDefaultBoard(name, gitHistory);
-    const next = [...boards, board];
-    await boardsStorage.write(BOARDS_KEY, next);
+    const next = await mutateStorage<Board>(boardsStorage, BOARDS_KEY, (boards) => {
+      boards.push(board);
+      return boards;
+    });
     const cardsStor = gitHistory ? api.storage.project : api.storage.projectLocal;
     await cardsStor.write(cardsKey(board.id), []);
     setBoards(next);
@@ -194,8 +197,8 @@ export function BoardSidebar({ api }: { api: PluginAPI }) {
     const ok = await api.ui.showConfirm(`Delete board "${board.name}" and all its cards? This cannot be undone.`);
     if (!ok) return;
 
-    const next = boards.filter((b) => b.id !== boardId);
-    await boardsStorage.write(BOARDS_KEY, next);
+    const next = await mutateStorage<Board>(boardsStorage, BOARDS_KEY, (boards) =>
+      boards.filter((b) => b.id !== boardId));
     const cardsStor = board.config.gitHistory ? api.storage.project : api.storage.projectLocal;
     await cardsStor.delete(cardsKey(boardId));
     setBoards(next);
@@ -210,12 +213,15 @@ export function BoardSidebar({ api }: { api: PluginAPI }) {
 
   const handleReorder = useCallback(async (fromIdx: number, toIdx: number) => {
     if (fromIdx === toIdx) return;
-    const result = [...boards];
-    const [moved] = result.splice(fromIdx, 1);
-    result.splice(toIdx, 0, moved);
-    setBoards(result);
-    kanBossState.setBoards(result);
-    await boardsStorage.write(BOARDS_KEY, result);
+    const updated = await mutateStorage<Board>(boardsStorage, BOARDS_KEY, (boards) => {
+      if (fromIdx >= boards.length || toIdx >= boards.length) return boards;
+      const result = [...boards];
+      const [moved] = result.splice(fromIdx, 1);
+      result.splice(toIdx, 0, moved);
+      return result;
+    });
+    setBoards(updated);
+    kanBossState.setBoards(updated);
   }, [boards, boardsStorage]);
 
   const handleSelect = useCallback((boardId: string) => {
