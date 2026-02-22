@@ -9,6 +9,7 @@ import { initAutomationEngine, shutdownAutomationEngine } from './AutomationEngi
 // ── activate() ──────────────────────────────────────────────────────────
 
 export function activate(ctx: PluginContext, api: PluginAPI): void {
+  kanBossState.switchProject();
   api.logging.info('KanBoss plugin activated');
 
   // Register commands

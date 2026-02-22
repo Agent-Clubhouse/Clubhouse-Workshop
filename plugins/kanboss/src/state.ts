@@ -15,6 +15,23 @@ export interface FilterState {
   stuckOnly: boolean;
 }
 
+export function filtersEqual(a: FilterState, b: FilterState): boolean {
+  return (
+    a.searchQuery === b.searchQuery &&
+    a.priorityFilter === b.priorityFilter &&
+    a.labelFilter === b.labelFilter &&
+    a.stuckOnly === b.stuckOnly
+  );
+}
+
+function boardsEqual(a: Board[], b: Board[]): boolean {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    if (a[i].id !== b[i].id || a[i].updatedAt !== b[i].updatedAt) return false;
+  }
+  return true;
+}
+
 export const kanBossState = {
   selectedBoardId: null as string | null,
   boards: [] as Board[],
@@ -44,6 +61,7 @@ export const kanBossState = {
   },
 
   setBoards(boards: Board[]): void {
+    if (boardsEqual(this.boards, boards)) return;
     this.boards = boards;
     this.notify();
   },
@@ -105,6 +123,10 @@ export const kanBossState = {
     for (const fn of this.listeners) {
       fn();
     }
+  },
+
+  switchProject(): void {
+    this.reset();
   },
 
   reset(): void {

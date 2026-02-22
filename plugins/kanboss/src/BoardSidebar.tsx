@@ -153,27 +153,25 @@ export function BoardSidebar({ api }: { api: PluginAPI }) {
     if (!loaded) setLoaded(true);
   }, [boardsStorage, api, loaded]);
 
+  const loadBoardsRef = useRef(loadBoards);
+  loadBoardsRef.current = loadBoards;
+
   useEffect(() => {
     loadBoards();
   }, [loadBoards]);
 
-  useEffect(() => {
-    const unsub = kanBossState.subscribe(() => {
-      setSelectedId(kanBossState.selectedBoardId);
-    });
-    return unsub;
-  }, []);
-
   const refreshRef = useRef(kanBossState.refreshCount);
   useEffect(() => {
     const unsub = kanBossState.subscribe(() => {
+      setSelectedId(kanBossState.selectedBoardId);
+
       if (kanBossState.refreshCount !== refreshRef.current) {
         refreshRef.current = kanBossState.refreshCount;
-        loadBoards();
+        loadBoardsRef.current();
       }
     });
     return unsub;
-  }, [loadBoards]);
+  }, []);
 
   const handleCreate = useCallback(async (name: string, gitHistory: boolean) => {
     const board = createDefaultBoard(name, gitHistory);

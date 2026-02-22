@@ -4,7 +4,7 @@ const { useEffect, useState, useCallback, useRef } = React;
 import type { PluginAPI } from '@clubhouse/plugin-types';
 import type { Board, Card } from './types';
 import { BOARDS_KEY, cardsKey, isCardStuck } from './types';
-import { kanBossState, type FilterState } from './state';
+import { kanBossState, filtersEqual, type FilterState } from './state';
 import { CardCell } from './CardCell';
 import { CardDialog } from './CardDialog';
 import { BoardConfigDialog } from './BoardConfigDialog';
@@ -60,12 +60,20 @@ export function BoardView({ api }: { api: PluginAPI }) {
   const [filter, setFilter] = useState<FilterState>(kanBossState.filter);
 
   // ── Subscribe to state ────────────────────────────────────────────────
+  const loadBoardRef = useRef<(() => void) | null>(null);
+  const refreshRef2 = useRef(kanBossState.refreshCount);
+
   useEffect(() => {
     const unsub = kanBossState.subscribe(() => {
       setSelectedBoardId(kanBossState.selectedBoardId);
       setShowCardDialog(kanBossState.editingCardId !== null);
       setShowConfigDialog(kanBossState.configuringBoard);
-      setFilter({ ...kanBossState.filter });
+      setFilter(prev => filtersEqual(prev, kanBossState.filter) ? prev : { ...kanBossState.filter });
+
+      if (kanBossState.refreshCount !== refreshRef2.current) {
+        refreshRef2.current = kanBossState.refreshCount;
+        loadBoardRef.current?.();
+      }
     });
     setSelectedBoardId(kanBossState.selectedBoardId);
     return unsub;
@@ -92,19 +100,10 @@ export function BoardView({ api }: { api: PluginAPI }) {
     }
   }, [selectedBoardId, boardsStorage, api]);
 
+  loadBoardRef.current = loadBoard;
+
   useEffect(() => {
     loadBoard();
-  }, [loadBoard]);
-
-  const refreshRef = useRef(kanBossState.refreshCount);
-  useEffect(() => {
-    const unsub = kanBossState.subscribe(() => {
-      if (kanBossState.refreshCount !== refreshRef.current) {
-        refreshRef.current = kanBossState.refreshCount;
-        loadBoard();
-      }
-    });
-    return unsub;
   }, [loadBoard]);
 
   // ── Zoom controls ─────────────────────────────────────────────────────
