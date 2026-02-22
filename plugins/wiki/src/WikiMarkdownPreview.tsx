@@ -43,6 +43,17 @@ hljs.registerLanguage('bash', shell);
 hljs.registerLanguage('sql', sql);
 hljs.registerLanguage('cpp', cpp);
 
+// ── HTML escaping ───────────────────────────────────────────────────
+
+export function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 // ── Wiki link styles ────────────────────────────────────────────────
 
 const WIKI_LINK_CSS = `
@@ -103,7 +114,8 @@ export function createWikiLinkExtension(pageNames: string[]) {
       const normalised = token.pageName.toLowerCase();
       const exists = pageSet.has(normalised);
       const cls = exists ? 'wiki-link' : 'wiki-link wiki-link-broken';
-      return `<a class="${cls}" data-wiki-link="${token.pageName}">${token.pageName}</a>`;
+      const escaped = escapeHtml(token.pageName);
+      return `<a class="${cls}" data-wiki-link="${escaped}">${escaped}</a>`;
     },
   };
 }
@@ -150,12 +162,12 @@ export function renderWikiMarkdown(content: string, pageNames: string[], wikiSty
     ? (args: { href: string; text: string; title?: string | null }) => {
         const resolved = resolveAdoLink(args.href);
         if (resolved) {
-          const titleAttr = args.title ? ` title="${args.title}"` : '';
-          return `<a class="wiki-link" data-wiki-link="${resolved}" href="#"${titleAttr}>${args.text}</a>`;
+          const titleAttr = args.title ? ` title="${escapeHtml(args.title)}"` : '';
+          return `<a class="wiki-link" data-wiki-link="${escapeHtml(resolved)}" href="#"${titleAttr}>${args.text}</a>`;
         }
         // External link — render normally
-        const titleAttr = args.title ? ` title="${args.title}"` : '';
-        return `<a href="${args.href}"${titleAttr} target="_blank" rel="noopener noreferrer">${args.text}</a>`;
+        const titleAttr = args.title ? ` title="${escapeHtml(args.title)}"` : '';
+        return `<a href="${escapeHtml(args.href)}"${titleAttr} target="_blank" rel="noopener noreferrer">${args.text}</a>`;
       }
     : undefined;
 

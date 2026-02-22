@@ -1,5 +1,35 @@
 import { describe, it, expect } from 'vitest';
-import { createWikiLinkExtension, renderWikiMarkdown, resolveAdoLink } from '../src/WikiMarkdownPreview';
+import { createWikiLinkExtension, escapeHtml, renderWikiMarkdown, resolveAdoLink } from '../src/WikiMarkdownPreview';
+
+// ── escapeHtml ──────────────────────────────────────────────────────
+
+describe('escapeHtml', () => {
+  it('escapes ampersands', () => {
+    expect(escapeHtml('a&b')).toBe('a&amp;b');
+  });
+
+  it('escapes angle brackets', () => {
+    expect(escapeHtml('<script>')).toBe('&lt;script&gt;');
+  });
+
+  it('escapes double quotes', () => {
+    expect(escapeHtml('"hello"')).toBe('&quot;hello&quot;');
+  });
+
+  it('escapes single quotes', () => {
+    expect(escapeHtml("it's")).toBe('it&#39;s');
+  });
+
+  it('escapes all special characters together', () => {
+    expect(escapeHtml('"><img src=x onerror=alert(1)>')).toBe(
+      '&quot;&gt;&lt;img src=x onerror=alert(1)&gt;',
+    );
+  });
+
+  it('returns plain strings unchanged', () => {
+    expect(escapeHtml('Hello World')).toBe('Hello World');
+  });
+});
 
 // ── createWikiLinkExtension ─────────────────────────────────────────
 
@@ -148,6 +178,28 @@ describe('renderWikiMarkdown XSS sanitization', () => {
     const html = renderWikiMarkdown('[Link](https://example.com)', [], 'ado');
     expect(html).toContain('target="_blank"');
     expect(html).toContain('href="https://example.com"');
+  });
+
+  it('escapes wiki link page names to prevent attribute breakout (issue #44)', () => {
+    const xssPayload = '"><img src=x onerror=alert(1)>';
+    const html = renderWikiMarkdown(`[[${xssPayload}]]`, []);
+    expect(html).not.toContain('onerror');
+    expect(html).not.toContain('<img');
+    expect(html).toContain('&quot;');
+  });
+
+  it('escapes single-quote XSS in wiki link page names', () => {
+    const xssPayload = "'><script>alert(1)</script>";
+    const html = renderWikiMarkdown(`[[${xssPayload}]]`, []);
+    expect(html).not.toContain('<script');
+    expect(html).not.toContain('alert');
+  });
+
+  it('escapes ADO link titles to prevent attribute breakout', () => {
+    const md = '[Click](./page ""><img src=x onerror=alert(1)>")';
+    const html = renderWikiMarkdown(md, [], 'ado');
+    expect(html).not.toContain('onerror');
+    expect(html).not.toContain('<img src=x');
   });
 });
 
