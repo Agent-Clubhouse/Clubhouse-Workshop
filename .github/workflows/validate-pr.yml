@@ -1,0 +1,194 @@
+name: Validate PR
+
+on:
+  pull_request:
+    paths:
+      - 'plugins/**'
+      - 'sdk/**'
+      - 'registry/**'
+      - 'scripts/**'
+
+jobs:
+  # ── Plugin builds & manifests ─────────────────────────────────────────────
+  validate-plugins:
+    if: >-
+      contains(github.event.pull_request.changed_files_url, 'plugins/')
+      || contains(github.event.pull_request.changed_files_url, 'sdk/')
+      || true
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Validate all plugin manifests
+        run: |
+          failed=0
+          for plugin_dir in plugins/*/; do
+            if [ ! -f "$plugin_dir/manifest.json" ]; then
+              continue
+            fi
+            if ! node scripts/validate-manifest.mjs "$plugin_dir"; then
+              failed=1
+            fi
+          done
+          if [ "$failed" -eq 1 ]; then
+            exit 1
+          fi
+
+      - name: Rebuild and check dist files
+        run: |
+          stale=""
+          for plugin_dir in plugins/*/; do
+            plugin=$(basename "$plugin_dir")
+            if [ ! -f "$plugin_dir/package.json" ]; then
+              continue
+            fi
+
+            echo "Building $plugin..."
+            cd "$plugin_dir"
+            npm install --ignore-scripts
+            npm run build
+            cd - > /dev/null
+
+            if ! git diff --quiet "$plugin_dir/dist/"; then
+              stale="$stale $plugin"
+            fi
+          done
+
+          if [ -n "$stale" ]; then
+            echo ""
+            echo "ERROR: dist/ is out of date for:$stale"
+            echo ""
+            echo "Run 'npm run build' in each plugin directory and commit the updated dist files."
+            exit 1
+          fi
+
+          echo "All dist files are up to date."
+
+  # ── Registry schema & content ─────────────────────────────────────────────
+  validate-registry:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR
+        uses: actions/checkout@v4
+
+      - name: Checkout base for diff
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.base_ref }}
+          path: base
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Validate registry
+        run: node scripts/validate-registry.mjs
+
+      - name: Review changed plugins
+        run: |
+          node -e "
+            const fs = require('fs');
+            const prRegistry = JSON.parse(fs.readFileSync('registry/registry.json', 'utf8'));
+            const basePath = 'base/registry/registry.json';
+            const baseRegistry = fs.existsSync(basePath)
+              ? JSON.parse(fs.readFileSync(basePath, 'utf8'))
+              : { plugins: [] };
+
+            const baseIds = new Set(baseRegistry.plugins.map(p => p.id));
+            const newPlugins = prRegistry.plugins.filter(p => !baseIds.has(p.id));
+            const updatedPlugins = prRegistry.plugins.filter(p => {
+              const base = baseRegistry.plugins.find(b => b.id === p.id);
+              return base && base.latest !== p.latest;
+            });
+
+            if (newPlugins.length === 0 && updatedPlugins.length === 0) {
+              console.log('No new or updated plugins detected.');
+              process.exit(0);
+            }
+
+            console.log('New plugins:', newPlugins.map(p => p.id).join(', ') || 'none');
+            console.log('Updated plugins:', updatedPlugins.map(p => p.id).join(', ') || 'none');
+
+            const changed = [...newPlugins, ...updatedPlugins];
+            const errors = [];
+            const warnings = [];
+            const permData = JSON.parse(fs.readFileSync('sdk/permissions.json', 'utf8'));
+
+            for (const plugin of changed) {
+              // Reserved prefix
+              if (plugin.id.startsWith('example-') && !plugin.official) {
+                errors.push(plugin.id + ': The example- prefix is reserved for official examples');
+              }
+
+              // Sensitive permissions
+              for (const [version, release] of Object.entries(plugin.releases || {})) {
+                const perms = release.permissions || [];
+                for (const perm of perms) {
+                  if (permData.sensitive.includes(perm)) {
+                    warnings.push(plugin.id + '@' + version + ': uses sensitive permission \"' + perm + '\"');
+                  }
+                }
+              }
+            }
+
+            if (warnings.length > 0) {
+              console.log('\nWarnings:');
+              warnings.forEach(w => console.log('  -', w));
+            }
+            if (errors.length > 0) {
+              console.log('\nErrors:');
+              errors.forEach(e => console.log('  -', e));
+              process.exit(1);
+            }
+          "
+
+      - name: Check asset URLs are reachable
+        run: |
+          node -e "
+            const fs = require('fs');
+            const prRegistry = JSON.parse(fs.readFileSync('registry/registry.json', 'utf8'));
+            const basePath = 'base/registry/registry.json';
+            const baseRegistry = fs.existsSync(basePath)
+              ? JSON.parse(fs.readFileSync(basePath, 'utf8'))
+              : { plugins: [] };
+
+            const baseIds = new Set(baseRegistry.plugins.map(p => p.id));
+            const changed = prRegistry.plugins.filter(p => {
+              if (!baseIds.has(p.id)) return true;
+              const base = baseRegistry.plugins.find(b => b.id === p.id);
+              return base && base.latest !== p.latest;
+            });
+
+            if (changed.length === 0) process.exit(0);
+
+            (async () => {
+              let hasWarning = false;
+              for (const plugin of changed) {
+                for (const [version, release] of Object.entries(plugin.releases || {})) {
+                  if (!release.asset) continue;
+                  try {
+                    const res = await fetch(release.asset, { method: 'HEAD', redirect: 'follow' });
+                    if (res.ok) {
+                      console.log('OK:', plugin.id + '@' + version, '- asset reachable');
+                    } else {
+                      console.log('WARNING:', plugin.id + '@' + version, '- asset returned', res.status);
+                      hasWarning = true;
+                    }
+                  } catch (e) {
+                    console.log('WARNING:', plugin.id + '@' + version, '- asset not reachable:', e.message);
+                    hasWarning = true;
+                  }
+                }
+              }
+              if (hasWarning) {
+                console.log('\nSome asset URLs are not reachable. This may be expected for new releases.');
+              }
+            })();
+          "
