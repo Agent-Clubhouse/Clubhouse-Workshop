@@ -22,6 +22,21 @@ async function saveReview(api, entry) {
   if (history.length > MAX_HISTORY) history.length = MAX_HISTORY;
   await api.storage.projectLocal.write(HISTORY_KEY, history);
 }
+async function detectDefaultBranch(api) {
+  const configured = api.settings.get("defaultBranch");
+  if (configured) return configured;
+  try {
+    const result = await api.process.exec("git", [
+      "rev-parse",
+      "--abbrev-ref",
+      "origin/HEAD"
+    ]);
+    const branch = result.stdout.trim().replace(/^origin\//, "");
+    if (branch && branch !== "HEAD") return branch;
+  } catch {
+  }
+  return "main";
+}
 function buildStagedPrompt(diff) {
   return `You are a senior code reviewer. Review the following staged git diff. Be concise, constructive, and specific. Organize your feedback by file. Call out bugs, security issues, and style problems. If everything looks good, say so.
 
@@ -76,10 +91,19 @@ function MainPanel({ api }) {
           }
         } else {
           branch = await api.git.currentBranch();
-          const result = await api.process.exec("git", ["diff", "main...HEAD"]);
+          const baseBranch = await detectDefaultBranch(api);
+          const mergeBase = await api.process.exec("git", [
+            "merge-base",
+            "HEAD",
+            `origin/${baseBranch}`
+          ]);
+          const base = mergeBase.stdout.trim();
+          const result = await api.process.exec("git", ["diff", `${base}...HEAD`]);
           diff = result.stdout;
           if (!diff.trim()) {
-            setError(`No changes found on branch "${branch}" relative to main.`);
+            setError(
+              `No changes found on branch "${branch}" relative to ${baseBranch}.`
+            );
             setRunning(false);
             return;
           }
@@ -178,5 +202,6 @@ function MainPanel({ api }) {
 export {
   MainPanel,
   activate,
-  deactivate
+  deactivate,
+  detectDefaultBranch
 };
