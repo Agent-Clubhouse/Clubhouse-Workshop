@@ -26,6 +26,9 @@ function extractYamlValue(yaml, key) {
   const match = yaml.match(new RegExp(`^${key}:\\s*["']?(.+?)["']?\\s*$`, "m"));
   return match ? match[1] : null;
 }
+function isSafeUrl(url) {
+  return /^https?:\/\//i.test(url);
+}
 
 // src/state.ts
 function createIssueState() {
@@ -140,25 +143,35 @@ function renderInline(text) {
     if (m.startsWith("![")) {
       const alt = match[1];
       const src = match[2];
-      nodes.push(
-        /* @__PURE__ */ jsx("img", { src, alt, style: { maxWidth: "100%", borderRadius: "4px", margin: "4px 0" } }, match.index)
-      );
+      if (isSafeUrl(src)) {
+        nodes.push(
+          /* @__PURE__ */ jsx("img", { src, alt, style: { maxWidth: "100%", borderRadius: "4px", margin: "4px 0" } }, match.index)
+        );
+      } else {
+        nodes.push(
+          /* @__PURE__ */ jsx("span", { style: { color: "var(--text-secondary, #a1a1aa)", fontSize: "12px" }, children: "[image blocked: unsafe URL]" }, match.index)
+        );
+      }
     } else if (m.startsWith("[")) {
       const linkText = match[4];
       const href = match[5];
-      nodes.push(
-        /* @__PURE__ */ jsx(
-          "a",
-          {
-            href,
-            target: "_blank",
-            rel: "noopener noreferrer",
-            style: { color: "var(--text-accent, #8b5cf6)", textDecoration: "underline" },
-            children: linkText
-          },
-          match.index
-        )
-      );
+      if (isSafeUrl(href)) {
+        nodes.push(
+          /* @__PURE__ */ jsx(
+            "a",
+            {
+              href,
+              target: "_blank",
+              rel: "noopener noreferrer",
+              style: { color: "var(--text-accent, #8b5cf6)", textDecoration: "underline" },
+              children: linkText
+            },
+            match.index
+          )
+        );
+      } else {
+        nodes.push(/* @__PURE__ */ jsx("span", { children: linkText }, match.index));
+      }
     } else if (m.startsWith("`")) {
       nodes.push(
         /* @__PURE__ */ jsx(

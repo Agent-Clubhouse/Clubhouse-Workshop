@@ -7,6 +7,8 @@ import {
   statusBadgeStyle,
   stripHtml,
   escapeWiql,
+  validateOrgUrl,
+  validateProjectName,
 } from "./helpers";
 
 // ---------------------------------------------------------------------------
@@ -267,5 +269,98 @@ describe("escapeWiql", () => {
 
   it("handles consecutive single quotes", () => {
     expect(escapeWiql("'''")).toBe("''''''");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// validateOrgUrl — prevents command injection via organization URL setting
+// ---------------------------------------------------------------------------
+
+describe("validateOrgUrl", () => {
+  it("accepts standard dev.azure.com URLs", () => {
+    expect(validateOrgUrl("https://dev.azure.com/my-org")).toBe(true);
+    expect(validateOrgUrl("https://dev.azure.com/myOrg123")).toBe(true);
+  });
+
+  it("accepts dev.azure.com URLs with trailing slash", () => {
+    expect(validateOrgUrl("https://dev.azure.com/my-org/")).toBe(true);
+  });
+
+  it("accepts visualstudio.com URLs", () => {
+    expect(validateOrgUrl("https://my-org.visualstudio.com")).toBe(true);
+    expect(validateOrgUrl("https://my-org.visualstudio.com/")).toBe(true);
+  });
+
+  it("rejects HTTP (non-HTTPS) URLs", () => {
+    expect(validateOrgUrl("http://dev.azure.com/my-org")).toBe(false);
+  });
+
+  it("rejects URLs with shell metacharacters", () => {
+    expect(validateOrgUrl("https://dev.azure.com/test; echo pwned")).toBe(false);
+    expect(validateOrgUrl("https://dev.azure.com/test$(whoami)")).toBe(false);
+    expect(validateOrgUrl("https://dev.azure.com/test`id`")).toBe(false);
+    expect(validateOrgUrl("https://dev.azure.com/test|cat /etc/passwd")).toBe(false);
+    expect(validateOrgUrl("https://dev.azure.com/test&rm -rf /")).toBe(false);
+  });
+
+  it("rejects URLs with extra path segments", () => {
+    expect(validateOrgUrl("https://dev.azure.com/my-org/extra/path")).toBe(false);
+  });
+
+  it("rejects empty string", () => {
+    expect(validateOrgUrl("")).toBe(false);
+  });
+
+  it("rejects arbitrary URLs", () => {
+    expect(validateOrgUrl("https://evil.com/dev.azure.com/my-org")).toBe(false);
+    expect(validateOrgUrl("https://example.com")).toBe(false);
+  });
+
+  it("rejects URLs with query strings or fragments", () => {
+    expect(validateOrgUrl("https://dev.azure.com/my-org?foo=bar")).toBe(false);
+    expect(validateOrgUrl("https://dev.azure.com/my-org#section")).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// validateProjectName — prevents command injection via project name setting
+// ---------------------------------------------------------------------------
+
+describe("validateProjectName", () => {
+  it("accepts typical project names", () => {
+    expect(validateProjectName("MyProject")).toBe(true);
+    expect(validateProjectName("My Project")).toBe(true);
+    expect(validateProjectName("my-project")).toBe(true);
+    expect(validateProjectName("my_project")).toBe(true);
+    expect(validateProjectName("project.v2")).toBe(true);
+  });
+
+  it("accepts names with mixed allowed characters", () => {
+    expect(validateProjectName("Contoso Web App 2.0")).toBe(true);
+    expect(validateProjectName("Team-A_Sprint.1")).toBe(true);
+  });
+
+  it("rejects empty string", () => {
+    expect(validateProjectName("")).toBe(false);
+  });
+
+  it("rejects names with shell metacharacters", () => {
+    expect(validateProjectName("test; echo pwned")).toBe(false);
+    expect(validateProjectName("test$(whoami)")).toBe(false);
+    expect(validateProjectName("test`id`")).toBe(false);
+    expect(validateProjectName("test|cat")).toBe(false);
+    expect(validateProjectName("test&rm")).toBe(false);
+    expect(validateProjectName("test>file")).toBe(false);
+    expect(validateProjectName("test<file")).toBe(false);
+  });
+
+  it("rejects names with quotes", () => {
+    expect(validateProjectName("test'injection")).toBe(false);
+    expect(validateProjectName('test"injection')).toBe(false);
+  });
+
+  it("rejects names with slashes", () => {
+    expect(validateProjectName("test/path")).toBe(false);
+    expect(validateProjectName("test\\path")).toBe(false);
   });
 });

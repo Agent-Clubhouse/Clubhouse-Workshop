@@ -82,6 +82,12 @@ function statusBadgeStyle(status) {
 function escapeWiql(value) {
   return value.replace(/'/g, "''");
 }
+function validateOrgUrl(url) {
+  return /^https:\/\/(dev\.azure\.com\/[\w-]+|[\w-]+\.visualstudio\.com)\/?$/.test(url);
+}
+function validateProjectName(name) {
+  return name.length > 0 && /^[\w\s.-]+$/.test(name);
+}
 function stripHtml(html) {
   return html.replace(/<br\s*\/?>/gi, "\n").replace(/<\/p>/gi, "\n").replace(/<\/div>/gi, "\n").replace(/<\/li>/gi, "\n").replace(/<[^>]+>/g, "").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&nbsp;/g, " ").replace(/\n{3,}/g, "\n\n").trim();
 }
@@ -168,14 +174,27 @@ var workItemState = {
   }
 };
 function getConfig(api) {
+  const organization = (api.settings.get("organization") || "").replace(/\/+$/, "");
+  const project = api.settings.get("project") || "";
+  let valid = true;
+  let validationError = "";
+  if (organization && !validateOrgUrl(organization)) {
+    valid = false;
+    validationError = "Invalid organization URL format. Expected https://dev.azure.com/<org> or https://<org>.visualstudio.com";
+  } else if (project && !validateProjectName(project)) {
+    valid = false;
+    validationError = "Invalid project name. Only letters, numbers, spaces, hyphens, underscores, and dots are allowed.";
+  }
   return {
-    organization: (api.settings.get("organization") || "").replace(/\/+$/, ""),
-    project: api.settings.get("project") || "",
+    organization,
+    project,
     team: api.settings.get("team") || "",
     defaultWorkItemType: api.settings.get("defaultWorkItemType") || "Task",
     areaPath: api.settings.get("areaPath") || "",
     iterationPath: api.settings.get("iterationPath") || "",
-    queryPath: api.settings.get("queryPath") || ""
+    queryPath: api.settings.get("queryPath") || "",
+    valid,
+    validationError
   };
 }
 function baseArgs(config) {
@@ -734,7 +753,7 @@ function SidebarPanel({ api }) {
     };
   }, []);
   const fetchItems = useCallback(async () => {
-    if (!config.organization || !config.project) return;
+    if (!config.organization || !config.project || !config.valid) return;
     workItemState.setLoading(true);
     setError(null);
     try {
@@ -848,6 +867,12 @@ function SidebarPanel({ api }) {
   }, [items]);
   if (!config.organization || !config.project) {
     return /* @__PURE__ */ jsx(ConfigWarning, {});
+  }
+  if (!config.valid) {
+    return /* @__PURE__ */ jsx("div", { style: { ...sidebarContainer, justifyContent: "center", alignItems: "center" }, children: /* @__PURE__ */ jsxs("div", { style: { padding: "16px", textAlign: "center" }, children: [
+      /* @__PURE__ */ jsx("div", { style: { fontSize: "12px", color: "var(--text-error, #f87171)", marginBottom: "8px" }, children: "Invalid settings" }),
+      /* @__PURE__ */ jsx("div", { style: { fontSize: "11px", color: "var(--text-secondary, #a1a1aa)", marginBottom: "12px", lineHeight: 1.5 }, children: config.validationError })
+    ] }) });
   }
   if (error) {
     return /* @__PURE__ */ jsx("div", { style: { ...sidebarContainer, justifyContent: "center", alignItems: "center" }, children: /* @__PURE__ */ jsxs("div", { style: { padding: "16px", textAlign: "center" }, children: [

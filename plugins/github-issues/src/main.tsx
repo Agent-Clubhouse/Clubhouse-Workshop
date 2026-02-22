@@ -4,7 +4,7 @@ import type {
   PanelProps,
   AgentInfo,
 } from "@clubhouse/plugin-types";
-import { relativeTime, labelColor, labelColorAlpha, extractYamlValue } from "./helpers";
+import { relativeTime, labelColor, labelColorAlpha, extractYamlValue, isSafeUrl } from "./helpers";
 import { createIssueState } from "./state";
 
 const React = globalThis.React;
@@ -61,27 +61,37 @@ function renderInline(text: string): React.ReactNode[] {
     const m = match[0];
 
     if (m.startsWith("![")) {
-      // Image: ![alt](src)
+      // Image: ![alt](src) — only allow http/https to prevent SSRF
       const alt = match[1];
       const src = match[2];
-      nodes.push(
-        <img key={match.index} src={src} alt={alt} style={{ maxWidth: "100%", borderRadius: "4px", margin: "4px 0" }} />,
-      );
+      if (isSafeUrl(src)) {
+        nodes.push(
+          <img key={match.index} src={src} alt={alt} style={{ maxWidth: "100%", borderRadius: "4px", margin: "4px 0" }} />,
+        );
+      } else {
+        nodes.push(
+          <span key={match.index} style={{ color: "var(--text-secondary, #a1a1aa)", fontSize: "12px" }}>[image blocked: unsafe URL]</span>,
+        );
+      }
     } else if (m.startsWith("[")) {
-      // Link: [text](url)
+      // Link: [text](url) — only allow http/https to prevent javascript: XSS
       const linkText = match[4];
       const href = match[5];
-      nodes.push(
-        <a
-          key={match.index}
-          href={href}
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{ color: "var(--text-accent, #8b5cf6)", textDecoration: "underline" }}
-        >
-          {linkText}
-        </a>,
-      );
+      if (isSafeUrl(href)) {
+        nodes.push(
+          <a
+            key={match.index}
+            href={href}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ color: "var(--text-accent, #8b5cf6)", textDecoration: "underline" }}
+          >
+            {linkText}
+          </a>,
+        );
+      } else {
+        nodes.push(<span key={match.index}>{linkText}</span>);
+      }
     } else if (m.startsWith("`")) {
       nodes.push(
         <code
