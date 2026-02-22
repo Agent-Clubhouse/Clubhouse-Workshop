@@ -436,7 +436,7 @@ export function BoardConfigDialog({ api, board }: BoardConfigDialogProps) {
                           height: 18,
                           borderRadius: '50%',
                           background: c,
-                          border: label.color === c ? '2px solid #fff' : '2px solid transparent',
+                          border: label.color === c ? `2px solid ${S.color.text}` : '2px solid transparent',
                           cursor: 'pointer',
                           padding: 0,
                         }}
