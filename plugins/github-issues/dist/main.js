@@ -14,8 +14,13 @@ function relativeTime(dateStr) {
   return `${diffMo}mo ago`;
 }
 function labelColor(hex) {
-  if (!hex) return "#888";
+  if (!hex) return "var(--text-tertiary, #888888)";
   return hex.startsWith("#") ? hex : `#${hex}`;
+}
+function labelColorAlpha(hex, alpha) {
+  if (!hex) return `#888888${alpha}`;
+  const color = hex.startsWith("#") ? hex : `#${hex}`;
+  return `${color}${alpha}`;
 }
 function extractYamlValue(yaml, key) {
   const match = yaml.match(new RegExp(`^${key}:\\s*["']?(.+?)["']?\\s*$`, "m"));
@@ -1028,9 +1033,9 @@ function SidebarPanel({ api }) {
                     fontSize: "9px",
                     padding: "0 5px",
                     borderRadius: "10px",
-                    backgroundColor: `${labelColor(label.color)}22`,
+                    backgroundColor: labelColorAlpha(label.color, "22"),
                     color: labelColor(label.color),
-                    border: `1px solid ${labelColor(label.color)}44`,
+                    border: `1px solid ${labelColorAlpha(label.color, "44")}`,
                     flexShrink: 0
                   },
                   children: label.name
@@ -1429,9 +1434,9 @@ function MainPanel({ api }) {
             fontSize: "9px",
             padding: "0 5px",
             borderRadius: "10px",
-            backgroundColor: `${labelColor(label.color)}22`,
+            backgroundColor: labelColorAlpha(label.color, "22"),
             color: labelColor(label.color),
-            border: `1px solid ${labelColor(label.color)}44`
+            border: `1px solid ${labelColorAlpha(label.color, "44")}`
           },
           children: label.name
         },

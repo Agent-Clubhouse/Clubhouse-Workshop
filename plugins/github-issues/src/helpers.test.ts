@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   relativeTime,
   labelColor,
+  labelColorAlpha,
   extractYamlValue,
   filterIssues,
   parseInlineSegments,
@@ -45,8 +46,8 @@ describe("relativeTime", () => {
 // ---------------------------------------------------------------------------
 
 describe("labelColor", () => {
-  it("returns #888 for empty string", () => {
-    expect(labelColor("")).toBe("#888");
+  it("returns CSS variable with fallback for empty string", () => {
+    expect(labelColor("")).toBe("var(--text-tertiary, #888888)");
   });
 
   it("passes through hex values starting with #", () => {
@@ -55,6 +56,25 @@ describe("labelColor", () => {
 
   it("prepends # to raw hex values", () => {
     expect(labelColor("d73a4a")).toBe("#d73a4a");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// labelColorAlpha
+// ---------------------------------------------------------------------------
+
+describe("labelColorAlpha", () => {
+  it("returns 6-digit hex with alpha for empty string", () => {
+    expect(labelColorAlpha("", "22")).toBe("#88888822");
+    expect(labelColorAlpha("", "44")).toBe("#88888844");
+  });
+
+  it("appends alpha to hex values starting with #", () => {
+    expect(labelColorAlpha("#ff0000", "22")).toBe("#ff000022");
+  });
+
+  it("prepends # and appends alpha to raw hex values", () => {
+    expect(labelColorAlpha("d73a4a", "44")).toBe("#d73a4a44");
   });
 });
 

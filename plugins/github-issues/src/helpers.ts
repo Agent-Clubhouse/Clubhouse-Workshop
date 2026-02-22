@@ -16,8 +16,19 @@ export function relativeTime(dateStr: string): string {
 }
 
 export function labelColor(hex: string): string {
-  if (!hex) return "#888";
+  if (!hex) return "var(--text-tertiary, #888888)";
   return hex.startsWith("#") ? hex : `#${hex}`;
+}
+
+/**
+ * Returns a color with hex alpha suffix for use in backgroundColor / border.
+ * When no label color is provided, falls back to a 6-digit hex with alpha so
+ * the value remains valid CSS (CSS variables cannot have hex alpha appended).
+ */
+export function labelColorAlpha(hex: string, alpha: string): string {
+  if (!hex) return `#888888${alpha}`;
+  const color = hex.startsWith("#") ? hex : `#${hex}`;
+  return `${color}${alpha}`;
 }
 
 export function extractYamlValue(yaml: string, key: string): string | null {
