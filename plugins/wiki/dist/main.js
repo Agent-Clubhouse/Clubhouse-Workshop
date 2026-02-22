@@ -1950,6 +1950,9 @@ hljs.registerLanguage("shell", shell);
 hljs.registerLanguage("bash", shell);
 hljs.registerLanguage("sql", sql);
 hljs.registerLanguage("cpp", cpp);
+function escapeHtml(str) {
+  return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
 var WIKI_LINK_CSS = `
 .wiki-link {
   color: ${color.accent};
@@ -2002,7 +2005,8 @@ function createWikiLinkExtension(pageNames) {
       const normalised = token.pageName.toLowerCase();
       const exists = pageSet.has(normalised);
       const cls = exists ? "wiki-link" : "wiki-link wiki-link-broken";
-      return `<a class="${cls}" data-wiki-link="${token.pageName}">${token.pageName}</a>`;
+      const escaped = escapeHtml(token.pageName);
+      return `<a class="${cls}" data-wiki-link="${escaped}">${escaped}</a>`;
     }
   };
 }
@@ -2033,11 +2037,11 @@ function renderWikiMarkdown(content, pageNames, wikiStyle = "github") {
   const linkRenderer = wikiStyle === "ado" ? (args) => {
     const resolved = resolveAdoLink(args.href);
     if (resolved) {
-      const titleAttr2 = args.title ? ` title="${args.title}"` : "";
-      return `<a class="wiki-link" data-wiki-link="${resolved}" href="#"${titleAttr2}>${args.text}</a>`;
+      const titleAttr2 = args.title ? ` title="${escapeHtml(args.title)}"` : "";
+      return `<a class="wiki-link" data-wiki-link="${escapeHtml(resolved)}" href="#"${titleAttr2}>${args.text}</a>`;
     }
-    const titleAttr = args.title ? ` title="${args.title}"` : "";
-    return `<a href="${args.href}"${titleAttr} target="_blank" rel="noopener noreferrer">${args.text}</a>`;
+    const titleAttr = args.title ? ` title="${escapeHtml(args.title)}"` : "";
+    return `<a href="${escapeHtml(args.href)}"${titleAttr} target="_blank" rel="noopener noreferrer">${args.text}</a>`;
   } : void 0;
   const extensions = wikiStyle === "github" ? [createWikiLinkExtension(pageNames)] : [];
   md.use({

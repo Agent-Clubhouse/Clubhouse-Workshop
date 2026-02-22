@@ -1,5 +1,35 @@
 import { describe, it, expect } from 'vitest';
-import { createWikiLinkExtension, renderWikiMarkdown, resolveAdoLink } from '../src/WikiMarkdownPreview';
+import { createWikiLinkExtension, escapeHtml, renderWikiMarkdown, resolveAdoLink } from '../src/WikiMarkdownPreview';
+
+// ── escapeHtml ──────────────────────────────────────────────────────
+
+describe('escapeHtml', () => {
+  it('escapes ampersands', () => {
+    expect(escapeHtml('a&b')).toBe('a&amp;b');
+  });
+
+  it('escapes angle brackets', () => {
+    expect(escapeHtml('<script>')).toBe('&lt;script&gt;');
+  });
+
+  it('escapes double quotes', () => {
+    expect(escapeHtml('"hello"')).toBe('&quot;hello&quot;');
+  });
+
+  it('escapes single quotes', () => {
+    expect(escapeHtml("it's")).toBe('it&#39;s');
+  });
+
+  it('escapes all special characters together', () => {
+    expect(escapeHtml('"><img src=x onerror=alert(1)>')).toBe(
+      '&quot;&gt;&lt;img src=x onerror=alert(1)&gt;',
+    );
+  });
+
+  it('returns plain strings unchanged', () => {
+    expect(escapeHtml('Hello World')).toBe('Hello World');
+  });
+});
 
 // ── createWikiLinkExtension ─────────────────────────────────────────
 
@@ -148,6 +178,41 @@ describe('renderWikiMarkdown XSS sanitization', () => {
     const html = renderWikiMarkdown('[Link](https://example.com)', [], 'ado');
     expect(html).toContain('target="_blank"');
     expect(html).toContain('href="https://example.com"');
+  });
+
+  it('escapes wiki link page names in renderer to prevent attribute breakout (issue #44)', () => {
+    const ext = createWikiLinkExtension([]);
+    const html = ext.renderer({ pageName: '"><img src=x onerror=alert(1)>' });
+    // The renderer must escape quotes so the payload can't break out of the attribute
+    expect(html).toContain('data-wiki-link="&quot;');
+    // Angle brackets must be escaped at the source — no real <img> tag
+    expect(html).not.toMatch(/<img\s/);
+    // All dangerous characters are entity-encoded
+    expect(html).toContain('&lt;img');
+    expect(html).toContain('&gt;');
+  });
+
+  it('escapes single-quote XSS in wiki link page names at renderer level', () => {
+    const ext = createWikiLinkExtension([]);
+    const html = ext.renderer({ pageName: "'><script>alert(1)</script>" });
+    // The renderer must escape angle brackets so no real tags are injected
+    expect(html).not.toMatch(/<script[\s>]/);
+    expect(html).toContain('&#39;');
+  });
+
+  it('prevents wiki link attribute breakout in full render pipeline (issue #44)', () => {
+    const html = renderWikiMarkdown('[["><img src=x onerror=alert(1)>]]', []);
+    // After DOMPurify, the quote in the attribute must remain escaped
+    expect(html).toContain('data-wiki-link="&quot;');
+    // The data-wiki-link attribute must not be split by unescaped quotes
+    // (DOMPurify keeps unexecutable content inside quoted attributes, which is safe)
+  });
+
+  it('escapes ADO link titles to prevent attribute breakout', () => {
+    const md = '[Click](./page ""><img src=x onerror=alert(1)>")';
+    const html = renderWikiMarkdown(md, [], 'ado');
+    expect(html).not.toContain('onerror');
+    expect(html).not.toContain('<img src=x');
   });
 });
 
