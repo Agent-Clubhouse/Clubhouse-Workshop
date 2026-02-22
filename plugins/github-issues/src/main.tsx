@@ -4,6 +4,7 @@ import type {
   PanelProps,
   AgentInfo,
 } from "@clubhouse/plugin-types";
+import { relativeTime, labelColor, extractYamlValue } from "./helpers";
 
 const React = globalThis.React;
 const { useState, useEffect, useCallback, useRef, useMemo } = React;
@@ -143,24 +144,278 @@ const issueState = {
 // Helpers
 // ---------------------------------------------------------------------------
 
-function relativeTime(dateStr: string): string {
-  const now = Date.now();
-  const then = new Date(dateStr).getTime();
-  const diffMs = now - then;
-  const diffMin = Math.floor(diffMs / 60000);
-  if (diffMin < 1) return "just now";
-  if (diffMin < 60) return `${diffMin}m ago`;
-  const diffH = Math.floor(diffMin / 60);
-  if (diffH < 24) return `${diffH}h ago`;
-  const diffD = Math.floor(diffH / 24);
-  if (diffD < 30) return `${diffD}d ago`;
-  const diffMo = Math.floor(diffD / 30);
-  return `${diffMo}mo ago`;
+// relativeTime, labelColor, and extractYamlValue imported from ./helpers
+
+// ---------------------------------------------------------------------------
+// Markdown renderer (lightweight GFM-subset → JSX, no external deps)
+// ---------------------------------------------------------------------------
+
+/** Parse inline markdown (bold, italic, code, links, strikethrough, images). */
+function renderInline(text: string): React.ReactNode[] {
+  const nodes: React.ReactNode[] = [];
+  // Regex order matters: image before link, bold before italic
+  const inlineRe =
+    /!\[([^\]]*)\]\(([^)]+)\)|(\[([^\]]+)\]\(([^)]+)\))|(`[^`]+`)|(\*\*[^*]+\*\*)|(__[^_]+__)|(\*[^*]+\*)|(_[^_]+_)|(~~[^~]+~~)/g;
+  let last = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = inlineRe.exec(text)) !== null) {
+    if (match.index > last) nodes.push(text.slice(last, match.index));
+    const m = match[0];
+
+    if (m.startsWith("![")) {
+      // Image: ![alt](src)
+      const alt = match[1];
+      const src = match[2];
+      nodes.push(
+        <img key={match.index} src={src} alt={alt} style={{ maxWidth: "100%", borderRadius: "4px", margin: "4px 0" }} />,
+      );
+    } else if (m.startsWith("[")) {
+      // Link: [text](url)
+      const linkText = match[4];
+      const href = match[5];
+      nodes.push(
+        <a
+          key={match.index}
+          href={href}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ color: "var(--text-accent, #8b5cf6)", textDecoration: "underline" }}
+        >
+          {linkText}
+        </a>,
+      );
+    } else if (m.startsWith("`")) {
+      nodes.push(
+        <code
+          key={match.index}
+          style={{
+            background: "var(--bg-secondary, #27272a)",
+            padding: "1px 5px",
+            borderRadius: "3px",
+            fontFamily: "var(--font-mono, ui-monospace, monospace)",
+            fontSize: "0.9em",
+          }}
+        >
+          {m.slice(1, -1)}
+        </code>,
+      );
+    } else if (m.startsWith("**") || m.startsWith("__")) {
+      nodes.push(<strong key={match.index}>{renderInline(m.slice(2, -2))}</strong>);
+    } else if (m.startsWith("~~")) {
+      nodes.push(<del key={match.index}>{renderInline(m.slice(2, -2))}</del>);
+    } else if (m.startsWith("*") || m.startsWith("_")) {
+      nodes.push(<em key={match.index}>{renderInline(m.slice(1, -1))}</em>);
+    }
+    last = match.index + m.length;
+  }
+
+  if (last < text.length) nodes.push(text.slice(last));
+  return nodes;
 }
 
-function labelColor(hex: string): string {
-  if (!hex) return "#888";
-  return hex.startsWith("#") ? hex : `#${hex}`;
+/** Lightweight Markdown component rendering GFM-subset to JSX. */
+function Markdown({ source }: { source: string }) {
+  const elements = useMemo(() => {
+    const lines = source.split("\n");
+    const result: React.ReactNode[] = [];
+    let i = 0;
+
+    const codeBlockStyle: React.CSSProperties = {
+      background: "var(--bg-secondary, #27272a)",
+      border: "1px solid var(--border-primary, #3f3f46)",
+      borderRadius: "6px",
+      padding: "10px 12px",
+      overflowX: "auto",
+      fontFamily: "var(--font-mono, ui-monospace, monospace)",
+      fontSize: "12px",
+      lineHeight: 1.5,
+      margin: "8px 0",
+      whiteSpace: "pre",
+      color: "var(--text-primary, #e4e4e7)",
+    };
+
+    const blockquoteStyle: React.CSSProperties = {
+      borderLeft: "3px solid var(--border-primary, #3f3f46)",
+      paddingLeft: "12px",
+      margin: "8px 0",
+      color: "var(--text-secondary, #a1a1aa)",
+    };
+
+    while (i < lines.length) {
+      const line = lines[i];
+
+      // Fenced code block
+      if (line.startsWith("```")) {
+        const codeLines: string[] = [];
+        i++;
+        while (i < lines.length && !lines[i].startsWith("```")) {
+          codeLines.push(lines[i]);
+          i++;
+        }
+        i++; // skip closing ```
+        result.push(
+          <pre key={result.length} style={codeBlockStyle}>
+            <code>{codeLines.join("\n")}</code>
+          </pre>,
+        );
+        continue;
+      }
+
+      // Blank line
+      if (!line.trim()) {
+        i++;
+        continue;
+      }
+
+      // Heading
+      const headingMatch = line.match(/^(#{1,6})\s+(.+)/);
+      if (headingMatch) {
+        const level = headingMatch[1].length;
+        const sizes: Record<number, string> = { 1: "1.5em", 2: "1.3em", 3: "1.15em", 4: "1em", 5: "0.95em", 6: "0.9em" };
+        result.push(
+          <div
+            key={result.length}
+            style={{
+              fontSize: sizes[level] || "1em",
+              fontWeight: 600,
+              margin: "12px 0 6px",
+              color: "var(--text-primary, #e4e4e7)",
+              borderBottom: level <= 2 ? "1px solid var(--border-primary, #3f3f46)" : undefined,
+              paddingBottom: level <= 2 ? "4px" : undefined,
+            }}
+          >
+            {renderInline(headingMatch[2])}
+          </div>,
+        );
+        i++;
+        continue;
+      }
+
+      // Horizontal rule
+      if (/^[-*_]{3,}\s*$/.test(line)) {
+        result.push(
+          <hr
+            key={result.length}
+            style={{ border: "none", borderTop: "1px solid var(--border-primary, #3f3f46)", margin: "12px 0" }}
+          />,
+        );
+        i++;
+        continue;
+      }
+
+      // Blockquote
+      if (line.startsWith("> ") || line === ">") {
+        const quoteLines: string[] = [];
+        while (i < lines.length && (lines[i].startsWith("> ") || lines[i] === ">")) {
+          quoteLines.push(lines[i].replace(/^>\s?/, ""));
+          i++;
+        }
+        result.push(
+          <blockquote key={result.length} style={blockquoteStyle}>
+            <Markdown source={quoteLines.join("\n")} />
+          </blockquote>,
+        );
+        continue;
+      }
+
+      // Unordered list
+      if (/^\s*[-*+]\s/.test(line)) {
+        const items: string[] = [];
+        while (i < lines.length && /^\s*[-*+]\s/.test(lines[i])) {
+          items.push(lines[i].replace(/^\s*[-*+]\s+/, ""));
+          i++;
+        }
+        result.push(
+          <ul key={result.length} style={{ margin: "6px 0", paddingLeft: "20px" }}>
+            {items.map((item, idx) => (
+              <li key={idx} style={{ marginBottom: "2px" }}>{renderInline(item)}</li>
+            ))}
+          </ul>,
+        );
+        continue;
+      }
+
+      // Ordered list
+      if (/^\s*\d+[.)]\s/.test(line)) {
+        const items: string[] = [];
+        while (i < lines.length && /^\s*\d+[.)]\s/.test(lines[i])) {
+          items.push(lines[i].replace(/^\s*\d+[.)]\s+/, ""));
+          i++;
+        }
+        result.push(
+          <ol key={result.length} style={{ margin: "6px 0", paddingLeft: "20px" }}>
+            {items.map((item, idx) => (
+              <li key={idx} style={{ marginBottom: "2px" }}>{renderInline(item)}</li>
+            ))}
+          </ol>,
+        );
+        continue;
+      }
+
+      // Task list (checkbox)
+      if (/^\s*[-*]\s\[[ x]\]/.test(line)) {
+        const items: { checked: boolean; text: string }[] = [];
+        while (i < lines.length && /^\s*[-*]\s\[[ x]\]/.test(lines[i])) {
+          const checked = lines[i].includes("[x]");
+          const text = lines[i].replace(/^\s*[-*]\s\[[ x]\]\s*/, "");
+          items.push({ checked, text });
+          i++;
+        }
+        result.push(
+          <ul key={result.length} style={{ margin: "6px 0", paddingLeft: "20px", listStyle: "none" }}>
+            {items.map((item, idx) => (
+              <li key={idx} style={{ marginBottom: "2px" }}>
+                <input type="checkbox" checked={item.checked} readOnly style={{ marginRight: "6px" }} />
+                {renderInline(item.text)}
+              </li>
+            ))}
+          </ul>,
+        );
+        continue;
+      }
+
+      // Regular paragraph — collect consecutive non-blank, non-special lines
+      const paraLines: string[] = [];
+      while (
+        i < lines.length &&
+        lines[i].trim() &&
+        !lines[i].startsWith("```") &&
+        !lines[i].match(/^#{1,6}\s/) &&
+        !/^[-*_]{3,}\s*$/.test(lines[i]) &&
+        !lines[i].startsWith("> ") &&
+        lines[i] !== ">" &&
+        !/^\s*[-*+]\s/.test(lines[i]) &&
+        !/^\s*\d+[.)]\s/.test(lines[i])
+      ) {
+        paraLines.push(lines[i]);
+        i++;
+      }
+      if (paraLines.length > 0) {
+        result.push(
+          <p key={result.length} style={{ margin: "6px 0", lineHeight: 1.6 }}>
+            {renderInline(paraLines.join("\n"))}
+          </p>,
+        );
+      }
+    }
+
+    return result;
+  }, [source]);
+
+  return (
+    <div
+      style={{
+        fontSize: "13px",
+        color: "var(--text-primary, #e4e4e7)",
+        fontFamily: "var(--font-family, system-ui, -apple-system, sans-serif)",
+        wordWrap: "break-word",
+        overflowWrap: "break-word",
+      }}
+    >
+      {elements}
+    </div>
+  );
 }
 
 async function detectRepo(api: PluginAPI): Promise<string | null> {
@@ -224,10 +479,7 @@ function parseTemplate(content: string, filename: string): IssueTemplate | null 
   };
 }
 
-function extractYamlValue(yaml: string, key: string): string | null {
-  const match = yaml.match(new RegExp(`^${key}:\\s*["']?(.+?)["']?\\s*$`, "m"));
-  return match ? match[1] : null;
-}
+// extractYamlValue imported from ./helpers
 
 // ---------------------------------------------------------------------------
 // Lifecycle
@@ -320,9 +572,9 @@ function LabelPicker({
           flexWrap: "wrap",
           gap: "4px",
           padding: "4px 8px",
-          border: "1px solid var(--border-color, #333)",
+          border: "1px solid var(--border-primary, #3f3f46)",
           borderRadius: "6px",
-          background: "var(--input-bg, #1a1a2e)",
+          background: "var(--bg-secondary, #27272a)",
           minHeight: "30px",
           cursor: "text",
           alignItems: "center",
@@ -338,8 +590,8 @@ function LabelPicker({
               gap: "4px",
               padding: "1px 6px",
               borderRadius: "10px",
-              background: "var(--accent-bg, #2a2a4a)",
-              color: "var(--text-primary, #e0e0e0)",
+              background: "var(--bg-accent, rgba(139,92,246,0.15))",
+              color: "var(--text-primary, #e4e4e7)",
               fontSize: "11px",
             }}
           >
@@ -367,11 +619,11 @@ function LabelPicker({
             border: "none",
             outline: "none",
             background: "transparent",
-            color: "var(--text-primary, #e0e0e0)",
+            color: "var(--text-primary, #e4e4e7)",
             fontSize: "12px",
             flex: 1,
             minWidth: "60px",
-            fontFamily: "var(--font-family)",
+            fontFamily: "var(--font-family, system-ui, -apple-system, sans-serif)",
           }}
         />
       </div>
@@ -389,15 +641,15 @@ function LabelPicker({
               right: 0,
               maxHeight: "180px",
               overflowY: "auto",
-              border: "1px solid var(--border-color, #333)",
+              border: "1px solid var(--border-primary, #3f3f46)",
               borderRadius: "6px",
-              background: "var(--dropdown-bg, #1e1e3a)",
+              background: "var(--bg-primary, #18181b)",
               zIndex: 100,
               marginTop: "2px",
             }}
           >
             {filtered.length === 0 ? (
-              <div style={{ padding: "6px 10px", color: "var(--text-secondary, #888)", fontSize: "12px" }}>
+              <div style={{ padding: "6px 10px", color: "var(--text-secondary, #a1a1aa)", fontSize: "12px" }}>
                 {filter ? "No matching labels" : "No labels available"}
               </div>
             ) : (
@@ -409,11 +661,11 @@ function LabelPicker({
                     padding: "4px 10px",
                     cursor: "pointer",
                     fontSize: "12px",
-                    color: "var(--text-primary, #e0e0e0)",
+                    color: "var(--text-primary, #e4e4e7)",
                     display: "flex",
                     alignItems: "center",
                     gap: "6px",
-                    background: selected.includes(label) ? "var(--accent-bg, #2a2a4a)" : "transparent",
+                    background: selected.includes(label) ? "var(--bg-accent, rgba(139,92,246,0.15))" : "transparent",
                   }}
                 >
                   <span style={{ width: "14px", textAlign: "center", fontSize: "10px" }}>
@@ -575,8 +827,8 @@ function SendToAgentDialog({
     >
       <div
         style={{
-          background: "var(--panel-bg, #1e1e2e)",
-          border: "1px solid var(--border-color, #333)",
+          background: "var(--bg-primary, #18181b)",
+          border: "1px solid var(--border-primary, #3f3f46)",
           borderRadius: "8px",
           padding: "16px",
           width: "320px",
@@ -586,10 +838,10 @@ function SendToAgentDialog({
         }}
       >
         {/* Title */}
-        <div style={{ fontSize: "14px", fontWeight: 500, color: "var(--text-primary, #e0e0e0)", marginBottom: "4px" }}>
+        <div style={{ fontSize: "14px", fontWeight: 500, color: "var(--text-primary, #e4e4e7)", marginBottom: "4px" }}>
           Assign to Agent
         </div>
-        <div style={{ fontSize: "10px", color: "var(--text-secondary, #888)", marginBottom: "12px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+        <div style={{ fontSize: "10px", color: "var(--text-secondary, #a1a1aa)", marginBottom: "12px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
           #{issue.number} {issue.title}
         </div>
 
@@ -606,12 +858,12 @@ function SendToAgentDialog({
             width: "100%",
             padding: "6px 8px",
             fontSize: "12px",
-            background: "var(--input-bg, #1a1a2e)",
-            border: "1px solid var(--border-color, #333)",
+            background: "var(--bg-secondary, #27272a)",
+            border: "1px solid var(--border-primary, #3f3f46)",
             borderRadius: "4px",
-            color: "var(--text-primary, #e0e0e0)",
+            color: "var(--text-primary, #e4e4e7)",
             resize: "none",
-            fontFamily: "var(--font-family)",
+            fontFamily: "var(--font-family, system-ui, -apple-system, sans-serif)",
             boxSizing: "border-box",
           }}
         />
@@ -619,7 +871,7 @@ function SendToAgentDialog({
         {/* Agent list */}
         <div style={{ marginTop: "12px", display: "flex", flexDirection: "column", gap: "4px" }}>
           {durableAgents.length === 0 ? (
-            <div style={{ fontSize: "12px", color: "var(--text-secondary, #888)", textAlign: "center", padding: "16px 0" }}>
+            <div style={{ fontSize: "12px", color: "var(--text-secondary, #a1a1aa)", textAlign: "center", padding: "16px 0" }}>
               No durable agents found
             </div>
           ) : (
@@ -634,12 +886,12 @@ function SendToAgentDialog({
                     textAlign: "left",
                     padding: "8px 10px",
                     fontSize: "12px",
-                    color: "var(--text-primary, #e0e0e0)",
+                    color: "var(--text-primary, #e4e4e7)",
                     borderRadius: "4px",
-                    border: isSelected ? "1px solid var(--accent-color, #4a6cf7)" : "1px solid transparent",
+                    border: isSelected ? "1px solid var(--text-accent, #8b5cf6)" : "1px solid transparent",
                     background: isSelected ? "rgba(74,108,247,0.1)" : "transparent",
                     cursor: "pointer",
-                    fontFamily: "var(--font-family)",
+                    fontFamily: "var(--font-family, system-ui, -apple-system, sans-serif)",
                   }}
                 >
                   <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
@@ -647,7 +899,7 @@ function SendToAgentDialog({
                     <span style={{ fontWeight: 500 }}>{agent.name}</span>
                     <span style={statusBadgeStyle(agent.status)}>{agent.status}</span>
                   </div>
-                  <div style={{ fontSize: "10px", color: "var(--text-secondary, #888)", marginTop: "2px", paddingLeft: "22px" }}>
+                  <div style={{ fontSize: "10px", color: "var(--text-secondary, #a1a1aa)", marginTop: "2px", paddingLeft: "22px" }}>
                     {agent.status === "running" ? "Will interrupt current work" : "Assign issue to this agent"}
                   </div>
                 </button>
@@ -661,7 +913,7 @@ function SendToAgentDialog({
           style={{
             marginTop: "12px",
             paddingTop: "12px",
-            borderTop: "1px solid var(--border-color, #333)",
+            borderTop: "1px solid var(--border-primary, #3f3f46)",
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
@@ -684,7 +936,7 @@ function SendToAgentDialog({
                   setSaveAsDefault((e.target as HTMLInputElement).checked)
                 }
               />
-              <span style={{ fontSize: "10px", color: "var(--text-secondary, #888)" }}>
+              <span style={{ fontSize: "10px", color: "var(--text-secondary, #a1a1aa)" }}>
                 Save as default
               </span>
             </label>
@@ -792,12 +1044,15 @@ export function SidebarPanel({ api }: PanelProps) {
     }
   }, [needsRefresh, fetchIssues]);
 
-  // Filter issues by search query (client-side)
+  // Filter issues by search query (client-side: title, number, and labels)
   const filteredIssues = useMemo(() => {
     if (!searchQuery.trim()) return issues;
     const q = searchQuery.toLowerCase();
     return issues.filter(
-      i => i.title.toLowerCase().includes(q) || `#${i.number}`.includes(q),
+      i =>
+        i.title.toLowerCase().includes(q) ||
+        `#${i.number}`.includes(q) ||
+        i.labels.some(l => l.name.toLowerCase().includes(q)),
     );
   }, [issues, searchQuery]);
 
@@ -817,7 +1072,7 @@ export function SidebarPanel({ api }: PanelProps) {
           <div style={{ fontSize: "12px", color: "var(--text-error, #f87171)", marginBottom: "8px" }}>
             Could not load issues
           </div>
-          <div style={{ fontSize: "11px", color: "var(--text-secondary, #888)", marginBottom: "12px" }}>
+          <div style={{ fontSize: "11px", color: "var(--text-secondary, #a1a1aa)", marginBottom: "12px" }}>
             {error}
           </div>
           <button onClick={() => fetchIssues(1, false)} style={btnSecondarySmall}>
@@ -832,7 +1087,7 @@ export function SidebarPanel({ api }: PanelProps) {
     <div style={sidebarContainer}>
       {/* Header */}
       <div style={sidebarHeader}>
-        <span style={{ fontSize: "12px", fontWeight: 500, color: "var(--text-primary, #e0e0e0)" }}>
+        <span style={{ fontSize: "12px", fontWeight: 500, color: "var(--text-primary, #e4e4e7)" }}>
           Issues
         </span>
         <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
@@ -855,23 +1110,23 @@ export function SidebarPanel({ api }: PanelProps) {
       </div>
 
       {/* Search + state filter */}
-      <div style={{ padding: "6px 8px", borderBottom: "1px solid var(--border-color, #222)", display: "flex", gap: "6px", alignItems: "center" }}>
+      <div style={{ padding: "6px 8px", borderBottom: "1px solid var(--border-primary, #3f3f46)", display: "flex", gap: "6px", alignItems: "center" }}>
         <input
           type="text"
           value={searchQuery}
           onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
             handleSearchChange((e.target as HTMLInputElement).value)
           }
-          placeholder="Filter\u2026"
+          placeholder="Filter..."
           style={{
             flex: 1,
             padding: "4px 6px",
             fontSize: "11px",
-            border: "1px solid var(--border-color, #333)",
+            border: "1px solid var(--border-primary, #3f3f46)",
             borderRadius: "4px",
-            background: "var(--input-bg, #1a1a2e)",
-            color: "var(--text-primary, #e0e0e0)",
-            fontFamily: "var(--font-family)",
+            background: "var(--bg-secondary, #27272a)",
+            color: "var(--text-primary, #e4e4e7)",
+            fontFamily: "var(--font-family, system-ui, -apple-system, sans-serif)",
             outline: "none",
           }}
         />
@@ -883,11 +1138,11 @@ export function SidebarPanel({ api }: PanelProps) {
           style={{
             padding: "4px 4px",
             fontSize: "11px",
-            border: "1px solid var(--border-color, #333)",
+            border: "1px solid var(--border-primary, #3f3f46)",
             borderRadius: "4px",
-            background: "var(--input-bg, #1a1a2e)",
-            color: "var(--text-primary, #e0e0e0)",
-            fontFamily: "var(--font-family)",
+            background: "var(--bg-secondary, #27272a)",
+            color: "var(--text-primary, #e4e4e7)",
+            fontFamily: "var(--font-family, system-ui, -apple-system, sans-serif)",
             cursor: "pointer",
           }}
         >
@@ -899,11 +1154,11 @@ export function SidebarPanel({ api }: PanelProps) {
       {/* Issue list */}
       <div style={{ flex: 1, overflowY: "auto" }}>
         {loading && issues.length === 0 ? (
-          <div style={{ padding: "16px", textAlign: "center", fontSize: "12px", color: "var(--text-secondary, #888)" }}>
+          <div style={{ padding: "16px", textAlign: "center", fontSize: "12px", color: "var(--text-secondary, #a1a1aa)" }}>
             Loading issues{"\u2026"}
           </div>
         ) : filteredIssues.length === 0 ? (
-          <div style={{ padding: "16px", textAlign: "center", fontSize: "12px", color: "var(--text-secondary, #888)" }}>
+          <div style={{ padding: "16px", textAlign: "center", fontSize: "12px", color: "var(--text-secondary, #a1a1aa)" }}>
             {searchQuery ? "No matching issues" : `No ${stateFilter} issues`}
           </div>
         ) : (
@@ -915,15 +1170,15 @@ export function SidebarPanel({ api }: PanelProps) {
                 style={{
                   padding: "8px 10px",
                   cursor: "pointer",
-                  background: issue.number === selected ? "var(--item-active-bg, #2a2a4a)" : "transparent",
+                  background: issue.number === selected ? "var(--bg-active, #3f3f46)" : "transparent",
                 }}
               >
                 {/* Top row: number + title */}
                 <div style={{ display: "flex", alignItems: "center", gap: "6px", minWidth: 0 }}>
-                  <span style={{ fontSize: "10px", color: "var(--text-secondary, #888)", flexShrink: 0 }}>
+                  <span style={{ fontSize: "10px", color: "var(--text-secondary, #a1a1aa)", flexShrink: 0 }}>
                     #{issue.number}
                   </span>
-                  <span style={{ fontSize: "12px", color: "var(--text-primary, #e0e0e0)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  <span style={{ fontSize: "12px", color: "var(--text-primary, #e4e4e7)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     {issue.title}
                   </span>
                 </div>
@@ -945,7 +1200,7 @@ export function SidebarPanel({ api }: PanelProps) {
                       {label.name}
                     </span>
                   ))}
-                  <span style={{ fontSize: "10px", color: "var(--text-secondary, #888)", marginLeft: "auto", flexShrink: 0 }}>
+                  <span style={{ fontSize: "10px", color: "var(--text-secondary, #a1a1aa)", marginLeft: "auto", flexShrink: 0 }}>
                     {relativeTime(issue.updatedAt)}
                   </span>
                 </div>
@@ -1219,7 +1474,7 @@ export function MainPanel({ api }: PanelProps) {
     return (
       <div style={mainContainer}>
         <div style={mainHeader}>
-          <span style={{ fontSize: "13px", fontWeight: 500, color: "var(--text-primary, #e0e0e0)" }}>
+          <span style={{ fontSize: "13px", fontWeight: 500, color: "var(--text-primary, #e4e4e7)" }}>
             New Issue
           </span>
         </div>
@@ -1324,7 +1579,7 @@ export function MainPanel({ api }: PanelProps) {
   if (selected === null) {
     return (
       <div style={{ ...mainContainer, justifyContent: "center", alignItems: "center" }}>
-        <span style={{ fontSize: "12px", color: "var(--text-secondary, #888)" }}>
+        <span style={{ fontSize: "12px", color: "var(--text-secondary, #a1a1aa)" }}>
           Select an issue to view details
         </span>
       </div>
@@ -1334,7 +1589,7 @@ export function MainPanel({ api }: PanelProps) {
   if (loading) {
     return (
       <div style={{ ...mainContainer, justifyContent: "center", alignItems: "center" }}>
-        <span style={{ fontSize: "12px", color: "var(--text-secondary, #888)" }}>
+        <span style={{ fontSize: "12px", color: "var(--text-secondary, #a1a1aa)" }}>
           Loading issue{"\u2026"}
         </span>
       </div>
@@ -1344,7 +1599,7 @@ export function MainPanel({ api }: PanelProps) {
   if (!detail) {
     return (
       <div style={{ ...mainContainer, justifyContent: "center", alignItems: "center" }}>
-        <span style={{ fontSize: "12px", color: "var(--text-secondary, #888)" }}>
+        <span style={{ fontSize: "12px", color: "var(--text-secondary, #a1a1aa)" }}>
           Failed to load issue details
         </span>
       </div>
@@ -1382,10 +1637,10 @@ export function MainPanel({ api }: PanelProps) {
           </div>
         ) : (
           <div style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: "6px" }}>
-            <span style={{ fontSize: "12px", color: "var(--text-secondary, #888)", flexShrink: 0 }}>
+            <span style={{ fontSize: "12px", color: "var(--text-secondary, #a1a1aa)", flexShrink: 0 }}>
               #{detail.number}
             </span>
-            <span style={{ fontSize: "13px", fontWeight: 500, color: "var(--text-primary, #e0e0e0)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            <span style={{ fontSize: "13px", fontWeight: 500, color: "var(--text-primary, #e4e4e7)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
               {detail.title}
             </span>
           </div>
@@ -1410,14 +1665,14 @@ export function MainPanel({ api }: PanelProps) {
       </div>
 
       {/* Metadata row */}
-      <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: "6px", padding: "8px 16px", borderBottom: "1px solid var(--border-color, #222)", background: "var(--panel-bg-alt, rgba(0,0,0,0.15))" }}>
+      <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: "6px", padding: "8px 16px", borderBottom: "1px solid var(--border-primary, #3f3f46)", background: "var(--bg-secondary, #27272a)" }}>
         <button onClick={handleToggleState} style={stateBadge} title={isOpen ? "Close issue" : "Reopen issue"}>
           {detail.state}
         </button>
-        <span style={{ fontSize: "10px", color: "var(--text-secondary, #888)" }}>
+        <span style={{ fontSize: "10px", color: "var(--text-secondary, #a1a1aa)" }}>
           by {detail.author.login}
         </span>
-        <span style={{ fontSize: "10px", color: "var(--text-secondary, #888)" }}>
+        <span style={{ fontSize: "10px", color: "var(--text-secondary, #a1a1aa)" }}>
           opened {relativeTime(detail.createdAt)}
         </span>
 
@@ -1429,7 +1684,7 @@ export function MainPanel({ api }: PanelProps) {
               setEditLabels((e.target as HTMLInputElement).value)
             }
             placeholder="Labels (comma separated)"
-            style={{ fontSize: "10px", padding: "2px 6px", background: "var(--input-bg, #1a1a2e)", border: "1px solid var(--border-color, #333)", borderRadius: "4px", color: "var(--text-primary, #e0e0e0)", fontFamily: "var(--font-family)", outline: "none" }}
+            style={{ fontSize: "10px", padding: "2px 6px", background: "var(--bg-secondary, #27272a)", border: "1px solid var(--border-primary, #3f3f46)", borderRadius: "4px", color: "var(--text-primary, #e4e4e7)", fontFamily: "var(--font-family, system-ui, -apple-system, sans-serif)", outline: "none" }}
           />
         ) : (
           detail.labels.map(label => (
@@ -1456,8 +1711,8 @@ export function MainPanel({ api }: PanelProps) {
             style={{
               fontSize: "10px",
               padding: "1px 6px",
-              background: "var(--item-active-bg, #2a2a4a)",
-              color: "var(--text-secondary, #aaa)",
+              background: "var(--bg-active, #3f3f46)",
+              color: "var(--text-secondary, #a1a1aa)",
               borderRadius: "4px",
               display: "inline-flex",
               alignItems: "center",
@@ -1483,7 +1738,7 @@ export function MainPanel({ api }: PanelProps) {
       <div style={{ flex: 1, overflowY: "auto" }}>
         {/* Body */}
         {editing ? (
-          <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--border-color, #222)" }}>
+          <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--border-primary, #3f3f46)" }}>
             <textarea
               value={editBody}
               onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
@@ -1495,19 +1750,19 @@ export function MainPanel({ api }: PanelProps) {
             />
           </div>
         ) : detail.body ? (
-          <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--border-color, #222)" }}>
-            <pre style={preStyle}>{detail.body}</pre>
+          <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--border-primary, #3f3f46)" }}>
+            <Markdown source={detail.body} />
           </div>
         ) : (
-          <div style={{ padding: "12px 16px", fontSize: "12px", color: "var(--text-secondary, #888)", fontStyle: "italic", borderBottom: "1px solid var(--border-color, #222)" }}>
+          <div style={{ padding: "12px 16px", fontSize: "12px", color: "var(--text-secondary, #a1a1aa)", fontStyle: "italic", borderBottom: "1px solid var(--border-primary, #3f3f46)" }}>
             No description provided.
           </div>
         )}
 
         {/* Comments */}
         {detail.comments.length > 0 && (
-          <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--border-color, #222)" }}>
-            <div style={{ fontSize: "12px", fontWeight: 500, color: "var(--text-primary, #e0e0e0)", marginBottom: "12px" }}>
+          <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--border-primary, #3f3f46)" }}>
+            <div style={{ fontSize: "12px", fontWeight: 500, color: "var(--text-primary, #e4e4e7)", marginBottom: "12px" }}>
               {detail.comments.length} comment{detail.comments.length === 1 ? "" : "s"}
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
@@ -1515,21 +1770,21 @@ export function MainPanel({ api }: PanelProps) {
                 <div
                   key={i}
                   style={{
-                    border: "1px solid var(--border-color, #222)",
+                    border: "1px solid var(--border-primary, #3f3f46)",
                     borderRadius: "6px",
                     overflow: "hidden",
                   }}
                 >
-                  <div style={{ display: "flex", alignItems: "center", gap: "8px", padding: "6px 10px", background: "var(--panel-bg-alt, rgba(0,0,0,0.15))", borderBottom: "1px solid var(--border-color, #222)" }}>
-                    <span style={{ fontSize: "12px", fontWeight: 500, color: "var(--text-primary, #e0e0e0)" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px", padding: "6px 10px", background: "var(--bg-secondary, #27272a)", borderBottom: "1px solid var(--border-primary, #3f3f46)" }}>
+                    <span style={{ fontSize: "12px", fontWeight: 500, color: "var(--text-primary, #e4e4e7)" }}>
                       {comment.author.login}
                     </span>
-                    <span style={{ fontSize: "10px", color: "var(--text-secondary, #888)" }}>
+                    <span style={{ fontSize: "10px", color: "var(--text-secondary, #a1a1aa)" }}>
                       {relativeTime(comment.createdAt)}
                     </span>
                   </div>
                   <div style={{ padding: "8px 10px" }}>
-                    <pre style={preStyle}>{comment.body}</pre>
+                    <Markdown source={comment.body} />
                   </div>
                 </div>
               ))}
@@ -1539,7 +1794,7 @@ export function MainPanel({ api }: PanelProps) {
 
         {/* Add comment */}
         <div style={{ padding: "12px 16px" }}>
-          <div style={{ fontSize: "12px", fontWeight: 500, color: "var(--text-primary, #e0e0e0)", marginBottom: "8px" }}>
+          <div style={{ fontSize: "12px", fontWeight: 500, color: "var(--text-primary, #e4e4e7)", marginBottom: "8px" }}>
             Add a comment
           </div>
           <textarea
@@ -1586,8 +1841,8 @@ const sidebarContainer: React.CSSProperties = {
   display: "flex",
   flexDirection: "column",
   height: "100%",
-  fontFamily: "var(--font-family)",
-  background: "var(--sidebar-bg, #181825)",
+  fontFamily: "var(--font-family, system-ui, -apple-system, sans-serif)",
+  background: "var(--bg-primary, #18181b)",
 };
 
 const sidebarHeader: React.CSSProperties = {
@@ -1595,34 +1850,34 @@ const sidebarHeader: React.CSSProperties = {
   alignItems: "center",
   justifyContent: "space-between",
   padding: "8px 10px",
-  borderBottom: "1px solid var(--border-color, #222)",
+  borderBottom: "1px solid var(--border-primary, #3f3f46)",
 };
 
 const sidebarHeaderBtn: React.CSSProperties = {
   padding: "2px 8px",
   fontSize: "12px",
-  color: "var(--text-secondary, #888)",
+  color: "var(--text-secondary, #a1a1aa)",
   background: "transparent",
   border: "none",
   borderRadius: "4px",
   cursor: "pointer",
-  fontFamily: "var(--font-family)",
+  fontFamily: "var(--font-family, system-ui, -apple-system, sans-serif)",
 };
 
 const mainContainer: React.CSSProperties = {
   display: "flex",
   flexDirection: "column",
   height: "100%",
-  fontFamily: "var(--font-family)",
-  background: "var(--panel-bg, #1e1e2e)",
+  fontFamily: "var(--font-family, system-ui, -apple-system, sans-serif)",
+  background: "var(--bg-primary, #18181b)",
 };
 
 const mainHeader: React.CSSProperties = {
   display: "flex",
   alignItems: "center",
   padding: "8px 16px",
-  borderBottom: "1px solid var(--border-color, #222)",
-  background: "var(--sidebar-bg, #181825)",
+  borderBottom: "1px solid var(--border-primary, #3f3f46)",
+  background: "var(--bg-primary, #18181b)",
   flexShrink: 0,
 };
 
@@ -1632,8 +1887,8 @@ const mainFooter: React.CSSProperties = {
   justifyContent: "flex-end",
   gap: "8px",
   padding: "10px 16px",
-  borderTop: "1px solid var(--border-color, #222)",
-  background: "var(--sidebar-bg, #181825)",
+  borderTop: "1px solid var(--border-primary, #3f3f46)",
+  background: "var(--bg-primary, #18181b)",
   flexShrink: 0,
 };
 
@@ -1641,7 +1896,7 @@ const formLabel: React.CSSProperties = {
   display: "block",
   fontSize: "12px",
   fontWeight: 500,
-  color: "var(--text-secondary, #aaa)",
+  color: "var(--text-secondary, #a1a1aa)",
   marginBottom: "4px",
 };
 
@@ -1649,23 +1904,13 @@ const formInput: React.CSSProperties = {
   width: "100%",
   padding: "6px 10px",
   borderRadius: "6px",
-  border: "1px solid var(--border-color, #333)",
-  background: "var(--input-bg, #1a1a2e)",
-  color: "var(--text-primary, #e0e0e0)",
+  border: "1px solid var(--border-primary, #3f3f46)",
+  background: "var(--bg-secondary, #27272a)",
+  color: "var(--text-primary, #e4e4e7)",
   fontSize: "13px",
-  fontFamily: "var(--font-family)",
+  fontFamily: "var(--font-family, system-ui, -apple-system, sans-serif)",
   boxSizing: "border-box",
   outline: "none",
-};
-
-const preStyle: React.CSSProperties = {
-  whiteSpace: "pre-wrap",
-  wordWrap: "break-word",
-  fontFamily: "var(--font-mono, monospace)",
-  fontSize: "13px",
-  lineHeight: 1.6,
-  color: "var(--text-primary, #e0e0e0)",
-  margin: 0,
 };
 
 const btnPrimarySmall: React.CSSProperties = {
@@ -1674,19 +1919,19 @@ const btnPrimarySmall: React.CSSProperties = {
   fontWeight: 500,
   borderRadius: "4px",
   border: "none",
-  background: "var(--accent-color, #4a6cf7)",
+  background: "var(--text-accent, #8b5cf6)",
   color: "#fff",
   cursor: "pointer",
-  fontFamily: "var(--font-family)",
+  fontFamily: "var(--font-family, system-ui, -apple-system, sans-serif)",
 };
 
 const btnSecondarySmall: React.CSSProperties = {
   padding: "4px 12px",
   fontSize: "12px",
   borderRadius: "4px",
-  border: "1px solid var(--border-color, #333)",
+  border: "1px solid var(--border-primary, #3f3f46)",
   background: "transparent",
-  color: "var(--text-primary, #e0e0e0)",
+  color: "var(--text-primary, #e4e4e7)",
   cursor: "pointer",
-  fontFamily: "var(--font-family)",
+  fontFamily: "var(--font-family, system-ui, -apple-system, sans-serif)",
 };
