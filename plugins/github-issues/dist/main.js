@@ -27,92 +27,108 @@ function extractYamlValue(yaml, key) {
   return match ? match[1] : null;
 }
 
+// src/state.ts
+function createIssueState() {
+  const state = {
+    repoIdentity: null,
+    selectedIssueNumber: null,
+    creatingNew: false,
+    issues: [],
+    page: 1,
+    hasMore: false,
+    loading: false,
+    needsRefresh: false,
+    stateFilter: "open",
+    searchQuery: "",
+    listeners: /* @__PURE__ */ new Set(),
+    pendingAction: null,
+    setRepoIdentity(identity) {
+      if (state.repoIdentity !== identity) {
+        const listeners = new Set(state.listeners);
+        state.reset();
+        state.listeners = listeners;
+        state.repoIdentity = identity;
+        state.notify();
+      }
+    },
+    setSelectedIssue(num) {
+      state.selectedIssueNumber = num;
+      state.creatingNew = false;
+      state.notify();
+    },
+    setCreatingNew(val) {
+      state.creatingNew = val;
+      if (val) state.selectedIssueNumber = null;
+      state.notify();
+    },
+    setIssues(issues) {
+      state.issues = issues;
+      state.notify();
+    },
+    appendIssues(issues) {
+      state.issues = [...state.issues, ...issues];
+      state.notify();
+    },
+    setLoading(loading) {
+      state.loading = loading;
+      state.notify();
+    },
+    setStateFilter(filter) {
+      state.stateFilter = filter;
+      state.page = 1;
+      state.issues = [];
+      state.requestRefresh();
+    },
+    setSearchQuery(query) {
+      state.searchQuery = query;
+      state.notify();
+    },
+    triggerAction(action) {
+      if (state.selectedIssueNumber === null) return;
+      state.pendingAction = action;
+      state.notify();
+    },
+    consumeAction() {
+      const action = state.pendingAction;
+      state.pendingAction = null;
+      return action;
+    },
+    requestRefresh() {
+      state.needsRefresh = true;
+      state.notify();
+    },
+    subscribe(fn) {
+      state.listeners.add(fn);
+      return () => {
+        state.listeners.delete(fn);
+      };
+    },
+    notify() {
+      for (const fn of state.listeners) fn();
+    },
+    reset() {
+      state.repoIdentity = null;
+      state.selectedIssueNumber = null;
+      state.creatingNew = false;
+      state.issues = [];
+      state.page = 1;
+      state.hasMore = false;
+      state.loading = false;
+      state.needsRefresh = false;
+      state.pendingAction = null;
+      state.stateFilter = "open";
+      state.searchQuery = "";
+      state.listeners.clear();
+    }
+  };
+  return state;
+}
+
 // src/main.tsx
 import { Fragment, jsx, jsxs } from "react/jsx-runtime";
 var React = globalThis.React;
 var { useState, useEffect, useCallback, useRef, useMemo } = React;
-var issueState = {
-  selectedIssueNumber: null,
-  creatingNew: false,
-  issues: [],
-  page: 1,
-  hasMore: false,
-  loading: false,
-  needsRefresh: false,
-  stateFilter: "open",
-  searchQuery: "",
-  listeners: /* @__PURE__ */ new Set(),
-  setSelectedIssue(num) {
-    this.selectedIssueNumber = num;
-    this.creatingNew = false;
-    this.notify();
-  },
-  setCreatingNew(val) {
-    this.creatingNew = val;
-    if (val) this.selectedIssueNumber = null;
-    this.notify();
-  },
-  setIssues(issues) {
-    this.issues = issues;
-    this.notify();
-  },
-  appendIssues(issues) {
-    this.issues = [...this.issues, ...issues];
-    this.notify();
-  },
-  setLoading(loading) {
-    this.loading = loading;
-    this.notify();
-  },
-  setStateFilter(filter) {
-    this.stateFilter = filter;
-    this.page = 1;
-    this.issues = [];
-    this.requestRefresh();
-  },
-  setSearchQuery(query) {
-    this.searchQuery = query;
-    this.notify();
-  },
-  // Command-triggered actions (consumed by MainPanel)
-  pendingAction: null,
-  triggerAction(action) {
-    if (this.selectedIssueNumber === null) return;
-    this.pendingAction = action;
-    this.notify();
-  },
-  consumeAction() {
-    const action = this.pendingAction;
-    this.pendingAction = null;
-    return action;
-  },
-  requestRefresh() {
-    this.needsRefresh = true;
-    this.notify();
-  },
-  subscribe(fn) {
-    this.listeners.add(fn);
-    return () => {
-      this.listeners.delete(fn);
-    };
-  },
-  notify() {
-    for (const fn of this.listeners) fn();
-  },
-  reset() {
-    this.selectedIssueNumber = null;
-    this.creatingNew = false;
-    this.issues = [];
-    this.page = 1;
-    this.hasMore = false;
-    this.loading = false;
-    this.needsRefresh = false;
-    this.pendingAction = null;
-    this.stateFilter = "open";
-    this.searchQuery = "";
-    this.listeners.clear();
-  }
-};
+var issueState = createIssueState();
 function renderInline(text) {
   const nodes = [];
   const inlineRe = /!\[([^\]]*)\]\(([^)]+)\)|(\[([^\]]+)\]\(([^)]+)\))|(`[^`]+`)|(\*\*[^*]+\*\*)|(__[^_]+__)|(\*[^*]+\*)|(_[^_]+_)|(~~[^~]+~~)/g;
@@ -870,6 +886,11 @@ function SidebarPanel({ api }) {
     issueState.setLoading(true);
     setError(null);
     try {
+      const repo = await detectRepo(api);
+      if (!mountedRef.current) return;
+      if (repo) {
+        issueState.setRepoIdentity(repo);
+      }
       const perPage = 30;
       const fetchCount = page * perPage + 1;
       const fields = "number,title,labels,createdAt,updatedAt,author,url,state";
@@ -908,7 +929,7 @@ function SidebarPanel({ api }) {
     }
   }, [api]);
   useEffect(() => {
-    if (issueState.issues.length === 0) fetchIssues(1, false);
+    fetchIssues(1, false);
   }, [fetchIssues]);
   useEffect(() => {
     if (needsRefresh) {

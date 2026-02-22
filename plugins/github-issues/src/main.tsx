@@ -5,6 +5,7 @@ import type {
   AgentInfo,
 } from "@clubhouse/plugin-types";
 import { relativeTime, labelColor, labelColorAlpha, extractYamlValue } from "./helpers";
+import { createIssueState } from "./state";
 
 const React = globalThis.React;
 const { useState, useEffect, useCallback, useRef, useMemo } = React;
@@ -13,16 +14,7 @@ const { useState, useEffect, useCallback, useRef, useMemo } = React;
 // Types
 // ---------------------------------------------------------------------------
 
-interface IssueListItem {
-  number: number;
-  title: string;
-  state: string;
-  url: string;
-  createdAt: string;
-  updatedAt: string;
-  author: { login: string };
-  labels: Array<{ name: string; color: string }>;
-}
+import type { IssueListItem } from "./state";
 
 interface IssueDetail extends IssueListItem {
   body: string;
@@ -43,102 +35,7 @@ interface IssueTemplate {
 // Shared state (coordinates SidebarPanel and MainPanel across React trees)
 // ---------------------------------------------------------------------------
 
-const issueState = {
-  selectedIssueNumber: null as number | null,
-  creatingNew: false,
-  issues: [] as IssueListItem[],
-  page: 1,
-  hasMore: false,
-  loading: false,
-  needsRefresh: false,
-  stateFilter: "open" as "open" | "closed",
-  searchQuery: "",
-  listeners: new Set<() => void>(),
-
-  setSelectedIssue(num: number | null): void {
-    this.selectedIssueNumber = num;
-    this.creatingNew = false;
-    this.notify();
-  },
-
-  setCreatingNew(val: boolean): void {
-    this.creatingNew = val;
-    if (val) this.selectedIssueNumber = null;
-    this.notify();
-  },
-
-  setIssues(issues: IssueListItem[]): void {
-    this.issues = issues;
-    this.notify();
-  },
-
-  appendIssues(issues: IssueListItem[]): void {
-    this.issues = [...this.issues, ...issues];
-    this.notify();
-  },
-
-  setLoading(loading: boolean): void {
-    this.loading = loading;
-    this.notify();
-  },
-
-  setStateFilter(filter: "open" | "closed"): void {
-    this.stateFilter = filter;
-    this.page = 1;
-    this.issues = [];
-    this.requestRefresh();
-  },
-
-  setSearchQuery(query: string): void {
-    this.searchQuery = query;
-    this.notify();
-  },
-
-  // Command-triggered actions (consumed by MainPanel)
-  pendingAction: null as "assignAgent" | "toggleState" | "viewInBrowser" | null,
-
-  triggerAction(action: "assignAgent" | "toggleState" | "viewInBrowser"): void {
-    if (this.selectedIssueNumber === null) return;
-    this.pendingAction = action;
-    this.notify();
-  },
-
-  consumeAction(): "assignAgent" | "toggleState" | "viewInBrowser" | null {
-    const action = this.pendingAction;
-    this.pendingAction = null;
-    return action;
-  },
-
-  requestRefresh(): void {
-    this.needsRefresh = true;
-    this.notify();
-  },
-
-  subscribe(fn: () => void): () => void {
-    this.listeners.add(fn);
-    return () => {
-      this.listeners.delete(fn);
-    };
-  },
-
-  notify(): void {
-    for (const fn of this.listeners) fn();
-  },
-
-  reset(): void {
-    this.selectedIssueNumber = null;
-    this.creatingNew = false;
-    this.issues = [];
-    this.page = 1;
-    this.hasMore = false;
-    this.loading = false;
-    this.needsRefresh = false;
-    this.pendingAction = null;
-    this.stateFilter = "open";
-    this.searchQuery = "";
-    this.listeners.clear();
-  },
-};
+const issueState = createIssueState();
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -999,6 +896,13 @@ export function SidebarPanel({ api }: PanelProps) {
     issueState.setLoading(true);
     setError(null);
     try {
+      // Detect current repo and invalidate cache if it changed
+      const repo = await detectRepo(api);
+      if (!mountedRef.current) return;
+      if (repo) {
+        issueState.setRepoIdentity(repo);
+      }
+
       const perPage = 30;
       const fetchCount = page * perPage + 1;
       const fields = "number,title,labels,createdAt,updatedAt,author,url,state";
@@ -1031,9 +935,9 @@ export function SidebarPanel({ api }: PanelProps) {
     }
   }, [api]);
 
-  // Initial fetch
+  // Initial fetch — always run to detect repo identity changes
   useEffect(() => {
-    if (issueState.issues.length === 0) fetchIssues(1, false);
+    fetchIssues(1, false);
   }, [fetchIssues]);
 
   // React to refresh requests
