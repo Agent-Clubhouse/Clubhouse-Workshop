@@ -1,3 +1,88 @@
+// src/helpers.ts
+function relativeTime(dateStr) {
+  const now = Date.now();
+  const then = new Date(dateStr).getTime();
+  const diffMs = now - then;
+  const diffMin = Math.floor(diffMs / 6e4);
+  if (diffMin < 1) return "just now";
+  if (diffMin < 60) return `${diffMin}m ago`;
+  const diffH = Math.floor(diffMin / 60);
+  if (diffH < 24) return `${diffH}h ago`;
+  const diffD = Math.floor(diffH / 24);
+  if (diffD < 30) return `${diffD}d ago`;
+  const diffMo = Math.floor(diffD / 30);
+  return `${diffMo}mo ago`;
+}
+function typeColor(type) {
+  switch (type.toLowerCase()) {
+    case "bug":
+      return "var(--text-error, #cc293d)";
+    case "task":
+      return "var(--text-warning, #f2cb1d)";
+    case "user story":
+      return "var(--text-info, #009ccc)";
+    case "product backlog item":
+      return "var(--text-info, #009ccc)";
+    case "feature":
+      return "var(--text-accent, #773b93)";
+    case "epic":
+      return "var(--text-warning, #ff7b00)";
+    case "issue":
+      return "var(--text-info, #009ccc)";
+    case "impediment":
+      return "var(--text-error, #cc293d)";
+    default:
+      return "var(--text-tertiary, #888)";
+  }
+}
+function stateColor(state) {
+  const s = state.toLowerCase();
+  if (s === "new" || s === "to do" || s === "proposed")
+    return { bg: "var(--bg-secondary, rgba(180,180,180,0.1))", fg: "var(--text-secondary, #a1a1aa)", border: "var(--border-secondary, rgba(180,180,180,0.3))" };
+  if (s === "active" || s === "in progress" || s === "committed" || s === "doing")
+    return { bg: "var(--bg-accent, rgba(0,122,204,0.1))", fg: "var(--text-info, #3b82f6)", border: "var(--border-secondary, rgba(0,122,204,0.3))" };
+  if (s === "resolved" || s === "done")
+    return { bg: "var(--bg-accent, rgba(64,200,100,0.1))", fg: "var(--text-accent, #4ade80)", border: "var(--border-secondary, rgba(64,200,100,0.3))" };
+  if (s === "closed" || s === "removed")
+    return { bg: "var(--bg-tertiary, rgba(168,85,247,0.1))", fg: "var(--text-tertiary, #a1a1aa)", border: "var(--border-primary, rgba(168,85,247,0.3))" };
+  return { bg: "var(--bg-secondary, rgba(180,180,180,0.1))", fg: "var(--text-secondary, #a1a1aa)", border: "var(--border-secondary, rgba(180,180,180,0.3))" };
+}
+function priorityLabel(p) {
+  switch (p) {
+    case 1:
+      return "Critical";
+    case 2:
+      return "High";
+    case 3:
+      return "Medium";
+    case 4:
+      return "Low";
+    default:
+      return "";
+  }
+}
+function statusBadgeStyle(status) {
+  const base = {
+    fontSize: "9px",
+    padding: "1px 4px",
+    borderRadius: "3px",
+    display: "inline-block"
+  };
+  switch (status) {
+    case "sleeping":
+      return { ...base, background: "var(--bg-accent, rgba(64,200,100,0.15))", color: "var(--text-accent, #4ade80)" };
+    case "running":
+      return { ...base, background: "var(--bg-accent, rgba(234,179,8,0.15))", color: "var(--text-warning, #facc15)" };
+    case "error":
+      return { ...base, background: "var(--bg-error, rgba(239,68,68,0.15))", color: "var(--text-error, #f87171)" };
+    default:
+      return base;
+  }
+}
+function stripHtml(html) {
+  return html.replace(/<br\s*\/?>/gi, "\n").replace(/<\/p>/gi, "\n").replace(/<\/div>/gi, "\n").replace(/<\/li>/gi, "\n").replace(/<[^>]+>/g, "").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&nbsp;/g, " ").replace(/\n{3,}/g, "\n\n").trim();
+}
+
 // src/main.tsx
 import { Fragment, jsx, jsxs } from "react/jsx-runtime";
 var React = globalThis.React;
@@ -79,20 +164,6 @@ var workItemState = {
     this.listeners.clear();
   }
 };
-function relativeTime(dateStr) {
-  const now = Date.now();
-  const then = new Date(dateStr).getTime();
-  const diffMs = now - then;
-  const diffMin = Math.floor(diffMs / 6e4);
-  if (diffMin < 1) return "just now";
-  if (diffMin < 60) return `${diffMin}m ago`;
-  const diffH = Math.floor(diffMin / 60);
-  if (diffH < 24) return `${diffH}h ago`;
-  const diffD = Math.floor(diffH / 24);
-  if (diffD < 30) return `${diffD}d ago`;
-  const diffMo = Math.floor(diffD / 30);
-  return `${diffMo}mo ago`;
-}
 function getConfig(api) {
   return {
     organization: (api.settings.get("organization") || "").replace(/\/+$/, ""),
@@ -109,54 +180,6 @@ function baseArgs(config) {
   if (config.organization) args.push("--org", config.organization);
   if (config.project) args.push("--project", config.project);
   return args;
-}
-function typeColor(type) {
-  switch (type.toLowerCase()) {
-    case "bug":
-      return "#cc293d";
-    case "task":
-      return "#f2cb1d";
-    case "user story":
-      return "#009ccc";
-    case "product backlog item":
-      return "#009ccc";
-    case "feature":
-      return "#773b93";
-    case "epic":
-      return "#ff7b00";
-    case "issue":
-      return "#009ccc";
-    case "impediment":
-      return "#cc293d";
-    default:
-      return "#888";
-  }
-}
-function stateColor(state) {
-  const s = state.toLowerCase();
-  if (s === "new" || s === "to do" || s === "proposed")
-    return { bg: "rgba(180,180,180,0.1)", fg: "#b4b4b4", border: "rgba(180,180,180,0.3)" };
-  if (s === "active" || s === "in progress" || s === "committed" || s === "doing")
-    return { bg: "rgba(0,122,204,0.1)", fg: "#007acc", border: "rgba(0,122,204,0.3)" };
-  if (s === "resolved" || s === "done")
-    return { bg: "rgba(64,200,100,0.1)", fg: "#4ade80", border: "rgba(64,200,100,0.3)" };
-  if (s === "closed" || s === "removed")
-    return { bg: "rgba(168,85,247,0.1)", fg: "#c084fc", border: "rgba(168,85,247,0.3)" };
-  return { bg: "rgba(180,180,180,0.1)", fg: "#b4b4b4", border: "rgba(180,180,180,0.3)" };
-}
-function priorityLabel(p) {
-  switch (p) {
-    case 1:
-      return "Critical";
-    case 2:
-      return "High";
-    case 3:
-      return "Medium";
-    case 4:
-      return "Low";
-    default:
-      return "";
-  }
 }
 function buildWorkItemUrl(config, id) {
   return `${config.organization}/${encodeURIComponent(config.project)}/_workitems/edit/${id}`;
@@ -331,27 +354,6 @@ function buildAgentPrompt(item) {
     item.description ? stripHtml(item.description) : "(no description)"
   ].filter(Boolean).join("\n");
 }
-function stripHtml(html) {
-  return html.replace(/<br\s*\/?>/gi, "\n").replace(/<\/p>/gi, "\n").replace(/<\/div>/gi, "\n").replace(/<\/li>/gi, "\n").replace(/<[^>]+>/g, "").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&nbsp;/g, " ").replace(/\n{3,}/g, "\n\n").trim();
-}
-function statusBadgeStyle(status) {
-  const base = {
-    fontSize: "9px",
-    padding: "1px 4px",
-    borderRadius: "3px",
-    display: "inline-block"
-  };
-  switch (status) {
-    case "sleeping":
-      return { ...base, background: "rgba(64,200,100,0.15)", color: "#4ade80" };
-    case "running":
-      return { ...base, background: "rgba(234,179,8,0.15)", color: "#facc15" };
-    case "error":
-      return { ...base, background: "rgba(239,68,68,0.15)", color: "#f87171" };
-    default:
-      return base;
-  }
-}
 function SendToAgentDialog({
   api,
   item,
@@ -440,8 +442,8 @@ ${instructions.trim()}`;
         "div",
         {
           style: {
-            background: "var(--panel-bg, #1e1e2e)",
-            border: "1px solid var(--border-color, #333)",
+            background: "var(--bg-primary, #18181b)",
+            border: "1px solid var(--border-primary, #3f3f46)",
             borderRadius: "8px",
             padding: "16px",
             width: "320px",
@@ -450,8 +452,8 @@ ${instructions.trim()}`;
             boxShadow: "0 8px 32px rgba(0,0,0,0.4)"
           },
           children: [
-            /* @__PURE__ */ jsx("div", { style: { fontSize: "14px", fontWeight: 500, color: "var(--text-primary, #e0e0e0)", marginBottom: "4px" }, children: "Assign to Agent" }),
-            /* @__PURE__ */ jsxs("div", { style: { fontSize: "10px", color: "var(--text-secondary, #888)", marginBottom: "12px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }, children: [
+            /* @__PURE__ */ jsx("div", { style: { fontSize: "14px", fontWeight: 500, color: "var(--text-primary, #e4e4e7)", marginBottom: "4px" }, children: "Assign to Agent" }),
+            /* @__PURE__ */ jsxs("div", { style: { fontSize: "10px", color: "var(--text-secondary, #a1a1aa)", marginBottom: "12px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }, children: [
               "#",
               item.id,
               " ",
@@ -469,17 +471,17 @@ ${instructions.trim()}`;
                   width: "100%",
                   padding: "6px 8px",
                   fontSize: "12px",
-                  background: "var(--input-bg, #1a1a2e)",
-                  border: "1px solid var(--border-color, #333)",
+                  background: "var(--bg-secondary, #27272a)",
+                  border: "1px solid var(--border-primary, #3f3f46)",
                   borderRadius: "4px",
-                  color: "var(--text-primary, #e0e0e0)",
+                  color: "var(--text-primary, #e4e4e7)",
                   resize: "none",
-                  fontFamily: "var(--font-family)",
+                  fontFamily: "var(--font-family, system-ui, -apple-system, sans-serif)",
                   boxSizing: "border-box"
                 }
               }
             ),
-            /* @__PURE__ */ jsx("div", { style: { marginTop: "12px", display: "flex", flexDirection: "column", gap: "4px" }, children: durableAgents.length === 0 ? /* @__PURE__ */ jsx("div", { style: { fontSize: "12px", color: "var(--text-secondary, #888)", textAlign: "center", padding: "16px 0" }, children: "No durable agents found" }) : durableAgents.map((agent) => {
+            /* @__PURE__ */ jsx("div", { style: { marginTop: "12px", display: "flex", flexDirection: "column", gap: "4px" }, children: durableAgents.length === 0 ? /* @__PURE__ */ jsx("div", { style: { fontSize: "12px", color: "var(--text-secondary, #a1a1aa)", textAlign: "center", padding: "16px 0" }, children: "No durable agents found" }) : durableAgents.map((agent) => {
               const isSelected = selectedAgentId === agent.id;
               return /* @__PURE__ */ jsxs(
                 "button",
@@ -490,12 +492,12 @@ ${instructions.trim()}`;
                     textAlign: "left",
                     padding: "8px 10px",
                     fontSize: "12px",
-                    color: "var(--text-primary, #e0e0e0)",
+                    color: "var(--text-primary, #e4e4e7)",
                     borderRadius: "4px",
-                    border: isSelected ? "1px solid var(--accent-color, #4a6cf7)" : "1px solid transparent",
-                    background: isSelected ? "rgba(74,108,247,0.1)" : "transparent",
+                    border: isSelected ? "1px solid var(--text-accent, #8b5cf6)" : "1px solid transparent",
+                    background: isSelected ? "var(--bg-accent, rgba(139, 92, 246, 0.15))" : "transparent",
                     cursor: "pointer",
-                    fontFamily: "var(--font-family)"
+                    fontFamily: "var(--font-family, system-ui, -apple-system, sans-serif)"
                   },
                   children: [
                     /* @__PURE__ */ jsxs("div", { style: { display: "flex", alignItems: "center", gap: "6px" }, children: [
@@ -503,7 +505,7 @@ ${instructions.trim()}`;
                       /* @__PURE__ */ jsx("span", { style: { fontWeight: 500 }, children: agent.name }),
                       /* @__PURE__ */ jsx("span", { style: statusBadgeStyle(agent.status), children: agent.status })
                     ] }),
-                    /* @__PURE__ */ jsx("div", { style: { fontSize: "10px", color: "var(--text-secondary, #888)", marginTop: "2px", paddingLeft: "22px" }, children: agent.status === "running" ? "Will interrupt current work" : "Assign work item to this agent" })
+                    /* @__PURE__ */ jsx("div", { style: { fontSize: "10px", color: "var(--text-secondary, #a1a1aa)", marginTop: "2px", paddingLeft: "22px" }, children: agent.status === "running" ? "Will interrupt current work" : "Assign work item to this agent" })
                   ]
                 },
                 agent.id
@@ -515,7 +517,7 @@ ${instructions.trim()}`;
                 style: {
                   marginTop: "12px",
                   paddingTop: "12px",
-                  borderTop: "1px solid var(--border-color, #333)",
+                  borderTop: "1px solid var(--border-primary, #3f3f46)",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "space-between"
@@ -540,7 +542,7 @@ ${instructions.trim()}`;
                             onChange: (e) => setSaveAsDefault(e.target.checked)
                           }
                         ),
-                        /* @__PURE__ */ jsx("span", { style: { fontSize: "10px", color: "var(--text-secondary, #888)" }, children: "Save as default" })
+                        /* @__PURE__ */ jsx("span", { style: { fontSize: "10px", color: "var(--text-secondary, #a1a1aa)" }, children: "Save as default" })
                       ]
                     }
                   ),
@@ -648,20 +650,20 @@ function StatePickerDialog({
         "div",
         {
           style: {
-            background: "var(--panel-bg, #1e1e2e)",
-            border: "1px solid var(--border-color, #333)",
+            background: "var(--bg-primary, #18181b)",
+            border: "1px solid var(--border-primary, #3f3f46)",
             borderRadius: "8px",
             padding: "16px",
             width: "260px",
             boxShadow: "0 8px 32px rgba(0,0,0,0.4)"
           },
           children: [
-            /* @__PURE__ */ jsx("div", { style: { fontSize: "14px", fontWeight: 500, color: "var(--text-primary, #e0e0e0)", marginBottom: "4px" }, children: "Change State" }),
-            /* @__PURE__ */ jsxs("div", { style: { fontSize: "10px", color: "var(--text-secondary, #888)", marginBottom: "12px" }, children: [
+            /* @__PURE__ */ jsx("div", { style: { fontSize: "14px", fontWeight: 500, color: "var(--text-primary, #e4e4e7)", marginBottom: "4px" }, children: "Change State" }),
+            /* @__PURE__ */ jsxs("div", { style: { fontSize: "10px", color: "var(--text-secondary, #a1a1aa)", marginBottom: "12px" }, children: [
               "Current: ",
               item.state
             ] }),
-            loadingStates ? /* @__PURE__ */ jsxs("div", { style: { fontSize: "12px", color: "var(--text-secondary, #888)", textAlign: "center", padding: "8px" }, children: [
+            loadingStates ? /* @__PURE__ */ jsxs("div", { style: { fontSize: "12px", color: "var(--text-secondary, #a1a1aa)", textAlign: "center", padding: "8px" }, children: [
               "Loading",
               "\u2026"
             ] }) : /* @__PURE__ */ jsx("div", { style: { display: "flex", flexDirection: "column", gap: "4px" }, children: states.map((s) => {
@@ -680,7 +682,7 @@ function StatePickerDialog({
                     border: `1px solid ${colors.border}`,
                     background: colors.bg,
                     cursor: "pointer",
-                    fontFamily: "var(--font-family)"
+                    fontFamily: "var(--font-family, system-ui, -apple-system, sans-serif)"
                   },
                   children: s
                 },
@@ -697,7 +699,7 @@ function StatePickerDialog({
 function ConfigWarning() {
   return /* @__PURE__ */ jsx("div", { style: { ...sidebarContainer, justifyContent: "center", alignItems: "center" }, children: /* @__PURE__ */ jsxs("div", { style: { padding: "16px", textAlign: "center" }, children: [
     /* @__PURE__ */ jsx("div", { style: { fontSize: "12px", color: "var(--text-error, #f87171)", marginBottom: "8px" }, children: "Plugin not configured" }),
-    /* @__PURE__ */ jsx("div", { style: { fontSize: "11px", color: "var(--text-secondary, #888)", marginBottom: "12px", lineHeight: 1.5 }, children: "Open the plugin settings and configure your Azure DevOps Organization URL and Project name. The Azure CLI must also be installed with the azure-devops extension." })
+    /* @__PURE__ */ jsx("div", { style: { fontSize: "11px", color: "var(--text-secondary, #a1a1aa)", marginBottom: "12px", lineHeight: 1.5 }, children: "Open the plugin settings and configure your Azure DevOps Organization URL and Project name. The Azure CLI must also be installed with the azure-devops extension." })
   ] }) });
 }
 function SidebarPanel({ api }) {
@@ -847,13 +849,13 @@ function SidebarPanel({ api }) {
   if (error) {
     return /* @__PURE__ */ jsx("div", { style: { ...sidebarContainer, justifyContent: "center", alignItems: "center" }, children: /* @__PURE__ */ jsxs("div", { style: { padding: "16px", textAlign: "center" }, children: [
       /* @__PURE__ */ jsx("div", { style: { fontSize: "12px", color: "var(--text-error, #f87171)", marginBottom: "8px" }, children: "Could not load work items" }),
-      /* @__PURE__ */ jsx("div", { style: { fontSize: "11px", color: "var(--text-secondary, #888)", marginBottom: "12px" }, children: error }),
+      /* @__PURE__ */ jsx("div", { style: { fontSize: "11px", color: "var(--text-secondary, #a1a1aa)", marginBottom: "12px" }, children: error }),
       /* @__PURE__ */ jsx("button", { onClick: () => fetchItems(), style: btnSecondarySmall, children: "Retry" })
     ] }) });
   }
   return /* @__PURE__ */ jsxs("div", { style: sidebarContainer, children: [
     /* @__PURE__ */ jsxs("div", { style: sidebarHeader, children: [
-      /* @__PURE__ */ jsx("span", { style: { fontSize: "12px", fontWeight: 500, color: "var(--text-primary, #e0e0e0)" }, children: "Work Items" }),
+      /* @__PURE__ */ jsx("span", { style: { fontSize: "12px", fontWeight: 500, color: "var(--text-primary, #e4e4e7)" }, children: "Work Items" }),
       /* @__PURE__ */ jsxs("div", { style: { display: "flex", alignItems: "center", gap: "4px" }, children: [
         /* @__PURE__ */ jsx(
           "button",
@@ -876,7 +878,7 @@ function SidebarPanel({ api }) {
         )
       ] })
     ] }),
-    /* @__PURE__ */ jsxs("div", { style: { padding: "6px 8px", borderBottom: "1px solid var(--border-color, #222)", display: "flex", gap: "4px", alignItems: "center", flexWrap: "wrap" }, children: [
+    /* @__PURE__ */ jsxs("div", { style: { padding: "6px 8px", borderBottom: "1px solid var(--border-primary, #3f3f46)", display: "flex", gap: "4px", alignItems: "center", flexWrap: "wrap" }, children: [
       /* @__PURE__ */ jsx(
         "input",
         {
@@ -889,11 +891,11 @@ function SidebarPanel({ api }) {
             minWidth: "60px",
             padding: "4px 6px",
             fontSize: "11px",
-            border: "1px solid var(--border-color, #333)",
+            border: "1px solid var(--border-primary, #3f3f46)",
             borderRadius: "4px",
-            background: "var(--input-bg, #1a1a2e)",
-            color: "var(--text-primary, #e0e0e0)",
-            fontFamily: "var(--font-family)",
+            background: "var(--bg-secondary, #27272a)",
+            color: "var(--text-primary, #e4e4e7)",
+            fontFamily: "var(--font-family, system-ui, -apple-system, sans-serif)",
             outline: "none"
           }
         }
@@ -923,17 +925,17 @@ function SidebarPanel({ api }) {
         }
       )
     ] }),
-    /* @__PURE__ */ jsx("div", { style: { flex: 1, overflowY: "auto" }, children: loading && items.length === 0 ? /* @__PURE__ */ jsxs("div", { style: { padding: "16px", textAlign: "center", fontSize: "12px", color: "var(--text-secondary, #888)" }, children: [
+    /* @__PURE__ */ jsx("div", { style: { flex: 1, overflowY: "auto" }, children: loading && items.length === 0 ? /* @__PURE__ */ jsxs("div", { style: { padding: "16px", textAlign: "center", fontSize: "12px", color: "var(--text-secondary, #a1a1aa)" }, children: [
       "Loading work items",
       "\u2026"
-    ] }) : filteredItems.length === 0 ? /* @__PURE__ */ jsx("div", { style: { padding: "16px", textAlign: "center", fontSize: "12px", color: "var(--text-secondary, #888)" }, children: searchQuery ? "No matching work items" : "No work items found" }) : /* @__PURE__ */ jsx("div", { style: { padding: "2px 0" }, children: filteredItems.map((item) => /* @__PURE__ */ jsxs(
+    ] }) : filteredItems.length === 0 ? /* @__PURE__ */ jsx("div", { style: { padding: "16px", textAlign: "center", fontSize: "12px", color: "var(--text-secondary, #a1a1aa)" }, children: searchQuery ? "No matching work items" : "No work items found" }) : /* @__PURE__ */ jsx("div", { style: { padding: "2px 0" }, children: filteredItems.map((item) => /* @__PURE__ */ jsxs(
       "div",
       {
         onClick: () => workItemState.setSelectedItem(item.id),
         style: {
           padding: "8px 10px",
           cursor: "pointer",
-          background: item.id === selected ? "var(--item-active-bg, #2a2a4a)" : "transparent"
+          background: item.id === selected ? "var(--bg-active, #3f3f46)" : "transparent"
         },
         children: [
           /* @__PURE__ */ jsxs("div", { style: { display: "flex", alignItems: "center", gap: "6px", minWidth: 0 }, children: [
@@ -949,11 +951,11 @@ function SidebarPanel({ api }) {
                 }
               }
             ),
-            /* @__PURE__ */ jsxs("span", { style: { fontSize: "10px", color: "var(--text-secondary, #888)", flexShrink: 0 }, children: [
+            /* @__PURE__ */ jsxs("span", { style: { fontSize: "10px", color: "var(--text-secondary, #a1a1aa)", flexShrink: 0 }, children: [
               "#",
               item.id
             ] }),
-            /* @__PURE__ */ jsx("span", { style: { fontSize: "12px", color: "var(--text-primary, #e0e0e0)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }, children: item.title })
+            /* @__PURE__ */ jsx("span", { style: { fontSize: "12px", color: "var(--text-primary, #e4e4e7)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }, children: item.title })
           ] }),
           /* @__PURE__ */ jsxs("div", { style: { display: "flex", alignItems: "center", gap: "4px", marginTop: "4px", paddingLeft: "9px" }, children: [
             /* @__PURE__ */ jsx("span", { style: { fontSize: "9px", color: typeColor(item.workItemType), flexShrink: 0 }, children: item.workItemType }),
@@ -975,8 +977,8 @@ function SidebarPanel({ api }) {
                 }
               );
             })(),
-            item.assignedTo && /* @__PURE__ */ jsx("span", { style: { fontSize: "9px", color: "var(--text-secondary, #666)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }, children: item.assignedTo }),
-            /* @__PURE__ */ jsx("span", { style: { fontSize: "10px", color: "var(--text-secondary, #888)", marginLeft: "auto", flexShrink: 0 }, children: relativeTime(item.changedDate) })
+            item.assignedTo && /* @__PURE__ */ jsx("span", { style: { fontSize: "9px", color: "var(--text-tertiary, #71717a)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }, children: item.assignedTo }),
+            /* @__PURE__ */ jsx("span", { style: { fontSize: "10px", color: "var(--text-secondary, #a1a1aa)", marginLeft: "auto", flexShrink: 0 }, children: relativeTime(item.changedDate) })
           ] })
         ]
       },
@@ -1211,7 +1213,7 @@ function MainPanel({ api }) {
   }, []);
   if (creatingNew) {
     return /* @__PURE__ */ jsxs("div", { style: mainContainer, children: [
-      /* @__PURE__ */ jsx("div", { style: mainHeader, children: /* @__PURE__ */ jsx("span", { style: { fontSize: "13px", fontWeight: 500, color: "var(--text-primary, #e0e0e0)" }, children: "New Work Item" }) }),
+      /* @__PURE__ */ jsx("div", { style: mainHeader, children: /* @__PURE__ */ jsx("span", { style: { fontSize: "13px", fontWeight: 500, color: "var(--text-primary, #e4e4e7)" }, children: "New Work Item" }) }),
       /* @__PURE__ */ jsx("div", { style: { flex: 1, overflowY: "auto", padding: "16px" }, children: /* @__PURE__ */ jsxs("div", { style: { display: "flex", flexDirection: "column", gap: "14px" }, children: [
         /* @__PURE__ */ jsxs("div", { children: [
           /* @__PURE__ */ jsx("label", { style: formLabel, children: "Type" }),
@@ -1336,16 +1338,16 @@ function MainPanel({ api }) {
     ] });
   }
   if (selected === null) {
-    return /* @__PURE__ */ jsx("div", { style: { ...mainContainer, justifyContent: "center", alignItems: "center" }, children: /* @__PURE__ */ jsx("span", { style: { fontSize: "12px", color: "var(--text-secondary, #888)" }, children: "Select a work item to view details" }) });
+    return /* @__PURE__ */ jsx("div", { style: { ...mainContainer, justifyContent: "center", alignItems: "center" }, children: /* @__PURE__ */ jsx("span", { style: { fontSize: "12px", color: "var(--text-secondary, #a1a1aa)" }, children: "Select a work item to view details" }) });
   }
   if (loading) {
-    return /* @__PURE__ */ jsx("div", { style: { ...mainContainer, justifyContent: "center", alignItems: "center" }, children: /* @__PURE__ */ jsxs("span", { style: { fontSize: "12px", color: "var(--text-secondary, #888)" }, children: [
+    return /* @__PURE__ */ jsx("div", { style: { ...mainContainer, justifyContent: "center", alignItems: "center" }, children: /* @__PURE__ */ jsxs("span", { style: { fontSize: "12px", color: "var(--text-secondary, #a1a1aa)" }, children: [
       "Loading work item",
       "\u2026"
     ] }) });
   }
   if (!detail) {
-    return /* @__PURE__ */ jsx("div", { style: { ...mainContainer, justifyContent: "center", alignItems: "center" }, children: /* @__PURE__ */ jsx("span", { style: { fontSize: "12px", color: "var(--text-secondary, #888)" }, children: "Failed to load work item details" }) });
+    return /* @__PURE__ */ jsx("div", { style: { ...mainContainer, justifyContent: "center", alignItems: "center" }, children: /* @__PURE__ */ jsx("span", { style: { fontSize: "12px", color: "var(--text-secondary, #a1a1aa)" }, children: "Failed to load work item details" }) });
   }
   const sc = stateColor(detail.state);
   const stateBadge = {
@@ -1380,11 +1382,11 @@ function MainPanel({ api }) {
             }
           }
         ),
-        /* @__PURE__ */ jsxs("span", { style: { fontSize: "12px", color: "var(--text-secondary, #888)", flexShrink: 0 }, children: [
+        /* @__PURE__ */ jsxs("span", { style: { fontSize: "12px", color: "var(--text-secondary, #a1a1aa)", flexShrink: 0 }, children: [
           "#",
           detail.id
         ] }),
-        /* @__PURE__ */ jsx("span", { style: { fontSize: "13px", fontWeight: 500, color: "var(--text-primary, #e0e0e0)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }, children: detail.title })
+        /* @__PURE__ */ jsx("span", { style: { fontSize: "13px", fontWeight: 500, color: "var(--text-primary, #e4e4e7)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }, children: detail.title })
       ] }),
       editing ? /* @__PURE__ */ jsxs(Fragment, { children: [
         /* @__PURE__ */ jsx("button", { onClick: saveEdit, style: { ...btnPrimarySmall, flexShrink: 0 }, children: "Save" }),
@@ -1395,21 +1397,21 @@ function MainPanel({ api }) {
         /* @__PURE__ */ jsx("button", { onClick: () => setShowAgentDialog(true), style: { ...btnPrimarySmall, flexShrink: 0 }, children: "Assign to Agent" })
       ] })
     ] }),
-    /* @__PURE__ */ jsxs("div", { style: { display: "flex", alignItems: "center", flexWrap: "wrap", gap: "6px", padding: "8px 16px", borderBottom: "1px solid var(--border-color, #222)", background: "var(--panel-bg-alt, rgba(0,0,0,0.15))" }, children: [
+    /* @__PURE__ */ jsxs("div", { style: { display: "flex", alignItems: "center", flexWrap: "wrap", gap: "6px", padding: "8px 16px", borderBottom: "1px solid var(--border-primary, #3f3f46)", background: "var(--bg-tertiary, #333338)" }, children: [
       /* @__PURE__ */ jsx("button", { onClick: () => setShowStateDialog(true), style: stateBadge, title: "Change state", children: detail.state }),
       /* @__PURE__ */ jsx("span", { style: { fontSize: "10px", color: typeColor(detail.workItemType), fontWeight: 500 }, children: detail.workItemType }),
-      detail.priority > 0 && /* @__PURE__ */ jsxs("span", { style: { fontSize: "10px", color: "var(--text-secondary, #888)" }, children: [
+      detail.priority > 0 && /* @__PURE__ */ jsxs("span", { style: { fontSize: "10px", color: "var(--text-secondary, #a1a1aa)" }, children: [
         "P",
         detail.priority,
         " (",
         priorityLabel(detail.priority),
         ")"
       ] }),
-      /* @__PURE__ */ jsxs("span", { style: { fontSize: "10px", color: "var(--text-secondary, #888)" }, children: [
+      /* @__PURE__ */ jsxs("span", { style: { fontSize: "10px", color: "var(--text-secondary, #a1a1aa)" }, children: [
         "by ",
         detail.createdBy
       ] }),
-      /* @__PURE__ */ jsxs("span", { style: { fontSize: "10px", color: "var(--text-secondary, #888)" }, children: [
+      /* @__PURE__ */ jsxs("span", { style: { fontSize: "10px", color: "var(--text-secondary, #a1a1aa)" }, children: [
         "created ",
         relativeTime(detail.createdDate)
       ] }),
@@ -1420,14 +1422,14 @@ function MainPanel({ api }) {
           value: editAssignedTo,
           onChange: (e) => setEditAssignedTo(e.target.value),
           placeholder: "Assigned to",
-          style: { fontSize: "10px", padding: "2px 6px", background: "var(--input-bg, #1a1a2e)", border: "1px solid var(--border-color, #333)", borderRadius: "4px", color: "var(--text-primary, #e0e0e0)", fontFamily: "var(--font-family)", outline: "none" }
+          style: { fontSize: "10px", padding: "2px 6px", background: "var(--bg-secondary, #27272a)", border: "1px solid var(--border-primary, #3f3f46)", borderRadius: "4px", color: "var(--text-primary, #e4e4e7)", fontFamily: "var(--font-family, system-ui, -apple-system, sans-serif)", outline: "none" }
         }
-      ) : detail.assignedTo ? /* @__PURE__ */ jsx("span", { style: { fontSize: "10px", padding: "1px 6px", background: "var(--item-active-bg, #2a2a4a)", color: "var(--text-secondary, #aaa)", borderRadius: "4px" }, children: detail.assignedTo }) : null,
-      detail.areaPath && /* @__PURE__ */ jsxs("span", { style: { fontSize: "9px", color: "var(--text-secondary, #666)" }, children: [
+      ) : detail.assignedTo ? /* @__PURE__ */ jsx("span", { style: { fontSize: "10px", padding: "1px 6px", background: "var(--bg-active, #3f3f46)", color: "var(--text-secondary, #a1a1aa)", borderRadius: "4px" }, children: detail.assignedTo }) : null,
+      detail.areaPath && /* @__PURE__ */ jsxs("span", { style: { fontSize: "9px", color: "var(--text-tertiary, #71717a)" }, children: [
         "Area: ",
         detail.areaPath
       ] }),
-      detail.iterationPath && /* @__PURE__ */ jsxs("span", { style: { fontSize: "9px", color: "var(--text-secondary, #666)" }, children: [
+      detail.iterationPath && /* @__PURE__ */ jsxs("span", { style: { fontSize: "9px", color: "var(--text-tertiary, #71717a)" }, children: [
         "Iter: ",
         detail.iterationPath
       ] }),
@@ -1438,7 +1440,7 @@ function MainPanel({ api }) {
           value: editTags,
           onChange: (e) => setEditTags(e.target.value),
           placeholder: "Tags (semicolon separated)",
-          style: { fontSize: "10px", padding: "2px 6px", background: "var(--input-bg, #1a1a2e)", border: "1px solid var(--border-color, #333)", borderRadius: "4px", color: "var(--text-primary, #e0e0e0)", fontFamily: "var(--font-family)", outline: "none" }
+          style: { fontSize: "10px", padding: "2px 6px", background: "var(--bg-secondary, #27272a)", border: "1px solid var(--border-primary, #3f3f46)", borderRadius: "4px", color: "var(--text-primary, #e4e4e7)", fontFamily: "var(--font-family, system-ui, -apple-system, sans-serif)", outline: "none" }
         }
       ) : detail.tags ? detail.tags.split(";").map((tag) => tag.trim()).filter(Boolean).map((tag) => /* @__PURE__ */ jsx(
         "span",
@@ -1447,9 +1449,9 @@ function MainPanel({ api }) {
             fontSize: "9px",
             padding: "0 5px",
             borderRadius: "10px",
-            backgroundColor: "rgba(100,100,200,0.15)",
-            color: "#8888cc",
-            border: "1px solid rgba(100,100,200,0.3)"
+            backgroundColor: "var(--bg-accent, rgba(139, 92, 246, 0.15))",
+            color: "var(--text-accent, #8b5cf6)",
+            border: "1px solid var(--border-secondary, #52525b)"
           },
           children: tag
         },
@@ -1457,7 +1459,7 @@ function MainPanel({ api }) {
       )) : null
     ] }),
     /* @__PURE__ */ jsxs("div", { style: { flex: 1, overflowY: "auto" }, children: [
-      editing ? /* @__PURE__ */ jsx("div", { style: { padding: "12px 16px", borderBottom: "1px solid var(--border-color, #222)" }, children: /* @__PURE__ */ jsx(
+      editing ? /* @__PURE__ */ jsx("div", { style: { padding: "12px 16px", borderBottom: "1px solid var(--border-primary, #3f3f46)" }, children: /* @__PURE__ */ jsx(
         "textarea",
         {
           value: editDescription,
@@ -1466,9 +1468,9 @@ function MainPanel({ api }) {
           rows: 10,
           style: { ...formInput, resize: "vertical" }
         }
-      ) }) : detail.description ? /* @__PURE__ */ jsx("div", { style: { padding: "12px 16px", borderBottom: "1px solid var(--border-color, #222)" }, children: /* @__PURE__ */ jsx("pre", { style: preStyle, children: stripHtml(detail.description) }) }) : /* @__PURE__ */ jsx("div", { style: { padding: "12px 16px", fontSize: "12px", color: "var(--text-secondary, #888)", fontStyle: "italic", borderBottom: "1px solid var(--border-color, #222)" }, children: "No description provided." }),
-      detail.comments.length > 0 && /* @__PURE__ */ jsxs("div", { style: { padding: "12px 16px", borderBottom: "1px solid var(--border-color, #222)" }, children: [
-        /* @__PURE__ */ jsxs("div", { style: { fontSize: "12px", fontWeight: 500, color: "var(--text-primary, #e0e0e0)", marginBottom: "12px" }, children: [
+      ) }) : detail.description ? /* @__PURE__ */ jsx("div", { style: { padding: "12px 16px", borderBottom: "1px solid var(--border-primary, #3f3f46)" }, children: /* @__PURE__ */ jsx("pre", { style: preStyle, children: stripHtml(detail.description) }) }) : /* @__PURE__ */ jsx("div", { style: { padding: "12px 16px", fontSize: "12px", color: "var(--text-secondary, #a1a1aa)", fontStyle: "italic", borderBottom: "1px solid var(--border-primary, #3f3f46)" }, children: "No description provided." }),
+      detail.comments.length > 0 && /* @__PURE__ */ jsxs("div", { style: { padding: "12px 16px", borderBottom: "1px solid var(--border-primary, #3f3f46)" }, children: [
+        /* @__PURE__ */ jsxs("div", { style: { fontSize: "12px", fontWeight: 500, color: "var(--text-primary, #e4e4e7)", marginBottom: "12px" }, children: [
           detail.comments.length,
           " comment",
           detail.comments.length === 1 ? "" : "s"
@@ -1477,14 +1479,14 @@ function MainPanel({ api }) {
           "div",
           {
             style: {
-              border: "1px solid var(--border-color, #222)",
+              border: "1px solid var(--border-primary, #3f3f46)",
               borderRadius: "6px",
               overflow: "hidden"
             },
             children: [
-              /* @__PURE__ */ jsxs("div", { style: { display: "flex", alignItems: "center", gap: "8px", padding: "6px 10px", background: "var(--panel-bg-alt, rgba(0,0,0,0.15))", borderBottom: "1px solid var(--border-color, #222)" }, children: [
-                /* @__PURE__ */ jsx("span", { style: { fontSize: "12px", fontWeight: 500, color: "var(--text-primary, #e0e0e0)" }, children: comment.author }),
-                /* @__PURE__ */ jsx("span", { style: { fontSize: "10px", color: "var(--text-secondary, #888)" }, children: relativeTime(comment.createdDate) })
+              /* @__PURE__ */ jsxs("div", { style: { display: "flex", alignItems: "center", gap: "8px", padding: "6px 10px", background: "var(--bg-tertiary, #333338)", borderBottom: "1px solid var(--border-primary, #3f3f46)" }, children: [
+                /* @__PURE__ */ jsx("span", { style: { fontSize: "12px", fontWeight: 500, color: "var(--text-primary, #e4e4e7)" }, children: comment.author }),
+                /* @__PURE__ */ jsx("span", { style: { fontSize: "10px", color: "var(--text-secondary, #a1a1aa)" }, children: relativeTime(comment.createdDate) })
               ] }),
               /* @__PURE__ */ jsx("div", { style: { padding: "8px 10px" }, children: /* @__PURE__ */ jsx("pre", { style: preStyle, children: stripHtml(comment.body) }) })
             ]
@@ -1493,7 +1495,7 @@ function MainPanel({ api }) {
         )) })
       ] }),
       /* @__PURE__ */ jsxs("div", { style: { padding: "12px 16px" }, children: [
-        /* @__PURE__ */ jsx("div", { style: { fontSize: "12px", fontWeight: 500, color: "var(--text-primary, #e0e0e0)", marginBottom: "8px" }, children: "Add a comment" }),
+        /* @__PURE__ */ jsx("div", { style: { fontSize: "12px", fontWeight: 500, color: "var(--text-primary, #e4e4e7)", marginBottom: "8px" }, children: "Add a comment" }),
         /* @__PURE__ */ jsx(
           "textarea",
           {
@@ -1545,39 +1547,39 @@ var sidebarContainer = {
   display: "flex",
   flexDirection: "column",
   height: "100%",
-  fontFamily: "var(--font-family)",
-  background: "var(--sidebar-bg, #181825)"
+  fontFamily: "var(--font-family, system-ui, -apple-system, sans-serif)",
+  background: "var(--bg-secondary, #27272a)"
 };
 var sidebarHeader = {
   display: "flex",
   alignItems: "center",
   justifyContent: "space-between",
   padding: "8px 10px",
-  borderBottom: "1px solid var(--border-color, #222)"
+  borderBottom: "1px solid var(--border-primary, #3f3f46)"
 };
 var sidebarHeaderBtn = {
   padding: "2px 8px",
   fontSize: "12px",
-  color: "var(--text-secondary, #888)",
+  color: "var(--text-secondary, #a1a1aa)",
   background: "transparent",
   border: "none",
   borderRadius: "4px",
   cursor: "pointer",
-  fontFamily: "var(--font-family)"
+  fontFamily: "var(--font-family, system-ui, -apple-system, sans-serif)"
 };
 var mainContainer = {
   display: "flex",
   flexDirection: "column",
   height: "100%",
-  fontFamily: "var(--font-family)",
-  background: "var(--panel-bg, #1e1e2e)"
+  fontFamily: "var(--font-family, system-ui, -apple-system, sans-serif)",
+  background: "var(--bg-primary, #18181b)"
 };
 var mainHeader = {
   display: "flex",
   alignItems: "center",
   padding: "8px 16px",
-  borderBottom: "1px solid var(--border-color, #222)",
-  background: "var(--sidebar-bg, #181825)",
+  borderBottom: "1px solid var(--border-primary, #3f3f46)",
+  background: "var(--bg-secondary, #27272a)",
   flexShrink: 0
 };
 var mainFooter = {
@@ -1586,46 +1588,46 @@ var mainFooter = {
   justifyContent: "flex-end",
   gap: "8px",
   padding: "10px 16px",
-  borderTop: "1px solid var(--border-color, #222)",
-  background: "var(--sidebar-bg, #181825)",
+  borderTop: "1px solid var(--border-primary, #3f3f46)",
+  background: "var(--bg-secondary, #27272a)",
   flexShrink: 0
 };
 var formLabel = {
   display: "block",
   fontSize: "12px",
   fontWeight: 500,
-  color: "var(--text-secondary, #aaa)",
+  color: "var(--text-secondary, #a1a1aa)",
   marginBottom: "4px"
 };
 var formInput = {
   width: "100%",
   padding: "6px 10px",
   borderRadius: "6px",
-  border: "1px solid var(--border-color, #333)",
-  background: "var(--input-bg, #1a1a2e)",
-  color: "var(--text-primary, #e0e0e0)",
+  border: "1px solid var(--border-primary, #3f3f46)",
+  background: "var(--bg-secondary, #27272a)",
+  color: "var(--text-primary, #e4e4e7)",
   fontSize: "13px",
-  fontFamily: "var(--font-family)",
+  fontFamily: "var(--font-family, system-ui, -apple-system, sans-serif)",
   boxSizing: "border-box",
   outline: "none"
 };
 var filterSelect = {
   padding: "4px 4px",
   fontSize: "10px",
-  border: "1px solid var(--border-color, #333)",
+  border: "1px solid var(--border-primary, #3f3f46)",
   borderRadius: "4px",
-  background: "var(--input-bg, #1a1a2e)",
-  color: "var(--text-primary, #e0e0e0)",
-  fontFamily: "var(--font-family)",
+  background: "var(--bg-secondary, #27272a)",
+  color: "var(--text-primary, #e4e4e7)",
+  fontFamily: "var(--font-family, system-ui, -apple-system, sans-serif)",
   cursor: "pointer"
 };
 var preStyle = {
   whiteSpace: "pre-wrap",
   wordWrap: "break-word",
-  fontFamily: "var(--font-mono, monospace)",
+  fontFamily: "var(--font-mono, ui-monospace, monospace)",
   fontSize: "13px",
   lineHeight: 1.6,
-  color: "var(--text-primary, #e0e0e0)",
+  color: "var(--text-primary, #e4e4e7)",
   margin: 0
 };
 var btnPrimarySmall = {
@@ -1634,20 +1636,20 @@ var btnPrimarySmall = {
   fontWeight: 500,
   borderRadius: "4px",
   border: "none",
-  background: "var(--accent-color, #4a6cf7)",
+  background: "var(--text-accent, #8b5cf6)",
   color: "#fff",
   cursor: "pointer",
-  fontFamily: "var(--font-family)"
+  fontFamily: "var(--font-family, system-ui, -apple-system, sans-serif)"
 };
 var btnSecondarySmall = {
   padding: "4px 12px",
   fontSize: "12px",
   borderRadius: "4px",
-  border: "1px solid var(--border-color, #333)",
+  border: "1px solid var(--border-primary, #3f3f46)",
   background: "transparent",
-  color: "var(--text-primary, #e0e0e0)",
+  color: "var(--text-primary, #e4e4e7)",
   cursor: "pointer",
-  fontFamily: "var(--font-family)"
+  fontFamily: "var(--font-family, system-ui, -apple-system, sans-serif)"
 };
 export {
   MainPanel,
