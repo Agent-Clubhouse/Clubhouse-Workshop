@@ -4,7 +4,7 @@ import type {
   PanelProps,
   AgentInfo,
 } from "@clubhouse/plugin-types";
-import { relativeTime, labelColor, extractYamlValue } from "./helpers";
+import { relativeTime, labelColor, labelColorAlpha, extractYamlValue } from "./helpers";
 
 const React = globalThis.React;
 const { useState, useEffect, useCallback, useRef, useMemo } = React;
@@ -144,7 +144,7 @@ const issueState = {
 // Helpers
 // ---------------------------------------------------------------------------
 
-// relativeTime, labelColor, and extractYamlValue imported from ./helpers
+// relativeTime, labelColor, labelColorAlpha, and extractYamlValue imported from ./helpers
 
 // ---------------------------------------------------------------------------
 // Markdown renderer (lightweight GFM-subset → JSX, no external deps)
@@ -1191,9 +1191,9 @@ export function SidebarPanel({ api }: PanelProps) {
                         fontSize: "9px",
                         padding: "0 5px",
                         borderRadius: "10px",
-                        backgroundColor: `${labelColor(label.color)}22`,
+                        backgroundColor: labelColorAlpha(label.color, "22"),
                         color: labelColor(label.color),
-                        border: `1px solid ${labelColor(label.color)}44`,
+                        border: `1px solid ${labelColorAlpha(label.color, "44")}`,
                         flexShrink: 0,
                       }}
                     >
@@ -1694,9 +1694,9 @@ export function MainPanel({ api }: PanelProps) {
                 fontSize: "9px",
                 padding: "0 5px",
                 borderRadius: "10px",
-                backgroundColor: `${labelColor(label.color)}22`,
+                backgroundColor: labelColorAlpha(label.color, "22"),
                 color: labelColor(label.color),
-                border: `1px solid ${labelColor(label.color)}44`,
+                border: `1px solid ${labelColorAlpha(label.color, "44")}`,
               }}
             >
               {label.name}
