@@ -171,6 +171,63 @@ describe('kanBossState', () => {
     expect(kanBossState.refreshCount).toBe(0);
     expect(kanBossState.listeners.size).toBe(0);
   });
+
+  it('single subscriber fires exactly once per notify', () => {
+    let callCount = 0;
+    kanBossState.subscribe(() => { callCount++; });
+
+    kanBossState.selectBoard('b1');
+    expect(callCount).toBe(1);
+
+    kanBossState.triggerRefresh();
+    expect(callCount).toBe(2);
+
+    kanBossState.setFilter({ searchQuery: 'x' });
+    expect(callCount).toBe(3);
+  });
+
+  it('multiple subscribers each fire exactly once per notify', () => {
+    let count1 = 0;
+    let count2 = 0;
+    kanBossState.subscribe(() => { count1++; });
+    kanBossState.subscribe(() => { count2++; });
+
+    kanBossState.selectBoard('b1');
+    expect(count1).toBe(1);
+    expect(count2).toBe(1);
+
+    kanBossState.triggerRefresh();
+    expect(count1).toBe(2);
+    expect(count2).toBe(2);
+  });
+
+  it('duplicate subscribe of same function does not double-fire', () => {
+    let callCount = 0;
+    const listener = () => { callCount++; };
+
+    kanBossState.subscribe(listener);
+    kanBossState.subscribe(listener);
+
+    kanBossState.triggerRefresh();
+    // Set stores unique listeners, so same reference only fires once
+    expect(callCount).toBe(1);
+  });
+
+  it('unsubscribing one listener does not affect others', () => {
+    let count1 = 0;
+    let count2 = 0;
+    const unsub1 = kanBossState.subscribe(() => { count1++; });
+    kanBossState.subscribe(() => { count2++; });
+
+    kanBossState.triggerRefresh();
+    expect(count1).toBe(1);
+    expect(count2).toBe(1);
+
+    unsub1();
+    kanBossState.triggerRefresh();
+    expect(count1).toBe(1); // no longer fires
+    expect(count2).toBe(2); // still fires
+  });
 });
 
 describe('filtersEqual', () => {
