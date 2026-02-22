@@ -5,6 +5,7 @@ var { useState, useEffect, useCallback, useRef } = React;
 var WORK_DURATION = 25 * 60;
 var BREAK_DURATION = 5 * 60;
 var SESSIONS_KEY = "pomodoroSessions";
+var TIMER_STATE_KEY = "pomodoroTimerState";
 function formatTime(seconds) {
   const m = Math.floor(seconds / 60);
   const s = seconds % 60;
@@ -12,6 +13,11 @@ function formatTime(seconds) {
 }
 function todayKey() {
   return (/* @__PURE__ */ new Date()).toISOString().split("T")[0];
+}
+function isTimerState(val) {
+  if (typeof val !== "object" || val === null) return false;
+  const obj = val;
+  return (obj.phase === "work" || obj.phase === "break") && typeof obj.startedAt === "number" && typeof obj.durationMs === "number";
 }
 function activate(ctx, api) {
   api.logging.info("Pomodoro plugin activated");
@@ -33,27 +39,6 @@ function MainPanel({ api }) {
   const [remaining, setRemaining] = useState(WORK_DURATION);
   const [todaySessions, setTodaySessions] = useState(0);
   const intervalRef = useRef(null);
-  useEffect(() => {
-    api.storage.global.read(SESSIONS_KEY).then((raw) => {
-      let records = [];
-      if (typeof raw === "string") {
-        try {
-          records = JSON.parse(raw);
-        } catch {
-          return;
-        }
-      } else if (Array.isArray(raw)) {
-        records = raw;
-      } else {
-        return;
-      }
-      const today = records.find((r) => r.date === todayKey());
-      if (today) setTodaySessions(today.completedWork);
-    });
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    };
-  }, []);
   const recordSession = useCallback(async () => {
     const raw = await api.storage.global.read(SESSIONS_KEY);
     let records = [];
@@ -76,18 +61,16 @@ function MainPanel({ api }) {
     if (records.length > 30) records.length = 30;
     await api.storage.global.write(SESSIONS_KEY, records);
   }, []);
-  const startTimer = useCallback((targetPhase) => {
+  const runInterval = useCallback((targetPhase, startTime, durationSec) => {
     if (intervalRef.current) clearInterval(intervalRef.current);
-    const duration = targetPhase === "work" ? WORK_DURATION : BREAK_DURATION;
     setPhase(targetPhase);
-    setRemaining(duration);
-    const startTime = Date.now();
-    intervalRef.current = setInterval(() => {
+    const tick = () => {
       const elapsed = Math.floor((Date.now() - startTime) / 1e3);
-      const left = duration - elapsed;
+      const left = durationSec - elapsed;
       if (left <= 0) {
         clearInterval(intervalRef.current);
         intervalRef.current = null;
+        api.storage.global.delete(TIMER_STATE_KEY);
         if (targetPhase === "work") {
           recordSession();
           api.ui.showNotice("Pomodoro complete! Time for a break.");
@@ -101,15 +84,66 @@ function MainPanel({ api }) {
       } else {
         setRemaining(left);
       }
-    }, 1e3);
+    };
+    tick();
+    intervalRef.current = setInterval(tick, 1e3);
   }, [recordSession]);
+  const startTimer = useCallback((targetPhase) => {
+    const duration = targetPhase === "work" ? WORK_DURATION : BREAK_DURATION;
+    const startTime = Date.now();
+    api.storage.global.write(TIMER_STATE_KEY, {
+      phase: targetPhase,
+      startedAt: startTime,
+      durationMs: duration * 1e3
+    });
+    setRemaining(duration);
+    runInterval(targetPhase, startTime, duration);
+  }, [runInterval]);
   const stop = useCallback(() => {
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
       intervalRef.current = null;
     }
+    api.storage.global.delete(TIMER_STATE_KEY);
     setPhase("idle");
     setRemaining(WORK_DURATION);
+  }, []);
+  useEffect(() => {
+    api.storage.global.read(SESSIONS_KEY).then((raw) => {
+      let records = [];
+      if (typeof raw === "string") {
+        try {
+          records = JSON.parse(raw);
+        } catch {
+          return;
+        }
+      } else if (Array.isArray(raw)) {
+        records = raw;
+      } else {
+        return;
+      }
+      const today = records.find((r) => r.date === todayKey());
+      if (today) setTodaySessions(today.completedWork);
+    });
+    api.storage.global.read(TIMER_STATE_KEY).then((raw) => {
+      if (!isTimerState(raw)) return;
+      const elapsedMs = Date.now() - raw.startedAt;
+      const remainingSec = Math.floor((raw.durationMs - elapsedMs) / 1e3);
+      if (remainingSec > 0) {
+        runInterval(raw.phase, raw.startedAt, Math.floor(raw.durationMs / 1e3));
+      } else {
+        api.storage.global.delete(TIMER_STATE_KEY);
+        if (raw.phase === "work") {
+          recordSession();
+          api.ui.showNotice("Pomodoro complete! Time for a break.");
+        } else {
+          api.ui.showNotice("Break over! Ready for another round?");
+        }
+      }
+    });
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
   }, []);
   const styles = {
     container: { padding: 24, fontFamily: "var(--font-family, sans-serif)", textAlign: "center" },
