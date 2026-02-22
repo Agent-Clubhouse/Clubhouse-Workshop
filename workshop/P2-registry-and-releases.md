@@ -97,8 +97,7 @@ cd plugins/my-plugin && npm run build && npm test
 # 4. Tag the release on main
 git tag -m "Release my-plugin v1.0.0" my-plugin-v1.0.0
 git push origin my-plugin-v1.0.0
-# 5. CI creates a GitHub Release and opens a registry update PR
-# 6. Merge the registry PR
+# 5. CI creates a GitHub Release and updates registry.json on main
 ```
 
 ---
@@ -140,7 +139,7 @@ The `"version": 1` field in registry.json allows schema evolution:
 ## Definition of Done
 
 1. `registry/registry.json` exists and lists all first-party plugins
-2. Tagging a plugin release automatically builds, zips, publishes, and updates the registry
-3. Registry validation runs on PRs
+2. Tagging a plugin release automatically builds, zips, publishes, and updates the registry directly on main
+3. Registry validation runs on community submission PRs
 4. `registry/CONTRIBUTING.md` explains the community submission process
 5. At least one plugin has a working automated release end-to-end
