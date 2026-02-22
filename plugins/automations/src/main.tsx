@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import type { PluginContext, PluginAPI, PluginModule, ModelOption, CompletedQuickAgentInfo } from '@clubhouse/plugin-types';
 import type { Automation, RunRecord } from './types';
-import { matchesCron, describeSchedule, PRESETS } from './cron';
+import { matchesCron, describeSchedule, validateCronExpression, PRESETS } from './cron';
 import * as S from './styles';
 
 // ── Storage keys ────────────────────────────────────────────────────────
@@ -170,6 +170,7 @@ export function MainPanel({ api }: { api: PluginAPI }) {
   const [editModel, setEditModel] = useState('');
   const [editPrompt, setEditPrompt] = useState('');
   const [editEnabled, setEditEnabled] = useState(true);
+  const [cronError, setCronError] = useState<string | null>(null);
 
   // ── Load automations on mount + poll ────────────────────────────────
   const loadAutomations = useCallback(async () => {
@@ -208,6 +209,7 @@ export function MainPanel({ api }: { api: PluginAPI }) {
       setEditModel(selected.model);
       setEditPrompt(selected.prompt);
       setEditEnabled(selected.enabled);
+      setCronError(null);
     }
   }, [selected?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -245,6 +247,12 @@ export function MainPanel({ api }: { api: PluginAPI }) {
 
   const saveAutomation = useCallback(async () => {
     if (!selectedId) return;
+    const error = validateCronExpression(editCron);
+    if (error) {
+      setCronError(error);
+      return;
+    }
+    setCronError(null);
     const next = automations.map((a) =>
       a.id === selectedId
         ? { ...a, name: editName, cronExpression: editCron, model: editModel, prompt: editPrompt, enabled: editEnabled }
@@ -454,12 +462,17 @@ export function MainPanel({ api }: { api: PluginAPI }) {
                 type="text"
                 style={{ ...S.baseInput, fontFamily: S.font.mono }}
                 value={editCron}
-                onChange={(e) => setEditCron(e.target.value)}
+                onChange={(e) => { setEditCron(e.target.value); setCronError(null); }}
                 placeholder="* * * * *  (min hour dom month dow)"
               />
               <div style={{ fontSize: 10, color: S.color.textTertiary, marginTop: 4 }}>
                 {describeSchedule(editCron)}
               </div>
+              {cronError && (
+                <div style={{ fontSize: 11, color: S.color.error, marginTop: 4 }}>
+                  {cronError}
+                </div>
+              )}
             </div>
             {/* Model */}
             <div>

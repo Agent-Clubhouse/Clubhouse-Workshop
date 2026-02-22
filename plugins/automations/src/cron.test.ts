@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseField, matchesCron, describeSchedule, PRESETS } from './cron';
+import { parseField, matchesCron, describeSchedule, validateCronExpression, PRESETS } from './cron';
 
 // ── parseField ──────────────────────────────────────────────────────────
 
@@ -43,6 +43,33 @@ describe('parseField', () => {
   it('handles step larger than range', () => {
     const result = parseField('*/60', 0, 59);
     expect(result).toEqual(new Set([0]));
+  });
+
+  it('returns empty set for step=0 (prevents infinite loop)', () => {
+    const result = parseField('*/0', 0, 59);
+    expect(result).toEqual(new Set());
+  });
+
+  it('returns empty set for step=0 on range', () => {
+    const result = parseField('1-10/0', 0, 59);
+    expect(result).toEqual(new Set());
+  });
+
+  it('clamps out-of-range start value to min', () => {
+    // Value below min gets clamped
+    const result = parseField('0', 1, 31);
+    expect(result).toEqual(new Set([1]));
+  });
+
+  it('clamps out-of-range end value to max', () => {
+    // Range end above max gets clamped
+    const result = parseField('55-65', 0, 59);
+    expect(result).toEqual(new Set([55, 56, 57, 58, 59]));
+  });
+
+  it('still processes other parts when one part has step=0', () => {
+    const result = parseField('*/0,5', 0, 59);
+    expect(result).toEqual(new Set([5]));
   });
 });
 
@@ -117,6 +144,12 @@ describe('matchesCron', () => {
   it('returns false for empty string', () => {
     expect(matchesCron('', new Date())).toBe(false);
   });
+
+  it('does not hang on */0 expression (step=0 guard)', () => {
+    const date = new Date(2026, 1, 15, 10, 30);
+    // This should return false (empty minute set), not hang
+    expect(matchesCron('*/0 * * * *', date)).toBe(false);
+  });
 });
 
 // ── describeSchedule ────────────────────────────────────────────────────
@@ -169,6 +202,55 @@ describe('describeSchedule', () => {
 
   it('returns raw expression for invalid field count', () => {
     expect(describeSchedule('foo')).toBe('foo');
+  });
+});
+
+// ── validateCronExpression ──────────────────────────────────────────────
+
+describe('validateCronExpression', () => {
+  it('returns null for valid expressions', () => {
+    expect(validateCronExpression('* * * * *')).toBeNull();
+    expect(validateCronExpression('0 9 * * *')).toBeNull();
+    expect(validateCronExpression('*/5 * * * *')).toBeNull();
+    expect(validateCronExpression('0 9 * * 1-5')).toBeNull();
+    expect(validateCronExpression('0,30 9 1,15 * *')).toBeNull();
+  });
+
+  it('rejects wrong field count', () => {
+    expect(validateCronExpression('* * *')).toContain('Expected 5 fields');
+    expect(validateCronExpression('* * * * * *')).toContain('Expected 5 fields');
+  });
+
+  it('rejects step=0', () => {
+    const err = validateCronExpression('*/0 * * * *');
+    expect(err).toContain('step value 0');
+  });
+
+  it('rejects step=0 in any field', () => {
+    expect(validateCronExpression('* */0 * * *')).toContain('step value 0');
+    expect(validateCronExpression('* * */0 * *')).toContain('step value 0');
+  });
+
+  it('rejects out-of-range values', () => {
+    expect(validateCronExpression('60 * * * *')).toContain('out of range');
+    expect(validateCronExpression('* 24 * * *')).toContain('out of range');
+    expect(validateCronExpression('* * 0 * *')).toContain('out of range');
+    expect(validateCronExpression('* * * 13 *')).toContain('out of range');
+    expect(validateCronExpression('* * * * 7')).toContain('out of range');
+  });
+
+  it('rejects non-numeric values', () => {
+    expect(validateCronExpression('abc * * * *')).toContain('Non-numeric');
+  });
+
+  it('rejects range where start > end', () => {
+    expect(validateCronExpression('5-2 * * * *')).toContain('start > end');
+  });
+
+  it('validates all preset expressions', () => {
+    for (const p of PRESETS) {
+      expect(validateCronExpression(p.value)).toBeNull();
+    }
   });
 });
 
