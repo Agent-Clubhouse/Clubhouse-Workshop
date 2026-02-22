@@ -82,7 +82,6 @@
     "agents",
     "commands",
     "process",
-    "settings",
     "widgets"
   ],
   "allowedCommands": ["az"]
