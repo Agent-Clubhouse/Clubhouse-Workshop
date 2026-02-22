@@ -50,7 +50,7 @@ async function saveReview(api: PluginAPI, entry: ReviewEntry): Promise<void> {
 // Default branch detection
 // ---------------------------------------------------------------------------
 
-async function detectDefaultBranch(api: PluginAPI): Promise<string> {
+export async function detectDefaultBranch(api: PluginAPI): Promise<string> {
   // 1. Check user-configured setting
   const configured = api.settings.get<string>("defaultBranch");
   if (configured) return configured;
