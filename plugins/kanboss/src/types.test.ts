@@ -95,6 +95,14 @@ describe('PRIORITY_CONFIG', () => {
   it('none is hidden', () => {
     expect(PRIORITY_CONFIG.none.hidden).toBe(true);
   });
+
+  it('uses CSS custom properties with fallbacks for visible priorities', () => {
+    const cssVarPattern = /^var\(--[\w-]+,\s*.+\)$/;
+    expect(PRIORITY_CONFIG.low.color).toMatch(cssVarPattern);
+    expect(PRIORITY_CONFIG.medium.color).toMatch(cssVarPattern);
+    expect(PRIORITY_CONFIG.high.color).toMatch(cssVarPattern);
+    expect(PRIORITY_CONFIG.critical.color).toMatch(cssVarPattern);
+  });
 });
 
 describe('PRIORITY_RANK', () => {
