@@ -1,10 +1,13 @@
 {
   "version": 1,
-  "updated": "2026-02-21T22:50:00Z",
+  "updated": "2026-02-22T07:50:01.949Z",
   "supportedApis": {
-    "latest": "0.5",
+    "latest": "0.6",
     "minimum": "0.5",
-    "versions": ["0.5"]
+    "versions": [
+      "0.5",
+      "0.6"
+    ]
   },
   "plugins": [
     {
@@ -15,14 +18,22 @@
       "official": true,
       "repo": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop",
       "path": "plugins/example-hello-world",
-      "tags": ["example", "starter"],
+      "tags": [
+        "example",
+        "starter"
+      ],
       "latest": "0.1.0",
       "releases": {
         "0.1.0": {
           "api": 0.5,
           "asset": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop/releases/download/example-hello-world-v0.1.0/example-hello-world-v0.1.0.zip",
           "sha256": "e772faf55bf613252c69b7d072776a0d60cb285d8ccf980bb5e4d678c062c743",
-          "permissions": ["logging", "storage", "notifications", "commands"],
+          "permissions": [
+            "logging",
+            "storage",
+            "notifications",
+            "commands"
+          ],
           "size": 3116
         }
       }
@@ -35,14 +46,27 @@
       "official": true,
       "repo": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop",
       "path": "plugins/code-review",
-      "tags": ["ai", "code-review", "git"],
+      "tags": [
+        "ai",
+        "code-review",
+        "git"
+      ],
       "latest": "0.1.0",
       "releases": {
         "0.1.0": {
           "api": 0.5,
           "asset": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop/releases/download/code-review-v0.1.0/code-review-v0.1.0.zip",
           "sha256": "f4a0a01ae1929a86f7a69e0699f045f7da057212b5e1262ab04a4d42ae5a9587",
-          "permissions": ["logging", "storage", "notifications", "files", "git", "agents", "commands", "process"],
+          "permissions": [
+            "logging",
+            "storage",
+            "notifications",
+            "files",
+            "git",
+            "agents",
+            "commands",
+            "process"
+          ],
           "size": 4654
         }
       }
@@ -55,14 +79,26 @@
       "official": true,
       "repo": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop",
       "path": "plugins/standup",
-      "tags": ["ai", "standup", "productivity"],
+      "tags": [
+        "ai",
+        "standup",
+        "productivity"
+      ],
       "latest": "0.1.0",
       "releases": {
         "0.1.0": {
           "api": 0.5,
           "asset": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop/releases/download/standup-v0.1.0/standup-v0.1.0.zip",
           "sha256": "644306c64e34e8268d1d3ccd4e0cbf5d07ffaf1cbb7ac27cc3e2d8b9260174ae",
-          "permissions": ["logging", "storage", "notifications", "agents", "projects", "git", "commands"],
+          "permissions": [
+            "logging",
+            "storage",
+            "notifications",
+            "agents",
+            "projects",
+            "git",
+            "commands"
+          ],
           "size": 3851
         }
       }
@@ -75,15 +111,55 @@
       "official": true,
       "repo": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop",
       "path": "plugins/pomodoro",
-      "tags": ["productivity", "timer"],
+      "tags": [
+        "productivity",
+        "timer"
+      ],
       "latest": "0.1.0",
       "releases": {
         "0.1.0": {
           "api": 0.5,
           "asset": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop/releases/download/pomodoro-v0.1.0/pomodoro-v0.1.0.zip",
           "sha256": "f7a7ece9c90e2830ec8458f32d7190b6aa70dfb8e71ec9c10120c2dc527f014b",
-          "permissions": ["logging", "storage", "notifications", "commands", "widgets"],
+          "permissions": [
+            "logging",
+            "storage",
+            "notifications",
+            "commands",
+            "widgets"
+          ],
           "size": 3713
+        }
+      }
+    },
+    {
+      "id": "github-issues",
+      "name": "GitHub Issue Tracker",
+      "description": "Create and manage GitHub issues with template support, label validation, and agent assignment",
+      "author": "Clubhouse Workshop",
+      "official": true,
+      "repo": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop",
+      "path": "plugins/github-issues",
+      "tags": [],
+      "latest": "0.1.0",
+      "releases": {
+        "0.1.0": {
+          "api": 0.5,
+          "asset": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop/releases/download/github-issues-v0.1.0/github-issues-v0.1.0.zip",
+          "sha256": "127edd3b752d1a552a58ff9ba75a2a1414ca56b90492b95393a721a37c8fc108",
+          "permissions": [
+            "logging",
+            "storage",
+            "notifications",
+            "files",
+            "agents",
+            "commands",
+            "process",
+            "settings",
+            "git",
+            "widgets"
+          ],
+          "size": 12795
         }
       }
     }
