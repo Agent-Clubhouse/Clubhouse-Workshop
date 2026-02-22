@@ -159,7 +159,11 @@ export type PluginPermission =
   | "widgets"
   | "logging"
   | "process"
-  | "badges";
+  | "badges"
+  | "agent-config"
+  | "agent-config.cross-project"
+  | "agent-config.permissions"
+  | "agent-config.mcp";
 
 export interface PluginExternalRoot {
   settingKey: string;

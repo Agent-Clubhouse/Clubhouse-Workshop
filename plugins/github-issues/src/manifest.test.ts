@@ -22,8 +22,20 @@ describe("github-issues manifest", () => {
     expect(manifest.permissions).toContain("agents");
     expect(manifest.permissions).toContain("commands");
     expect(manifest.permissions).toContain("process");
-    expect(manifest.permissions).toContain("settings");
     expect(manifest.permissions).toContain("widgets");
+  });
+
+  it("does not declare invalid permissions", () => {
+    const validPermissions = [
+      "files", "files.external", "git", "terminal", "agents",
+      "notifications", "storage", "navigation", "projects",
+      "commands", "events", "widgets", "logging", "process", "badges",
+      "agent-config", "agent-config.cross-project",
+      "agent-config.permissions", "agent-config.mcp",
+    ];
+    for (const perm of manifest.permissions) {
+      expect(validPermissions).toContain(perm);
+    }
   });
 
   it("contributes a tab with sidebar-content layout", () => {
