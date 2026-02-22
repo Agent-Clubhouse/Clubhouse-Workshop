@@ -73,6 +73,15 @@ export function statusBadgeStyle(status: string): React.CSSProperties {
   }
 }
 
+/**
+ * Escape a value for safe interpolation into a WIQL string literal.
+ * WIQL uses doubled single-quotes ('') to represent a literal quote inside
+ * a single-quoted string, similar to standard SQL escaping.
+ */
+export function escapeWiql(value: string): string {
+  return value.replace(/'/g, "''");
+}
+
 /** Strip HTML tags for plain-text display. */
 export function stripHtml(html: string): string {
   return html

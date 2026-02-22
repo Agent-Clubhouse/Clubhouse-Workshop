@@ -11,6 +11,7 @@ import {
   priorityLabel,
   statusBadgeStyle,
   stripHtml,
+  escapeWiql,
 } from "./helpers";
 
 const React = globalThis.React;
@@ -842,21 +843,21 @@ export function SidebarPanel({ api }: PanelProps) {
           (wi) => (wi.id as number) || 0,
         ).filter(Boolean);
       } else {
-        // Build WIQL query
+        // Build WIQL query — escape all interpolated values to prevent injection
         const conditions: string[] = [
-          `[System.TeamProject] = '${config.project}'`,
+          `[System.TeamProject] = '${escapeWiql(config.project)}'`,
         ];
         if (workItemState.stateFilter) {
-          conditions.push(`[System.State] = '${workItemState.stateFilter}'`);
+          conditions.push(`[System.State] = '${escapeWiql(workItemState.stateFilter)}'`);
         }
         if (workItemState.typeFilter) {
-          conditions.push(`[System.WorkItemType] = '${workItemState.typeFilter}'`);
+          conditions.push(`[System.WorkItemType] = '${escapeWiql(workItemState.typeFilter)}'`);
         }
         if (config.areaPath) {
-          conditions.push(`[System.AreaPath] UNDER '${config.areaPath}'`);
+          conditions.push(`[System.AreaPath] UNDER '${escapeWiql(config.areaPath)}'`);
         }
         if (config.iterationPath) {
-          conditions.push(`[System.IterationPath] UNDER '${config.iterationPath}'`);
+          conditions.push(`[System.IterationPath] UNDER '${escapeWiql(config.iterationPath)}'`);
         }
 
         const wiql = `SELECT [System.Id] FROM WorkItems WHERE ${conditions.join(" AND ")} ORDER BY [System.ChangedDate] DESC`;
