@@ -12,6 +12,7 @@ on:
 
 permissions:
   contents: write
+  pull-requests: write
 
 # Serialize registry updates so concurrent releases don't conflict
 concurrency:
@@ -117,7 +118,7 @@ jobs:
             Or download the zip and extract to `~/.clubhouse/plugins/${{ steps.tag.outputs.plugin_id }}/`.
           files: ${{ steps.zip.outputs.zip_path }}
 
-      - name: Update registry and push to main
+      - name: Update registry
         run: |
           node -e "
             const fs = require('fs');
@@ -179,13 +180,34 @@ jobs:
           # Validate the registry we just generated
           node scripts/validate-registry.mjs
 
-          # Push registry update directly to main
+      - name: Create and merge registry PR
+        run: |
+          # Save updated registry before switching branches
+          cp registry/registry.json /tmp/registry-updated.json
+
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          BRANCH="registry-update/${{ steps.tag.outputs.tag }}"
+
           git fetch origin main
-          git checkout main
-          git pull origin main
+          git checkout -b "$BRANCH" origin/main
+
+          # Apply the updated registry
+          cp /tmp/registry-updated.json registry/registry.json
           git add registry/registry.json
           git diff --cached --quiet && echo "No registry changes" && exit 0
+
           git commit -m "registry: update ${{ steps.tag.outputs.plugin_id }} to v${{ steps.tag.outputs.version }}"
-          git push origin main
+          git push --force origin "$BRANCH"
+
+          PR_URL=$(gh pr create \
+            --title "registry: update ${{ steps.tag.outputs.plugin_id }} to v${{ steps.tag.outputs.version }}" \
+            --body "Automated registry update from release pipeline." \
+            --base main \
+            --head "$BRANCH")
+          echo "Created PR: $PR_URL"
+
+          # Immediately merge (0 approvals required, CODEOWNER review disabled)
+          gh pr merge "$PR_URL" --squash --delete-branch
+        env:
+          GH_TOKEN: ${{ github.token }}
