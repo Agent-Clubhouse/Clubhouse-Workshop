@@ -10,6 +10,9 @@ export function parseField(field: string, min: number, max: number): Set<number>
     const step = stepMatch ? parseInt(stepMatch[2], 10) : 1;
     const range = stepMatch ? stepMatch[1] : part;
 
+    // Guard against step <= 0 which would cause an infinite loop
+    if (step <= 0) continue;
+
     let start: number;
     let end: number;
     if (range === '*') {
@@ -23,6 +26,10 @@ export function parseField(field: string, min: number, max: number): Set<number>
       start = parseInt(range, 10);
       end = start;
     }
+
+    // Clamp start/end to valid range
+    start = Math.max(min, Math.min(max, start));
+    end = Math.max(min, Math.min(max, end));
 
     for (let i = start; i <= end; i += step) {
       values.add(i);
@@ -48,6 +55,76 @@ export function matchesCron(expression: string, date: Date): boolean {
     month.has(date.getMonth() + 1) &&
     dow.has(date.getDay())
   );
+}
+
+/** Field limits: [min, max] for each of the 5 cron fields. */
+const FIELD_LIMITS: [number, number][] = [
+  [0, 59],  // minute
+  [0, 23],  // hour
+  [1, 31],  // day of month
+  [1, 12],  // month
+  [0, 6],   // day of week
+];
+
+const FIELD_NAMES = ['minute', 'hour', 'day-of-month', 'month', 'day-of-week'];
+
+/**
+ * Validates a cron expression and returns an error message, or null if valid.
+ */
+export function validateCronExpression(expression: string): string | null {
+  const fields = expression.trim().split(/\s+/);
+  if (fields.length !== 5) {
+    return `Expected 5 fields, got ${fields.length}`;
+  }
+
+  for (let f = 0; f < 5; f++) {
+    const [min, max] = FIELD_LIMITS[f];
+    const fieldName = FIELD_NAMES[f];
+
+    for (const part of fields[f].split(',')) {
+      const stepMatch = part.match(/^(.+)\/(\d+)$/);
+      const stepStr = stepMatch ? stepMatch[2] : null;
+      const range = stepMatch ? stepMatch[1] : part;
+
+      // Validate step
+      if (stepStr !== null) {
+        const step = parseInt(stepStr, 10);
+        if (step <= 0) {
+          return `Invalid step value 0 in ${fieldName} field`;
+        }
+      }
+
+      // Validate range / value
+      if (range === '*') {
+        // wildcard is always valid
+      } else if (range.includes('-')) {
+        const parts = range.split('-');
+        if (parts.length !== 2) {
+          return `Invalid range "${range}" in ${fieldName} field`;
+        }
+        const [a, b] = parts.map(Number);
+        if (isNaN(a) || isNaN(b)) {
+          return `Non-numeric range "${range}" in ${fieldName} field`;
+        }
+        if (a < min || a > max || b < min || b > max) {
+          return `Value out of range (${min}-${max}) in ${fieldName} field`;
+        }
+        if (a > b) {
+          return `Invalid range "${range}" in ${fieldName} field (start > end)`;
+        }
+      } else {
+        const val = parseInt(range, 10);
+        if (isNaN(val)) {
+          return `Non-numeric value "${range}" in ${fieldName} field`;
+        }
+        if (val < min || val > max) {
+          return `Value ${val} out of range (${min}-${max}) in ${fieldName} field`;
+        }
+      }
+    }
+  }
+
+  return null;
 }
 
 export function describeSchedule(expression: string): string {

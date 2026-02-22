@@ -8,6 +8,7 @@ function parseField(field, min, max) {
     const stepMatch = part.match(/^(.+)\/(\d+)$/);
     const step = stepMatch ? parseInt(stepMatch[2], 10) : 1;
     const range = stepMatch ? stepMatch[1] : part;
+    if (step <= 0) continue;
     let start;
     let end;
     if (range === "*") {
@@ -21,6 +22,8 @@ function parseField(field, min, max) {
       start = parseInt(range, 10);
       end = start;
     }
+    start = Math.max(min, Math.min(max, start));
+    end = Math.max(min, Math.min(max, end));
     for (let i = start; i <= end; i += step) {
       values.add(i);
     }
@@ -36,6 +39,66 @@ function matchesCron(expression, date) {
   const month = parseField(fields[3], 1, 12);
   const dow = parseField(fields[4], 0, 6);
   return minute.has(date.getMinutes()) && hour.has(date.getHours()) && dom.has(date.getDate()) && month.has(date.getMonth() + 1) && dow.has(date.getDay());
+}
+var FIELD_LIMITS = [
+  [0, 59],
+  // minute
+  [0, 23],
+  // hour
+  [1, 31],
+  // day of month
+  [1, 12],
+  // month
+  [0, 6]
+  // day of week
+];
+var FIELD_NAMES = ["minute", "hour", "day-of-month", "month", "day-of-week"];
+function validateCronExpression(expression) {
+  const fields = expression.trim().split(/\s+/);
+  if (fields.length !== 5) {
+    return `Expected 5 fields, got ${fields.length}`;
+  }
+  for (let f = 0; f < 5; f++) {
+    const [min, max] = FIELD_LIMITS[f];
+    const fieldName = FIELD_NAMES[f];
+    for (const part of fields[f].split(",")) {
+      const stepMatch = part.match(/^(.+)\/(\d+)$/);
+      const stepStr = stepMatch ? stepMatch[2] : null;
+      const range = stepMatch ? stepMatch[1] : part;
+      if (stepStr !== null) {
+        const step = parseInt(stepStr, 10);
+        if (step <= 0) {
+          return `Invalid step value 0 in ${fieldName} field`;
+        }
+      }
+      if (range === "*") {
+      } else if (range.includes("-")) {
+        const parts = range.split("-");
+        if (parts.length !== 2) {
+          return `Invalid range "${range}" in ${fieldName} field`;
+        }
+        const [a, b] = parts.map(Number);
+        if (isNaN(a) || isNaN(b)) {
+          return `Non-numeric range "${range}" in ${fieldName} field`;
+        }
+        if (a < min || a > max || b < min || b > max) {
+          return `Value out of range (${min}-${max}) in ${fieldName} field`;
+        }
+        if (a > b) {
+          return `Invalid range "${range}" in ${fieldName} field (start > end)`;
+        }
+      } else {
+        const val = parseInt(range, 10);
+        if (isNaN(val)) {
+          return `Non-numeric value "${range}" in ${fieldName} field`;
+        }
+        if (val < min || val > max) {
+          return `Value ${val} out of range (${min}-${max}) in ${fieldName} field`;
+        }
+      }
+    }
+  }
+  return null;
 }
 function describeSchedule(expression) {
   const preset = PRESETS.find((p) => p.value === expression);
@@ -313,6 +376,7 @@ function MainPanel({ api }) {
   const [editModel, setEditModel] = useState("");
   const [editPrompt, setEditPrompt] = useState("");
   const [editEnabled, setEditEnabled] = useState(true);
+  const [cronError, setCronError] = useState(null);
   const loadAutomations = useCallback(async () => {
     const raw = await storage.read(AUTOMATIONS_KEY);
     const list = Array.isArray(raw) ? raw : [];
@@ -342,6 +406,7 @@ function MainPanel({ api }) {
       setEditModel(selected.model);
       setEditPrompt(selected.prompt);
       setEditEnabled(selected.enabled);
+      setCronError(null);
     }
   }, [selected?.id]);
   const loadRuns = useCallback(async () => {
@@ -376,6 +441,12 @@ function MainPanel({ api }) {
   }, [automations, storage]);
   const saveAutomation = useCallback(async () => {
     if (!selectedId) return;
+    const error = validateCronExpression(editCron);
+    if (error) {
+      setCronError(error);
+      return;
+    }
+    setCronError(null);
     const next = automations.map(
       (a) => a.id === selectedId ? { ...a, name: editName, cronExpression: editCron, model: editModel, prompt: editPrompt, enabled: editEnabled } : a
     );
@@ -550,11 +621,15 @@ function MainPanel({ api }) {
               type: "text",
               style: { ...baseInput, fontFamily: font.mono },
               value: editCron,
-              onChange: (e) => setEditCron(e.target.value),
+              onChange: (e) => {
+                setEditCron(e.target.value);
+                setCronError(null);
+              },
               placeholder: "* * * * *  (min hour dom month dow)"
             }
           ),
-          /* @__PURE__ */ jsx("div", { style: { fontSize: 10, color: color.textTertiary, marginTop: 4 }, children: describeSchedule(editCron) })
+          /* @__PURE__ */ jsx("div", { style: { fontSize: 10, color: color.textTertiary, marginTop: 4 }, children: describeSchedule(editCron) }),
+          cronError && /* @__PURE__ */ jsx("div", { style: { fontSize: 11, color: color.error, marginTop: 4 }, children: cronError })
         ] }),
         /* @__PURE__ */ jsxs("div", { children: [
           /* @__PURE__ */ jsx("label", { style: label, children: "Model" }),
