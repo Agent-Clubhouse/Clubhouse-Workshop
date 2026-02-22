@@ -308,7 +308,7 @@ describe("classifyLine", () => {
 });
 
 // ---------------------------------------------------------------------------
-// isSafeUrl (XSS prevention — Issue #47)
+// isSafeUrl (XSS/SSRF prevention — Issues #47, #48)
 // ---------------------------------------------------------------------------
 
 describe("isSafeUrl", () => {
@@ -337,15 +337,25 @@ describe("isSafeUrl", () => {
 
   it("rejects data: URIs", () => {
     expect(isSafeUrl("data:text/html,<script>alert(1)</script>")).toBe(false);
+    expect(isSafeUrl("data:image/svg+xml;base64,PHN2Zz4=")).toBe(false);
   });
 
   it("rejects vbscript: URIs", () => {
     expect(isSafeUrl("vbscript:MsgBox('XSS')")).toBe(false);
   });
 
+  it("rejects ftp: URLs", () => {
+    expect(isSafeUrl("ftp://example.com/img.png")).toBe(false);
+  });
+
+  it("rejects file: URLs", () => {
+    expect(isSafeUrl("file:///etc/passwd")).toBe(false);
+  });
+
   it("rejects relative paths", () => {
     expect(isSafeUrl("/path/to/page")).toBe(false);
     expect(isSafeUrl("relative/path")).toBe(false);
+    expect(isSafeUrl("../path.png")).toBe(false);
   });
 
   it("rejects empty strings", () => {
