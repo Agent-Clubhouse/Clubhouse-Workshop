@@ -175,6 +175,7 @@ export function WikiViewer({ api }: { api: PluginAPI }) {
   const selectedPathRef = useRef(selectedPath);
   selectedPathRef.current = selectedPath;
 
+  const loadFileRequestIdRef = useRef(0);
   const wikiFilesRef = useRef<FilesAPI | null>(null);
   const pagePathMapRef = useRef<Map<string, string>>(new Map());
   const wikiStyle = api.settings.get<string>('wikiStyle') || 'github';
@@ -249,11 +250,13 @@ export function WikiViewer({ api }: { api: PluginAPI }) {
     }
   }, []);
 
-  // Load file content
+  // Load file content (uses request counter to discard stale responses)
   const loadFile = useCallback(async (path: string) => {
+    const thisRequest = ++loadFileRequestIdRef.current;
     setLoading(true);
     const scoped = getScopedFiles();
     if (!scoped) {
+      if (thisRequest !== loadFileRequestIdRef.current) return;
       setContent('');
       setLoading(false);
       return;
@@ -261,8 +264,10 @@ export function WikiViewer({ api }: { api: PluginAPI }) {
 
     try {
       const text = await scoped.readFile(path);
+      if (thisRequest !== loadFileRequestIdRef.current) return; // stale
       setContent(text);
     } catch {
+      if (thisRequest !== loadFileRequestIdRef.current) return; // stale
       setContent('');
     }
     setLoading(false);
