@@ -12,6 +12,7 @@ on:
 
 permissions:
   contents: write
+  pull-requests: write
 
 concurrency:
   group: release-registry
@@ -191,13 +192,19 @@ jobs:
             fs.writeFileSync('registry/registry.json', JSON.stringify(registry, null, 2) + '\n');
           "
 
-      - name: Push registry update to main
+      - name: Open registry update PR
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          BRANCH="registry-update/${{ steps.tag.outputs.tag }}"
+          git checkout -b "$BRANCH"
           git add registry/registry.json
           git diff --cached --quiet && echo "No registry changes" && exit 0
           git commit -m "registry: update ${{ steps.tag.outputs.plugin_id }} to v${{ steps.tag.outputs.version }}"
-          # Pull latest main and rebase to handle concurrent releases
-          git pull --rebase origin main
-          git push origin HEAD:main
+          git push --force origin "$BRANCH"
+          gh pr create \
+            --title "registry: update ${{ steps.tag.outputs.plugin_id }} to v${{ steps.tag.outputs.version }}" \
+            --body "Automated registry update from release pipeline." \
+            --base main
+        env:
+          GH_TOKEN: ${{ github.token }}
