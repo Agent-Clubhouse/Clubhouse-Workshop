@@ -6,6 +6,7 @@ import {
   priorityLabel,
   statusBadgeStyle,
   stripHtml,
+  escapeWiql,
 } from "./helpers";
 
 // ---------------------------------------------------------------------------
@@ -224,5 +225,47 @@ describe("stripHtml", () => {
 
   it("collapses excessive newlines", () => {
     expect(stripHtml("<p>a</p><p></p><p></p><p>b</p>")).toBe("a\n\nb");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// escapeWiql — prevents WIQL injection by escaping single quotes
+// ---------------------------------------------------------------------------
+
+describe("escapeWiql", () => {
+  it("returns normal strings unchanged", () => {
+    expect(escapeWiql("MyProject")).toBe("MyProject");
+    expect(escapeWiql("Project\\Team")).toBe("Project\\Team");
+  });
+
+  it("doubles single quotes", () => {
+    expect(escapeWiql("it's")).toBe("it''s");
+  });
+
+  it("handles multiple single quotes", () => {
+    expect(escapeWiql("it's a 'test'")).toBe("it''s a ''test''");
+  });
+
+  it("handles empty string", () => {
+    expect(escapeWiql("")).toBe("");
+  });
+
+  it("neutralizes a basic injection payload", () => {
+    const payload = "MyProject' OR 1=1 --";
+    const escaped = escapeWiql(payload);
+    expect(escaped).toBe("MyProject'' OR 1=1 --");
+    // When interpolated into WIQL as: '[Field] = '${escaped}''
+    // the '' is interpreted as a literal single-quote character,
+    // keeping the entire value inside the string literal.
+    // The original unescaped single quote is no longer present:
+    expect(escaped).not.toMatch(/[^']'[^']/);
+  });
+
+  it("handles a value that is only a single quote", () => {
+    expect(escapeWiql("'")).toBe("''");
+  });
+
+  it("handles consecutive single quotes", () => {
+    expect(escapeWiql("'''")).toBe("''''''");
   });
 });
