@@ -47,6 +47,32 @@ async function saveReview(api: PluginAPI, entry: ReviewEntry): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
+// Default branch detection
+// ---------------------------------------------------------------------------
+
+async function detectDefaultBranch(api: PluginAPI): Promise<string> {
+  // 1. Check user-configured setting
+  const configured = api.settings.get<string>("defaultBranch");
+  if (configured) return configured;
+
+  // 2. Auto-detect via git rev-parse
+  try {
+    const result = await api.process.exec("git", [
+      "rev-parse",
+      "--abbrev-ref",
+      "origin/HEAD",
+    ]);
+    const branch = result.stdout.trim().replace(/^origin\//, "");
+    if (branch && branch !== "HEAD") return branch;
+  } catch {
+    // rev-parse can fail if origin/HEAD is not set — fall through
+  }
+
+  // 3. Fallback
+  return "main";
+}
+
+// ---------------------------------------------------------------------------
 // Review prompts
 // ---------------------------------------------------------------------------
 
@@ -124,10 +150,19 @@ export function MainPanel({ api }: PanelProps) {
           }
         } else {
           branch = await api.git.currentBranch();
-          const result = await api.process.exec("git", ["diff", "main...HEAD"]);
+          const baseBranch = await detectDefaultBranch(api);
+          const mergeBase = await api.process.exec("git", [
+            "merge-base",
+            "HEAD",
+            `origin/${baseBranch}`,
+          ]);
+          const base = mergeBase.stdout.trim();
+          const result = await api.process.exec("git", ["diff", `${base}...HEAD`]);
           diff = result.stdout;
           if (!diff.trim()) {
-            setError(`No changes found on branch "${branch}" relative to main.`);
+            setError(
+              `No changes found on branch "${branch}" relative to ${baseBranch}.`
+            );
             setRunning(false);
             return;
           }

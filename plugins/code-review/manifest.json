@@ -38,6 +38,13 @@
           { "label": "Fast", "value": "fast" },
           { "label": "Thorough", "value": "thorough" }
         ]
+      },
+      {
+        "id": "defaultBranch",
+        "title": "Default branch",
+        "description": "The default branch to compare against (e.g. main, master, develop). Leave empty to auto-detect.",
+        "type": "string",
+        "default": ""
       }
     ],
     "help": {
@@ -45,7 +52,7 @@
         {
           "id": "overview",
           "title": "Code Review",
-          "content": "# Code Review Plugin\n\nAI-powered code review for your staged changes or branch diff.\n\n## Usage\n\n1. Stage your changes with `git add`\n2. Open the **Review** tab\n3. Click **Review Staged Changes**\n4. The plugin spawns an AI agent that analyzes your diff and provides feedback\n\nYou can also review all changes on your branch relative to main.\n\n## Review history\n\nPast reviews are stored in project-local storage and displayed in the Review tab."
+          "content": "# Code Review Plugin\n\nAI-powered code review for your staged changes or branch diff.\n\n## Usage\n\n1. Stage your changes with `git add`\n2. Open the **Review** tab\n3. Click **Review Staged Changes**\n4. The plugin spawns an AI agent that analyzes your diff and provides feedback\n\nYou can also review all changes on your branch relative to the default branch (auto-detected, or configure via settings).\n\n## Review history\n\nPast reviews are stored in project-local storage and displayed in the Review tab."
         }
       ]
     }
