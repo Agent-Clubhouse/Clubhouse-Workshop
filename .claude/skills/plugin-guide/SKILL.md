@@ -68,9 +68,55 @@ The API is a single object with these sub-APIs:
 | `api.hub` | (none) | Refresh the hub |
 | `api.badges` | `badges` | Set/clear badge indicators on tabs |
 
+## Multi-Version SDK
+
+The SDK uses a versioned directory structure to support multiple API versions simultaneously:
+
+```
+sdk/
+  versions.json          # Lifecycle metadata — source of truth for version info
+  v0.5/
+    plugin-types/        # Type definitions for API v0.5
+    plugin-testing/      # Test utilities for API v0.5
+  v0.6/                  # (created via /create-version-snapshot)
+    plugin-types/
+    plugin-testing/
+```
+
+### `sdk/versions.json`
+
+Central metadata file tracking all API versions:
+- `latest` — default version for new plugins
+- `minimum` — oldest supported version; plugins below this fail validation
+- `versions` — map of version entries with `status`, `released`, `deprecated`, `removalTarget`, `sdkPath`
+
+### Version lifecycle
+
+`active` → `deprecated` → `removed`
+
+- **active** — fully supported, new plugins can target it
+- **deprecated** — still works, but CI will warn; has a `removalTarget` date
+- **removed** — SDK files deleted, historical record stays in versions.json
+
+### Version management skills
+
+- `/create-version-snapshot` — generate a new SDK version from Clubhouse source
+- `/deprecate-version` — mark a version for phase-out
+- `/delete-version` — remove deprecated version files
+- `/migrate-plugin` — migrate a plugin between versions
+
+### Referencing the SDK
+
+In-repo plugins use `file:` paths pointing to the specific version:
+```json
+"@clubhouse/plugin-types": "file:../../sdk/v0.5/plugin-types"
+```
+
+The `engine.api` field in `manifest.json` must match a version in `sdk/versions.json`.
+
 ## Manifest Structure
 
-Every plugin needs a `manifest.json` with these required fields:
+Every plugin needs a `manifest.json` with these required fields. The `engine.api` value should reference a valid version from `sdk/versions.json`:
 
 ```json
 {
@@ -185,7 +231,8 @@ For detailed information, refer to these files in the repository:
 - [Wiki: Plugin Patterns](https://github.com/Agent-Clubhouse/Clubhouse-Workshop/wiki/Plugin-Patterns) — cookbook-style recipes
 - [Wiki: FAQ](https://github.com/Agent-Clubhouse/Clubhouse-Workshop/wiki/FAQ) — common questions answered
 - [Wiki: Quality Guidelines](https://github.com/Agent-Clubhouse/Clubhouse-Workshop/wiki/Quality-Guidelines) — best practices
-- `sdk/plugin-types/index.d.ts` — the complete type definitions (source of truth)
+- `sdk/versions.json` — version lifecycle metadata (source of truth for API versions)
+- `sdk/v{version}/plugin-types/index.d.ts` — the complete type definitions for each version
 - `plugins/example-hello-world/` — minimal working example
 - `plugins/code-review/` — agent-powered example
 - `plugins/standup/` — app-scoped cross-project example

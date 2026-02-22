@@ -27,7 +27,23 @@ Explain the three scopes in plain language and help them pick:
 
 Recommend `project` unless they specifically need cross-project access.
 
-## Step 3: Help them pick permissions
+## Step 3: Choose an API version
+
+Read `sdk/versions.json` to get the list of available versions. Present the options to the developer, defaulting to `latest`:
+
+- Show all `active` versions with their notes
+- Recommend `latest` unless they have a specific reason to target an older version
+- Warn if they choose a `deprecated` version
+
+Example:
+```
+Which API version would you like to target?
+  v0.5 — Initial release (latest, recommended)
+```
+
+Use the selected version for the manifest's `engine.api` and the package.json dependency paths.
+
+## Step 4: Help them pick permissions
 
 Based on what they described, suggest the minimum permissions they'll need. Always include `logging` and `storage`. Explain each one in a sentence:
 
@@ -47,13 +63,13 @@ Based on what they described, suggest the minimum permissions they'll need. Alwa
 - `projects` — access all projects (needs app/dual scope)
 - `badges` — show notification badges on tabs
 
-## Step 4: Create the plugin
+## Step 5: Create the plugin
 
 Generate the plugin files. Create a new directory at the project root with the plugin name (lowercased, hyphenated). Generate these files:
 
 ### manifest.json
 
-Based on their choices. Use API version `0.5`. Include a `contributes.help` topic. Use a simple SVG icon. Do NOT include `"official": true` — that field is reserved for first-party plugins maintained by Clubhouse Workshop.
+Based on their choices. Use the API version selected in Step 3 (from `sdk/versions.json`). Include a `contributes.help` topic. Use a simple SVG icon. Do NOT include `"official": true` — that field is reserved for first-party plugins maintained by Clubhouse Workshop.
 
 ### package.json
 
@@ -69,8 +85,8 @@ Based on their choices. Use API version `0.5`. Include a `contributes.help` topi
     "test": "vitest run"
   },
   "devDependencies": {
-    "@clubhouse/plugin-types": "^0.5.0",
-    "@clubhouse/plugin-testing": "^0.5.0",
+    "@clubhouse/plugin-types": "file:../../sdk/v{version}/plugin-types",
+    "@clubhouse/plugin-testing": "file:../../sdk/v{version}/plugin-testing",
     "@types/react": "^19.0.0",
     "esbuild": "^0.24.0",
     "typescript": "^5.7.0",
@@ -78,6 +94,8 @@ Based on their choices. Use API version `0.5`. Include a `contributes.help` topi
   }
 }
 ```
+
+Replace `{version}` with the API version chosen in Step 3 (e.g., `0.5`). For plugins created outside the repo, use the npm versions instead: `"^{version}.0"`.
 
 ### tsconfig.json
 
@@ -120,7 +138,7 @@ Write a starter implementation that matches what they described. Always follow t
 
 If they want agents, include a `runQuick` example. If they want storage, show read/write. Make the UI look nice with padding, spacing, and readable typography.
 
-## Step 5: Tell them the next steps
+## Step 6: Tell them the next steps
 
 After creating the files, tell them:
 
