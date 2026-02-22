@@ -2,6 +2,7 @@ const React = globalThis.React;
 const { useMemo, useEffect, useRef, useCallback } = React;
 
 import { Marked } from 'marked';
+import DOMPurify from 'dompurify';
 import hljs from 'highlight.js/lib/core';
 
 import typescript from 'highlight.js/lib/languages/typescript';
@@ -168,7 +169,10 @@ export function renderWikiMarkdown(content: string, pageNames: string[], wikiSty
     },
   });
 
-  return md.parse(content) as string;
+  const raw = md.parse(content) as string;
+  return DOMPurify.sanitize(raw, {
+    ADD_ATTR: ['data-wiki-link', 'target'],
+  });
 }
 
 // ── React component ─────────────────────────────────────────────────

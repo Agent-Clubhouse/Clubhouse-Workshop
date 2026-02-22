@@ -94,6 +94,63 @@ describe('renderWikiMarkdown', () => {
   });
 });
 
+// ── XSS sanitization ────────────────────────────────────────────────
+
+describe('renderWikiMarkdown XSS sanitization', () => {
+  it('strips <script> tags from output', () => {
+    const html = renderWikiMarkdown('<script>alert("xss")</script>', []);
+    expect(html).not.toContain('<script');
+    expect(html).not.toContain('alert');
+  });
+
+  it('strips onerror handlers from img tags', () => {
+    const html = renderWikiMarkdown('<img src=x onerror="alert(document.cookie)">', []);
+    expect(html).not.toContain('onerror');
+    expect(html).not.toContain('alert');
+  });
+
+  it('strips onclick handlers from elements', () => {
+    const html = renderWikiMarkdown('<a onclick="alert(1)">click</a>', []);
+    expect(html).not.toContain('onclick');
+    expect(html).not.toContain('alert');
+  });
+
+  it('strips javascript: protocol from href', () => {
+    const html = renderWikiMarkdown('<a href="javascript:alert(1)">click</a>', []);
+    expect(html).not.toContain('javascript:');
+  });
+
+  it('strips iframe tags', () => {
+    const html = renderWikiMarkdown('<iframe src="https://evil.com"></iframe>', []);
+    expect(html).not.toContain('<iframe');
+  });
+
+  it('preserves safe markdown content after sanitization', () => {
+    const html = renderWikiMarkdown('# Hello\n\n**bold** and *italic*', []);
+    expect(html).toContain('<h1');
+    expect(html).toContain('<strong>bold</strong>');
+    expect(html).toContain('<em>italic</em>');
+  });
+
+  it('preserves wiki-link data attributes after sanitization', () => {
+    const html = renderWikiMarkdown('See [[My Page]] for info.', ['My Page']);
+    expect(html).toContain('data-wiki-link="My Page"');
+    expect(html).toContain('class="wiki-link"');
+  });
+
+  it('preserves code blocks after sanitization', () => {
+    const html = renderWikiMarkdown('```javascript\nconst x = 1;\n```', []);
+    expect(html).toContain('<pre>');
+    expect(html).toContain('<code');
+  });
+
+  it('preserves target attribute on external links in ADO mode', () => {
+    const html = renderWikiMarkdown('[Link](https://example.com)', [], 'ado');
+    expect(html).toContain('target="_blank"');
+    expect(html).toContain('href="https://example.com"');
+  });
+});
+
 // ── resolveAdoLink ──────────────────────────────────────────────────
 
 describe('resolveAdoLink', () => {
