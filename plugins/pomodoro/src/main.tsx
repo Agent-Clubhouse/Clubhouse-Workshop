@@ -10,6 +10,7 @@ const { useState, useEffect, useCallback, useRef } = React;
 const WORK_DURATION = 25 * 60; // 25 minutes in seconds
 const BREAK_DURATION = 5 * 60; // 5 minutes in seconds
 const SESSIONS_KEY = "pomodoroSessions";
+const TIMER_STATE_KEY = "pomodoroTimerState";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -21,6 +22,12 @@ interface SessionRecord {
   date: string;
   completedWork: number;
   completedBreaks: number;
+}
+
+interface TimerState {
+  phase: "work" | "break";
+  startedAt: number;      // Date.now() when timer started
+  durationMs: number;     // total duration in milliseconds
 }
 
 // ---------------------------------------------------------------------------
@@ -35,6 +42,16 @@ function formatTime(seconds: number): string {
 
 function todayKey(): string {
   return new Date().toISOString().split("T")[0];
+}
+
+function isTimerState(val: unknown): val is TimerState {
+  if (typeof val !== "object" || val === null) return false;
+  const obj = val as Record<string, unknown>;
+  return (
+    (obj.phase === "work" || obj.phase === "break") &&
+    typeof obj.startedAt === "number" &&
+    typeof obj.durationMs === "number"
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -69,26 +86,6 @@ export function MainPanel({ api }: PanelProps) {
   const [todaySessions, setTodaySessions] = useState(0);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Load today's session count
-  useEffect(() => {
-    api.storage.global.read(SESSIONS_KEY).then((raw) => {
-      let records: SessionRecord[] = [];
-      if (typeof raw === "string") {
-        try { records = JSON.parse(raw); } catch { return; }
-      } else if (Array.isArray(raw)) {
-        records = raw as SessionRecord[];
-      } else {
-        return;
-      }
-      const today = records.find((r) => r.date === todayKey());
-      if (today) setTodaySessions(today.completedWork);
-    });
-
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    };
-  }, []);
-
   const recordSession = useCallback(async () => {
     const raw = await api.storage.global.read(SESSIONS_KEY);
     let records: SessionRecord[] = [];
@@ -112,20 +109,19 @@ export function MainPanel({ api }: PanelProps) {
     await api.storage.global.write(SESSIONS_KEY, records);
   }, []);
 
-  const startTimer = useCallback((targetPhase: "work" | "break") => {
+  // Start (or resume) an interval that counts down from a given startTime
+  const runInterval = useCallback((targetPhase: "work" | "break", startTime: number, durationSec: number) => {
     if (intervalRef.current) clearInterval(intervalRef.current);
 
-    const duration = targetPhase === "work" ? WORK_DURATION : BREAK_DURATION;
     setPhase(targetPhase);
-    setRemaining(duration);
 
-    const startTime = Date.now();
-    intervalRef.current = setInterval(() => {
+    const tick = () => {
       const elapsed = Math.floor((Date.now() - startTime) / 1000);
-      const left = duration - elapsed;
+      const left = durationSec - elapsed;
       if (left <= 0) {
         clearInterval(intervalRef.current!);
         intervalRef.current = null;
+        api.storage.global.delete(TIMER_STATE_KEY);
 
         if (targetPhase === "work") {
           recordSession();
@@ -140,16 +136,79 @@ export function MainPanel({ api }: PanelProps) {
       } else {
         setRemaining(left);
       }
-    }, 1000);
+    };
+
+    // Immediately compute the current remaining time
+    tick();
+    intervalRef.current = setInterval(tick, 1000);
   }, [recordSession]);
+
+  const startTimer = useCallback((targetPhase: "work" | "break") => {
+    const duration = targetPhase === "work" ? WORK_DURATION : BREAK_DURATION;
+    const startTime = Date.now();
+
+    // Persist timer state so it survives unmount
+    api.storage.global.write(TIMER_STATE_KEY, {
+      phase: targetPhase,
+      startedAt: startTime,
+      durationMs: duration * 1000,
+    } satisfies TimerState);
+
+    setRemaining(duration);
+    runInterval(targetPhase, startTime, duration);
+  }, [runInterval]);
 
   const stop = useCallback(() => {
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
       intervalRef.current = null;
     }
+    api.storage.global.delete(TIMER_STATE_KEY);
     setPhase("idle");
     setRemaining(WORK_DURATION);
+  }, []);
+
+  // On mount: load session count and restore any in-progress timer
+  useEffect(() => {
+    // Load today's session count
+    api.storage.global.read(SESSIONS_KEY).then((raw) => {
+      let records: SessionRecord[] = [];
+      if (typeof raw === "string") {
+        try { records = JSON.parse(raw); } catch { return; }
+      } else if (Array.isArray(raw)) {
+        records = raw as SessionRecord[];
+      } else {
+        return;
+      }
+      const today = records.find((r) => r.date === todayKey());
+      if (today) setTodaySessions(today.completedWork);
+    });
+
+    // Restore persisted timer state
+    api.storage.global.read(TIMER_STATE_KEY).then((raw) => {
+      if (!isTimerState(raw)) return;
+
+      const elapsedMs = Date.now() - raw.startedAt;
+      const remainingSec = Math.floor((raw.durationMs - elapsedMs) / 1000);
+
+      if (remainingSec > 0) {
+        // Timer still active — resume it
+        runInterval(raw.phase, raw.startedAt, Math.floor(raw.durationMs / 1000));
+      } else {
+        // Timer expired while away
+        api.storage.global.delete(TIMER_STATE_KEY);
+        if (raw.phase === "work") {
+          recordSession();
+          api.ui.showNotice("Pomodoro complete! Time for a break.");
+        } else {
+          api.ui.showNotice("Break over! Ready for another round?");
+        }
+      }
+    });
+
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
   }, []);
 
   const styles = {
