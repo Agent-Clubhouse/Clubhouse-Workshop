@@ -1,0 +1,54 @@
+{
+  "id": "github-issues",
+  "name": "GitHub Issue Tracker",
+  "version": "0.1.0",
+  "description": "Create and manage GitHub issues with template support, label validation, and agent assignment",
+  "engine": { "api": 0.5 },
+  "scope": "project",
+  "main": "./dist/main.js",
+  "settingsPanel": "declarative",
+  "contributes": {
+    "tab": {
+      "label": "Issues",
+      "icon": "<svg width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='10'/><line x1='12' y1='8' x2='12' y2='12'/><line x1='12' y1='16' x2='12.01' y2='16'/></svg>",
+      "layout": "sidebar-content"
+    },
+    "commands": [
+      { "id": "github-issues.refresh", "title": "Refresh Issues" },
+      { "id": "github-issues.create", "title": "Create Issue" },
+      { "id": "github-issues.assignAgent", "title": "Assign Issue to Agent" },
+      { "id": "github-issues.toggleState", "title": "Close/Reopen Issue" },
+      { "id": "github-issues.viewInBrowser", "title": "View Issue in Browser" }
+    ],
+    "settings": [
+      {
+        "key": "defaultRepo",
+        "type": "string",
+        "label": "Default Repository",
+        "description": "Override auto-detected repository (owner/repo format)"
+      }
+    ],
+    "help": {
+      "topics": [
+        {
+          "id": "github-issues",
+          "title": "GitHub Issue Tracker",
+          "content": "## GitHub Issue Tracker\n\nThe Issues tab lets you browse, create, edit, and manage GitHub issues for the current project, with added support for issue templates, label validation, and agent assignment.\n\n### Requirements\n- The **`gh` CLI** must be installed and authenticated (`gh auth login`)\n- The project must have a **GitHub remote** configured\n- If either is missing, the sidebar will show a helpful error with a retry button\n\n### Browsing issues\nIssues are listed by most recently updated (newest at top), 30 per page. Click an issue to view its full details in the main panel. Use **Load more** at the bottom to paginate through older issues.\n\n- **Open/Closed toggle** — Use the dropdown in the sidebar to switch between open and closed issues\n- **Search** — Type in the filter box to instantly filter issues by title or number\n\n### Issue detail view\nThe detail panel shows:\n- **Header** — Issue number, title, and action buttons (Edit, View in Browser, Assign to Agent)\n- **Metadata** — State badge (open/closed, click to toggle), author, creation date, labels with colors, assignees with add/remove\n- **Body** — Full issue description\n- **Comments** — All comments with author, timestamp, and body\n- **Add comment** — Inline form to post a new comment\n\n### Creating issues\nClick **+ New** in the sidebar or use the **Create Issue** command. The creation form supports:\n- **Templates** — If your project has `.github/ISSUE_TEMPLATE/` files, a template dropdown appears. Selecting a template pre-fills the title, body, and labels\n- **Label picker** — A searchable multi-select validated against your repo's actual labels, so you can't mistype a label name\n- If no labels can be fetched, falls back to a freeform comma-separated input\n\n### Editing issues\nFrom the detail view, click **Edit** to modify the title, body, and labels inline. Label changes are applied as add/remove diffs so existing labels aren't accidentally cleared.\n\n### Assigning to agents\nFrom the detail view, click **Assign to Agent** to open a dialog:\n- Lists your project's durable agents with status badges\n- Includes an **Additional instructions** field for custom agent prompts\n- Previously saved default instructions are pre-loaded into the field for convenience\n- Use **Save as default** (next to Confirm) to persist instructions across sessions — this is unchecked by default so one-off tweaks don't accidentally overwrite your saved prompt\n- If the selected agent is running, you'll be warned before it is restarted\n\n### Commands\nAvailable from the command palette:\n- **Refresh Issues** — Reloads the issue list from GitHub\n- **Create Issue** — Opens the issue creation form\n- **Assign Issue to Agent** — Opens the agent assignment dialog for the selected issue\n- **Close/Reopen Issue** — Toggles the state of the selected issue\n- **View Issue in Browser** — Opens the selected issue on GitHub"
+        }
+      ]
+    }
+  },
+  "permissions": [
+    "logging",
+    "storage",
+    "notifications",
+    "files",
+    "agents",
+    "commands",
+    "process",
+    "settings",
+    "git",
+    "widgets"
+  ],
+  "allowedCommands": ["gh"]
+}
