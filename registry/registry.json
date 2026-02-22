@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated": "2026-02-22T21:15:00.000Z",
+  "updated": "2026-02-22T21:42:00.429Z",
   "supportedApis": {
     "latest": "0.6",
     "minimum": "0.5",
@@ -277,6 +277,33 @@
             "widgets"
           ],
           "size": 14364
+        }
+      }
+    },
+    {
+      "id": "automations",
+      "name": "Automations",
+      "description": "Schedule recurring quick-agent tasks with cron expressions. Create automations with customizable schedules, model selection, and prompt configuration. Track run history with status indicators and summaries.",
+      "author": "Clubhouse Workshop",
+      "official": false,
+      "repo": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop",
+      "path": "plugins/automations",
+      "tags": [],
+      "latest": "0.1.0",
+      "releases": {
+        "0.1.0": {
+          "api": 0.5,
+          "asset": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop/releases/download/automations-v0.1.0/automations-v0.1.0.zip",
+          "sha256": "cefb8c642d16536b48e075424823161936b2a6e8b579b10e6a8e39f410204345",
+          "permissions": [
+            "storage",
+            "agents",
+            "commands",
+            "notifications",
+            "navigation",
+            "widgets"
+          ],
+          "size": 7786
         }
       }
     }
