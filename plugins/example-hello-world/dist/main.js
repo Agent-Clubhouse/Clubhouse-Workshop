@@ -24,7 +24,7 @@ function MainPanel({ api }) {
       }
       setLoaded(true);
     });
-  }, []);
+  }, [api]);
   const increment = useCallback(() => {
     setCount((prev) => {
       const next = prev + 1;
@@ -36,7 +36,7 @@ function MainPanel({ api }) {
     setCount(0);
     await api.storage.projectLocal.write(COUNTER_KEY, 0);
     api.logging.info("Counter reset to 0");
-  }, []);
+  }, [api]);
   if (!loaded) {
     return /* @__PURE__ */ jsx("div", { style: { padding: 24 }, children: "Loading\u2026" });
   }

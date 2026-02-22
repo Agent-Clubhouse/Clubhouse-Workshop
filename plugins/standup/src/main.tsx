@@ -72,7 +72,7 @@ export function MainPanel({ api }: PanelProps) {
       setHistory(h);
       if (h.length > 0) setSelected(h[0]);
     });
-  }, []);
+  }, [api]);
 
   const generate = useCallback(async () => {
     setRunning(true);
@@ -116,7 +116,7 @@ Keep it brief — 3-5 bullet points per section. Write in first person.`;
     } finally {
       setRunning(false);
     }
-  }, []);
+  }, [api]);
 
   const styles = {
     container: { padding: 24, fontFamily: "var(--font-family, sans-serif)", height: "100%", overflow: "auto" } as const,

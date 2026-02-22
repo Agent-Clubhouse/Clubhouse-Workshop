@@ -102,7 +102,7 @@ export function MainPanel({ api }: PanelProps) {
   // Load history on mount
   useEffect(() => {
     loadHistory(api).then(setHistory);
-  }, []);
+  }, [api]);
 
   const runReview = useCallback(
     async (mode: "staged" | "branch") => {
@@ -169,7 +169,7 @@ export function MainPanel({ api }: PanelProps) {
         setRunning(false);
       }
     },
-    []
+    [api]
   );
 
   // -- Render ---------------------------------------------------------------

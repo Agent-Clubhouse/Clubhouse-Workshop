@@ -60,7 +60,7 @@ function MainPanel({ api }) {
     setTodaySessions(today.completedWork);
     if (records.length > 30) records.length = 30;
     await api.storage.global.write(SESSIONS_KEY, records);
-  }, []);
+  }, [api]);
   const runInterval = useCallback((targetPhase, startTime, durationSec) => {
     if (intervalRef.current) clearInterval(intervalRef.current);
     setPhase(targetPhase);
@@ -87,7 +87,7 @@ function MainPanel({ api }) {
     };
     tick();
     intervalRef.current = setInterval(tick, 1e3);
-  }, [recordSession]);
+  }, [api, recordSession]);
   const startTimer = useCallback((targetPhase) => {
     const duration = targetPhase === "work" ? WORK_DURATION : BREAK_DURATION;
     const startTime = Date.now();
@@ -98,7 +98,7 @@ function MainPanel({ api }) {
     });
     setRemaining(duration);
     runInterval(targetPhase, startTime, duration);
-  }, [runInterval]);
+  }, [api, runInterval]);
   const stop = useCallback(() => {
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
@@ -107,7 +107,7 @@ function MainPanel({ api }) {
     api.storage.global.delete(TIMER_STATE_KEY);
     setPhase("idle");
     setRemaining(WORK_DURATION);
-  }, []);
+  }, [api]);
   useEffect(() => {
     api.storage.global.read(SESSIONS_KEY).then((raw) => {
       let records = [];
@@ -144,7 +144,7 @@ function MainPanel({ api }) {
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, []);
+  }, [api, runInterval, recordSession]);
   const styles = {
     container: { padding: 24, fontFamily: "var(--font-family, sans-serif)", textAlign: "center" },
     timer: { fontSize: 64, fontWeight: 700, fontVariantNumeric: "tabular-nums", margin: "24px 0" },

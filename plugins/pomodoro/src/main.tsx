@@ -107,7 +107,7 @@ export function MainPanel({ api }: PanelProps) {
     // Keep last 30 days
     if (records.length > 30) records.length = 30;
     await api.storage.global.write(SESSIONS_KEY, records);
-  }, []);
+  }, [api]);
 
   // Start (or resume) an interval that counts down from a given startTime
   const runInterval = useCallback((targetPhase: "work" | "break", startTime: number, durationSec: number) => {
@@ -141,7 +141,7 @@ export function MainPanel({ api }: PanelProps) {
     // Immediately compute the current remaining time
     tick();
     intervalRef.current = setInterval(tick, 1000);
-  }, [recordSession]);
+  }, [api, recordSession]);
 
   const startTimer = useCallback((targetPhase: "work" | "break") => {
     const duration = targetPhase === "work" ? WORK_DURATION : BREAK_DURATION;
@@ -156,7 +156,7 @@ export function MainPanel({ api }: PanelProps) {
 
     setRemaining(duration);
     runInterval(targetPhase, startTime, duration);
-  }, [runInterval]);
+  }, [api, runInterval]);
 
   const stop = useCallback(() => {
     if (intervalRef.current) {
@@ -166,7 +166,7 @@ export function MainPanel({ api }: PanelProps) {
     api.storage.global.delete(TIMER_STATE_KEY);
     setPhase("idle");
     setRemaining(WORK_DURATION);
-  }, []);
+  }, [api]);
 
   // On mount: load session count and restore any in-progress timer
   useEffect(() => {
@@ -209,7 +209,7 @@ export function MainPanel({ api }: PanelProps) {
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, []);
+  }, [api, runInterval, recordSession]);
 
   const styles = {
     container: { padding: 24, fontFamily: "var(--font-family, sans-serif)", textAlign: "center" as const } as const,
