@@ -136,6 +136,9 @@ export function BoardSidebar({ api }: { api: PluginAPI }) {
   const [loaded, setLoaded] = useState(false);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
 
+  const loadedRef = useRef(loaded);
+  loadedRef.current = loaded;
+
   const loadBoards = useCallback(async () => {
     const raw = await boardsStorage.read(BOARDS_KEY);
     const list: Board[] = Array.isArray(raw) ? raw : [];
@@ -150,18 +153,17 @@ export function BoardSidebar({ api }: { api: PluginAPI }) {
       counts.set(board.id, cards.length);
     }
     setCardCounts(counts);
-    if (!loaded) setLoaded(true);
-  }, [boardsStorage, api, loaded]);
+    if (!loadedRef.current) setLoaded(true);
+  }, [boardsStorage, api]);
 
   const loadBoardsRef = useRef(loadBoards);
   loadBoardsRef.current = loadBoards;
 
-  useEffect(() => {
-    loadBoards();
-  }, [loadBoards]);
-
+  // ── Single subscription — initial load + refresh handling ───────────
   const refreshRef = useRef(kanBossState.refreshCount);
   useEffect(() => {
+    loadBoardsRef.current();
+
     const unsub = kanBossState.subscribe(() => {
       setSelectedId(kanBossState.selectedBoardId);
 

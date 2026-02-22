@@ -59,36 +59,20 @@ export function BoardView({ api }: { api: PluginAPI }) {
   const [zoomLevel, setZoomLevel] = useState(1.0);
   const [filter, setFilter] = useState<FilterState>(kanBossState.filter);
 
-  // ── Subscribe to state ────────────────────────────────────────────────
-  const loadBoardRef = useRef<(() => void) | null>(null);
-  const refreshRef2 = useRef(kanBossState.refreshCount);
+  // ── Load board + cards (stable — uses refs, no re-subscribe cascade) ─
+  const selectedBoardIdRef = useRef(selectedBoardId);
+  selectedBoardIdRef.current = selectedBoardId;
 
-  useEffect(() => {
-    const unsub = kanBossState.subscribe(() => {
-      setSelectedBoardId(kanBossState.selectedBoardId);
-      setShowCardDialog(kanBossState.editingCardId !== null);
-      setShowConfigDialog(kanBossState.configuringBoard);
-      setFilter(prev => filtersEqual(prev, kanBossState.filter) ? prev : { ...kanBossState.filter });
-
-      if (kanBossState.refreshCount !== refreshRef2.current) {
-        refreshRef2.current = kanBossState.refreshCount;
-        loadBoardRef.current?.();
-      }
-    });
-    setSelectedBoardId(kanBossState.selectedBoardId);
-    return unsub;
-  }, []);
-
-  // ── Load board + cards ────────────────────────────────────────────────
   const loadBoard = useCallback(async () => {
-    if (!selectedBoardId) {
+    const boardId = selectedBoardIdRef.current;
+    if (!boardId) {
       setBoard(null);
       setCards([]);
       return;
     }
     const raw = await boardsStorage.read(BOARDS_KEY);
     const boards: Board[] = Array.isArray(raw) ? raw : [];
-    const found = boards.find((b) => b.id === selectedBoardId) ?? null;
+    const found = boards.find((b) => b.id === boardId) ?? null;
     setBoard(found);
     if (found) {
       setZoomLevel(found.config.zoomLevel);
@@ -98,13 +82,42 @@ export function BoardView({ api }: { api: PluginAPI }) {
     } else {
       setCards([]);
     }
-  }, [selectedBoardId, boardsStorage, api]);
+  }, [boardsStorage, api]);
 
+  const loadBoardRef = useRef(loadBoard);
   loadBoardRef.current = loadBoard;
 
+  // ── Single subscription — no cascading re-subscribes ────────────────
+  const refreshRef2 = useRef(kanBossState.refreshCount);
+  const prevBoardIdRef = useRef(kanBossState.selectedBoardId);
+
   useEffect(() => {
-    loadBoard();
-  }, [loadBoard]);
+    // Sync initial state and trigger first load
+    setSelectedBoardId(kanBossState.selectedBoardId);
+    prevBoardIdRef.current = kanBossState.selectedBoardId;
+    loadBoardRef.current();
+
+    const unsub = kanBossState.subscribe(() => {
+      setSelectedBoardId(kanBossState.selectedBoardId);
+      setShowCardDialog(kanBossState.editingCardId !== null);
+      setShowConfigDialog(kanBossState.configuringBoard);
+      setFilter(prev => filtersEqual(prev, kanBossState.filter) ? prev : { ...kanBossState.filter });
+
+      const boardChanged = kanBossState.selectedBoardId !== prevBoardIdRef.current;
+      const refreshed = kanBossState.refreshCount !== refreshRef2.current;
+
+      if (boardChanged) {
+        prevBoardIdRef.current = kanBossState.selectedBoardId;
+      }
+      if (refreshed) {
+        refreshRef2.current = kanBossState.refreshCount;
+      }
+      if (boardChanged || refreshed) {
+        loadBoardRef.current();
+      }
+    });
+    return unsub;
+  }, []);
 
   // ── Zoom controls ─────────────────────────────────────────────────────
   const scrollRef = useRef<HTMLDivElement>(null);
