@@ -64,3 +64,34 @@ jobs:
 
             console.log('Registry valid:', registry.plugins.length, 'plugin(s)');
           "
+
+      - name: Validate API versions against SDK
+        run: |
+          node -e "
+            const fs = require('fs');
+            const registry = JSON.parse(fs.readFileSync('registry/registry.json', 'utf8'));
+            const versionsPath = 'sdk/versions.json';
+            if (!fs.existsSync(versionsPath)) {
+              console.log('sdk/versions.json not found, skipping API version validation');
+              process.exit(0);
+            }
+            const versions = JSON.parse(fs.readFileSync(versionsPath, 'utf8'));
+            let hasError = false;
+
+            for (const plugin of registry.plugins) {
+              for (const [ver, release] of Object.entries(plugin.releases)) {
+                const api = String(release.api);
+                const entry = versions.versions[api];
+                if (!entry) {
+                  console.warn('WARNING: ' + plugin.id + '@' + ver + ' targets unknown API version ' + api);
+                } else if (entry.status === 'removed') {
+                  console.error('ERROR: ' + plugin.id + '@' + ver + ' targets removed API version ' + api);
+                  hasError = true;
+                } else if (entry.status === 'deprecated') {
+                  console.warn('WARNING: ' + plugin.id + '@' + ver + ' targets deprecated API version ' + api);
+                }
+              }
+            }
+
+            if (hasError) process.exit(1);
+          "

@@ -1,0 +1,126 @@
+name: Validate SDK
+
+on:
+  pull_request:
+    paths:
+      - 'sdk/**'
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Validate versions.json structure
+        run: |
+          node -e "
+            const fs = require('fs');
+            const path = require('path');
+            const versions = JSON.parse(fs.readFileSync('sdk/versions.json', 'utf8'));
+
+            const errors = [];
+
+            // Check required top-level fields
+            if (!versions.latest) errors.push('Missing latest field');
+            if (!versions.minimum) errors.push('Missing minimum field');
+            if (!versions.versions || typeof versions.versions !== 'object') {
+              errors.push('Missing or invalid versions field');
+            }
+
+            if (errors.length > 0) {
+              errors.forEach(e => console.error('ERROR:', e));
+              process.exit(1);
+            }
+
+            // Validate latest is active
+            const latestEntry = versions.versions[versions.latest];
+            if (!latestEntry) {
+              errors.push('latest version ' + versions.latest + ' not found in versions map');
+            } else if (latestEntry.status !== 'active') {
+              errors.push('latest version ' + versions.latest + ' has status ' + latestEntry.status + ' (must be active)');
+            }
+
+            // Validate minimum exists
+            const minEntry = versions.versions[versions.minimum];
+            if (!minEntry) {
+              errors.push('minimum version ' + versions.minimum + ' not found in versions map');
+            }
+
+            // Validate each version entry
+            const validStatuses = ['active', 'deprecated', 'removed'];
+            for (const [ver, entry] of Object.entries(versions.versions)) {
+              if (!validStatuses.includes(entry.status)) {
+                errors.push('Version ' + ver + ' has invalid status: ' + entry.status);
+              }
+              if (!entry.released) {
+                errors.push('Version ' + ver + ' missing released date');
+              }
+
+              // Non-removed versions must have a valid sdkPath that exists
+              if (entry.status !== 'removed') {
+                if (!entry.sdkPath) {
+                  errors.push('Version ' + ver + ' (' + entry.status + ') missing sdkPath');
+                } else if (!fs.existsSync(entry.sdkPath)) {
+                  errors.push('Version ' + ver + ' sdkPath does not exist: ' + entry.sdkPath);
+                }
+              }
+
+              // Removed versions should have null sdkPath
+              if (entry.status === 'removed' && entry.sdkPath) {
+                errors.push('Version ' + ver + ' is removed but sdkPath is not null');
+              }
+
+              // Deprecated versions must have deprecation dates
+              if (entry.status === 'deprecated') {
+                if (!entry.deprecated) errors.push('Version ' + ver + ' is deprecated but missing deprecated date');
+                if (!entry.removalTarget) errors.push('Version ' + ver + ' is deprecated but missing removalTarget date');
+              }
+            }
+
+            if (errors.length > 0) {
+              console.error('versions.json validation failed:');
+              errors.forEach(e => console.error('  -', e));
+              process.exit(1);
+            }
+
+            console.log('versions.json valid:', Object.keys(versions.versions).length, 'version(s)');
+            console.log('  latest:', versions.latest);
+            console.log('  minimum:', versions.minimum);
+            for (const [ver, entry] of Object.entries(versions.versions)) {
+              console.log('  v' + ver + ':', entry.status);
+            }
+          "
+
+      - name: Typecheck active SDK versions
+        run: |
+          node -e "
+            const fs = require('fs');
+            const versions = JSON.parse(fs.readFileSync('sdk/versions.json', 'utf8'));
+            const active = Object.entries(versions.versions)
+              .filter(([_, e]) => e.status === 'active' || e.status === 'deprecated')
+              .map(([ver, e]) => ({ ver, path: e.sdkPath }));
+            fs.writeFileSync('/tmp/active-versions.json', JSON.stringify(active));
+            console.log('Active/deprecated versions to typecheck:', active.map(a => 'v' + a.ver).join(', '));
+          "
+
+          VERSIONS=$(cat /tmp/active-versions.json)
+          echo "$VERSIONS" | node -e "
+            const versions = JSON.parse(require('fs').readFileSync('/dev/stdin', 'utf8'));
+            for (const v of versions) {
+              console.log(v.path + '/plugin-testing');
+            }
+          " | while read -r testing_dir; do
+            if [ -d "$testing_dir" ] && [ -f "$testing_dir/package.json" ]; then
+              echo "Typechecking $testing_dir..."
+              cd "$testing_dir"
+              npm install --ignore-scripts 2>&1
+              npm run typecheck 2>&1
+              cd - > /dev/null
+            fi
+          done
