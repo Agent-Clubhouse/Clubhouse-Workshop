@@ -170,6 +170,20 @@ jobs:
               size: parseInt('${{ steps.zip.outputs.size }}', 10)
             };
 
+            // Sync supportedApis from sdk/versions.json
+            const versionsPath = 'sdk/versions.json';
+            if (fs.existsSync(versionsPath)) {
+              const sdkVersions = JSON.parse(fs.readFileSync(versionsPath, 'utf8'));
+              const activeVersions = Object.entries(sdkVersions.versions)
+                .filter(([_, e]) => e.status !== 'removed')
+                .map(([v]) => v);
+              registry.supportedApis = {
+                latest: sdkVersions.latest,
+                minimum: sdkVersions.minimum,
+                versions: activeVersions
+              };
+            }
+
             registry.updated = new Date().toISOString();
             fs.writeFileSync('registry/registry.json', JSON.stringify(registry, null, 2) + '\n');
           "
