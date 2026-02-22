@@ -26,9 +26,8 @@ function extractYamlValue(yaml, key) {
   const match = yaml.match(new RegExp(`^${key}:\\s*["']?(.+?)["']?\\s*$`, "m"));
   return match ? match[1] : null;
 }
-var SAFE_IMG_URL = /^https?:\/\//i;
-function isSafeImageUrl(src) {
-  return SAFE_IMG_URL.test(src);
+function isSafeUrl(url) {
+  return /^https?:\/\//i.test(url);
 }
 
 // src/main.tsx
@@ -128,7 +127,7 @@ function renderInline(text) {
     if (m.startsWith("![")) {
       const alt = match[1];
       const src = match[2];
-      if (isSafeImageUrl(src)) {
+      if (isSafeUrl(src)) {
         nodes.push(
           /* @__PURE__ */ jsx("img", { src, alt, style: { maxWidth: "100%", borderRadius: "4px", margin: "4px 0" } }, match.index)
         );
@@ -140,19 +139,23 @@ function renderInline(text) {
     } else if (m.startsWith("[")) {
       const linkText = match[4];
       const href = match[5];
-      nodes.push(
-        /* @__PURE__ */ jsx(
-          "a",
-          {
-            href,
-            target: "_blank",
-            rel: "noopener noreferrer",
-            style: { color: "var(--text-accent, #8b5cf6)", textDecoration: "underline" },
-            children: linkText
-          },
-          match.index
-        )
-      );
+      if (isSafeUrl(href)) {
+        nodes.push(
+          /* @__PURE__ */ jsx(
+            "a",
+            {
+              href,
+              target: "_blank",
+              rel: "noopener noreferrer",
+              style: { color: "var(--text-accent, #8b5cf6)", textDecoration: "underline" },
+              children: linkText
+            },
+            match.index
+          )
+        );
+      } else {
+        nodes.push(/* @__PURE__ */ jsx("span", { children: linkText }, match.index));
+      }
     } else if (m.startsWith("`")) {
       nodes.push(
         /* @__PURE__ */ jsx(
