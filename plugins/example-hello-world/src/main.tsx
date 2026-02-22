@@ -42,7 +42,7 @@ export function MainPanel({ api }: PanelProps) {
       }
       setLoaded(true);
     });
-  }, []);
+  }, [api]);
 
   const increment = useCallback(() => {
     setCount((prev) => {
@@ -56,7 +56,7 @@ export function MainPanel({ api }: PanelProps) {
     setCount(0);
     await api.storage.projectLocal.write(COUNTER_KEY, 0);
     api.logging.info("Counter reset to 0");
-  }, []);
+  }, [api]);
 
   if (!loaded) {
     return <div style={{ padding: 24 }}>Loading…</div>;

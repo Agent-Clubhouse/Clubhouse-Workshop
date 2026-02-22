@@ -58,7 +58,7 @@ function MainPanel({ api }) {
   const [error, setError] = useState(null);
   useEffect(() => {
     loadHistory(api).then(setHistory);
-  }, []);
+  }, [api]);
   const runReview = useCallback(
     async (mode) => {
       setRunning(true);
@@ -109,7 +109,7 @@ function MainPanel({ api }) {
         setRunning(false);
       }
     },
-    []
+    [api]
   );
   const styles = {
     container: { padding: 24, fontFamily: "var(--font-family, sans-serif)", height: "100%", overflow: "auto" },

@@ -41,7 +41,7 @@ function MainPanel({ api }) {
       setHistory(h);
       if (h.length > 0) setSelected(h[0]);
     });
-  }, []);
+  }, [api]);
   const generate = useCallback(async () => {
     setRunning(true);
     setSelected(null);
@@ -76,7 +76,7 @@ Keep it brief \u2014 3-5 bullet points per section. Write in first person.`;
     } finally {
       setRunning(false);
     }
-  }, []);
+  }, [api]);
   const styles = {
     container: { padding: 24, fontFamily: "var(--font-family, sans-serif)", height: "100%", overflow: "auto" },
     output: { whiteSpace: "pre-wrap", fontFamily: "var(--font-mono, monospace)", fontSize: 13, lineHeight: 1.6, padding: 16, background: "var(--bg-secondary, #1a1a1a)", borderRadius: 6 },
