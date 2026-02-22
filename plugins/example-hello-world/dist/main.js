@@ -25,12 +25,13 @@ function MainPanel({ api }) {
       setLoaded(true);
     });
   }, []);
-  const increment = useCallback(async () => {
-    const next = count + 1;
-    setCount(next);
-    await api.storage.projectLocal.write(COUNTER_KEY, next);
-    api.ui.showNotice(`Count is now ${next}`);
-  }, [count]);
+  const increment = useCallback(() => {
+    setCount((prev) => {
+      const next = prev + 1;
+      api.storage.projectLocal.write(COUNTER_KEY, next);
+      return next;
+    });
+  }, [api]);
   const reset = useCallback(async () => {
     setCount(0);
     await api.storage.projectLocal.write(COUNTER_KEY, 0);

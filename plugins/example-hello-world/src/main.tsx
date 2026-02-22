@@ -44,12 +44,13 @@ export function MainPanel({ api }: PanelProps) {
     });
   }, []);
 
-  const increment = useCallback(async () => {
-    const next = count + 1;
-    setCount(next);
-    await api.storage.projectLocal.write(COUNTER_KEY, next);
-    api.ui.showNotice(`Count is now ${next}`);
-  }, [count]);
+  const increment = useCallback(() => {
+    setCount((prev) => {
+      const next = prev + 1;
+      api.storage.projectLocal.write(COUNTER_KEY, next);
+      return next;
+    });
+  }, [api]);
 
   const reset = useCallback(async () => {
     setCount(0);
