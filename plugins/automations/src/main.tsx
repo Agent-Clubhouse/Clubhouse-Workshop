@@ -392,7 +392,7 @@ export function MainPanel({ api }: { api: PluginAPI }) {
                   left: editEnabled ? 18 : 2,
                   width: 16, height: 16,
                   borderRadius: '50%',
-                  background: '#fff',
+                  background: 'var(--text-on-accent, #fff)',
                   transition: 'left 0.2s',
                 }} />
               </button>
@@ -562,7 +562,7 @@ export function MainPanel({ api }: { api: PluginAPI }) {
                               padding: '2px 8px', fontSize: 11, borderRadius: 4,
                               cursor: 'pointer',
                               background: expandedRunId === run.agentId ? S.color.accent : S.color.accentBg,
-                              color: expandedRunId === run.agentId ? '#fff' : S.color.accent,
+                              color: expandedRunId === run.agentId ? 'var(--text-on-accent, #fff)' : S.color.accent,
                               border: expandedRunId === run.agentId
                                 ? 'none'
                                 : `1px solid ${S.color.accentBorder}`,
