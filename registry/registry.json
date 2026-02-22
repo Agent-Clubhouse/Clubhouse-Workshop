@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated": "2026-02-22T07:50:07.344Z",
+  "updated": "2026-02-22T21:15:00.000Z",
   "supportedApis": {
     "latest": "0.6",
     "minimum": "0.5",
@@ -140,7 +140,11 @@
       "official": true,
       "repo": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop",
       "path": "plugins/kanboss",
-      "tags": [],
+      "tags": [
+        "kanban",
+        "ai",
+        "project-management"
+      ],
       "latest": "0.1.0",
       "releases": {
         "0.1.0": {
@@ -168,8 +172,12 @@
       "official": true,
       "repo": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop",
       "path": "plugins/github-issues",
-      "tags": [],
-      "latest": "0.1.0",
+      "tags": [
+        "github",
+        "issues",
+        "project-management"
+      ],
+      "latest": "0.1.1",
       "releases": {
         "0.1.0": {
           "api": 0.5,
@@ -183,11 +191,92 @@
             "agents",
             "commands",
             "process",
-            "settings",
             "git",
             "widgets"
           ],
           "size": 12795
+        },
+        "0.1.1": {
+          "api": 0.5,
+          "asset": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop/releases/download/github-issues-v0.1.1/github-issues-v0.1.1.zip",
+          "sha256": "402c6423421d35520355d1bd2337f015bdadb240961307e269c2e42893649e3e",
+          "permissions": [
+            "logging",
+            "storage",
+            "notifications",
+            "files",
+            "agents",
+            "commands",
+            "process",
+            "git",
+            "widgets"
+          ],
+          "size": 14235
+        }
+      }
+    },
+    {
+      "id": "ado-work-items",
+      "name": "Azure DevOps Work Items",
+      "description": "Browse, create, and manage Azure DevOps work items with WIQL query support and agent assignment",
+      "author": "Clubhouse Workshop",
+      "official": true,
+      "repo": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop",
+      "path": "plugins/ado-work-items",
+      "tags": [
+        "azure-devops",
+        "work-items",
+        "project-management"
+      ],
+      "latest": "0.1.0",
+      "releases": {
+        "0.1.0": {
+          "api": 0.5,
+          "asset": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop/releases/download/ado-work-items-v0.1.0/ado-work-items-v0.1.0.zip",
+          "sha256": "867cfb3dae26fa1d54b9c6e1ef55e17246848655a645ede91c9241c1f98e10c8",
+          "permissions": [
+            "logging",
+            "storage",
+            "notifications",
+            "agents",
+            "commands",
+            "process",
+            "widgets"
+          ],
+          "size": 13986
+        }
+      }
+    },
+    {
+      "id": "wiki",
+      "name": "Wiki",
+      "description": "Browse and edit markdown wikis stored in external directories.",
+      "author": "Clubhouse Workshop",
+      "official": true,
+      "repo": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop",
+      "path": "plugins/wiki",
+      "tags": [
+        "wiki",
+        "markdown",
+        "documentation"
+      ],
+      "latest": "1.0.0",
+      "releases": {
+        "1.0.0": {
+          "api": 0.5,
+          "asset": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop/releases/download/wiki-v1.0.0/wiki-v1.0.0.zip",
+          "sha256": "cd907e7dc1a4b6ad4e8fa5711488cd625d86af0518034c18f69bdf09c2cfcbd9",
+          "permissions": [
+            "files",
+            "files.external",
+            "commands",
+            "notifications",
+            "agents",
+            "navigation",
+            "storage",
+            "widgets"
+          ],
+          "size": 14364
         }
       }
     }
