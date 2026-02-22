@@ -74,7 +74,7 @@ var color = {
   textSecondary: "var(--text-secondary, #a1a1aa)",
   textTertiary: "var(--text-tertiary, #71717a)",
   textError: "var(--text-error, #f87171)",
-  textSuccess: "#22c55e",
+  textSuccess: "var(--text-success, #22c55e)",
   textAccent: "var(--text-accent, #8b5cf6)",
   textWarning: "var(--text-warning, #eab308)",
   bg: "var(--bg-primary, #18181b)",
@@ -86,14 +86,24 @@ var color = {
   borderSecondary: "var(--border-secondary, #52525b)",
   accent: "var(--text-accent, #8b5cf6)",
   accentBg: "var(--bg-accent, rgba(139, 92, 246, 0.15))",
+  // Status badge backgrounds
+  bgSuccess: "var(--bg-success, rgba(34, 197, 94, 0.15))",
+  bgWarning: "var(--bg-warning, rgba(234, 179, 8, 0.15))",
+  bgErrorSubtle: "var(--bg-error-subtle, rgba(248, 113, 113, 0.15))",
+  // Overlay & shadow
+  overlay: "var(--bg-overlay, rgba(0, 0, 0, 0.5))",
+  shadow: "var(--shadow-color, rgba(0, 0, 0, 0.5))",
+  shadowMenu: "var(--shadow-menu, rgba(0, 0, 0, 0.3))",
+  // Text on accent backgrounds
+  textOnAccent: "var(--text-on-accent, #fff)",
   // File icon colors by extension
-  blue: "#3b82f6",
-  green: "#22c55e",
-  yellow: "#eab308",
-  orange: "#f97316",
-  red: "#ef4444",
-  purple: "#a855f7",
-  cyan: "#06b6d4"
+  blue: "var(--color-blue, #3b82f6)",
+  green: "var(--color-green, #22c55e)",
+  yellow: "var(--color-yellow, #eab308)",
+  orange: "var(--color-orange, #f97316)",
+  red: "var(--color-red, #ef4444)",
+  purple: "var(--color-purple, #a855f7)",
+  cyan: "var(--color-cyan, #06b6d4)"
 };
 var baseInput = {
   width: "100%",
@@ -120,18 +130,18 @@ var accentButton = {
   ...baseButton,
   background: color.accent,
   border: "none",
-  color: "#fff",
+  color: color.textOnAccent,
   fontWeight: 500
 };
 var dangerButton = {
   ...baseButton,
   color: color.textError,
-  borderColor: "rgba(248, 113, 113, 0.3)"
+  borderColor: "var(--border-error, rgba(248, 113, 113, 0.3))"
 };
 var overlay = {
   position: "absolute",
   inset: 0,
-  background: "rgba(0, 0, 0, 0.5)",
+  background: color.overlay,
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
@@ -141,7 +151,7 @@ var dialog = {
   background: color.bg,
   border: `1px solid ${color.border}`,
   borderRadius: 12,
-  boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.5)",
+  boxShadow: `0 25px 50px -12px ${color.shadow}`,
   width: "100%",
   maxWidth: 480,
   margin: "0 16px",
@@ -151,49 +161,48 @@ var dialog = {
 // src/file-icons.ts
 var EXT_COLORS = {
   // Markdown
-  md: "#3b82f6",
-  mdx: "#3b82f6",
+  md: color.blue,
+  mdx: color.blue,
   // JavaScript/TypeScript
-  js: "#eab308",
-  jsx: "#eab308",
-  ts: "#3b82f6",
-  tsx: "#3b82f6",
+  js: color.yellow,
+  jsx: color.yellow,
+  ts: color.blue,
+  tsx: color.blue,
   // Config/data
-  json: "#22c55e",
-  yaml: "#22c55e",
-  yml: "#22c55e",
-  toml: "#22c55e",
-  xml: "#f97316",
+  json: color.green,
+  yaml: color.green,
+  yml: color.green,
+  toml: color.green,
+  xml: color.orange,
   // Styles
-  css: "#a855f7",
-  scss: "#a855f7",
-  less: "#a855f7",
+  css: color.purple,
+  scss: color.purple,
+  less: color.purple,
   // Shell
-  sh: "#22c55e",
-  bash: "#22c55e",
-  zsh: "#22c55e",
+  sh: color.green,
+  bash: color.green,
+  zsh: color.green,
   // Python
-  py: "#3b82f6",
+  py: color.blue,
   // Rust
-  rs: "#f97316",
+  rs: color.orange,
   // Go
-  go: "#06b6d4",
+  go: color.cyan,
   // HTML
-  html: "#f97316",
-  htm: "#f97316",
+  html: color.orange,
+  htm: color.orange,
   // Images
-  png: "#a855f7",
-  jpg: "#a855f7",
-  jpeg: "#a855f7",
-  gif: "#a855f7",
-  svg: "#a855f7",
+  png: color.purple,
+  jpg: color.purple,
+  jpeg: color.purple,
+  gif: color.purple,
+  svg: color.purple,
   // Text
-  txt: "#a1a1aa",
-  log: "#a1a1aa"
+  txt: color.textSecondary,
+  log: color.textSecondary
 };
-var DEFAULT_COLOR = "#a1a1aa";
 function getFileIconColor(ext) {
-  return EXT_COLORS[ext.toLowerCase()] || DEFAULT_COLOR;
+  return EXT_COLORS[ext.toLowerCase()] || color.textSecondary;
 }
 
 // src/WikiTree.tsx
@@ -402,7 +411,7 @@ function ContextMenu({ x, y, node, onClose, onAction }) {
         background: color.bgSecondary,
         border: `1px solid ${color.border}`,
         borderRadius: 6,
-        boxShadow: "0 4px 12px rgba(0,0,0,0.3)",
+        boxShadow: `0 4px 12px ${color.shadowMenu}`,
         padding: "4px 0",
         minWidth: 140,
         left: x,
@@ -1077,15 +1086,15 @@ function statusBadge(status) {
   switch (status) {
     case "sleeping":
       return React3.createElement("span", {
-        style: { ...base, background: "rgba(34, 197, 94, 0.15)", color: color.textSuccess }
+        style: { ...base, background: color.bgSuccess, color: color.textSuccess }
       }, "sleeping");
     case "running":
       return React3.createElement("span", {
-        style: { ...base, background: "rgba(234, 179, 8, 0.15)", color: color.textWarning }
+        style: { ...base, background: color.bgWarning, color: color.textWarning }
       }, "running");
     case "error":
       return React3.createElement("span", {
-        style: { ...base, background: "rgba(248, 113, 113, 0.15)", color: color.textError }
+        style: { ...base, background: color.bgErrorSubtle, color: color.textError }
       }, "error");
     default:
       return null;
@@ -1353,7 +1362,7 @@ function UnsavedDialog({ fileName, onSave, onDiscard, onCancel }) {
           onClick: onDiscard
         }, "Discard"),
         React4.createElement("button", {
-          style: { padding: "4px 12px", fontSize: 12, background: color.accent, color: "#fff", border: "none", borderRadius: 6, cursor: "pointer", fontFamily: font.family },
+          style: { padding: "4px 12px", fontSize: 12, background: color.accent, color: color.textOnAccent, border: "none", borderRadius: 6, cursor: "pointer", fontFamily: font.family },
           onClick: onSave
         }, "Save")
       )
