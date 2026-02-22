@@ -163,6 +163,278 @@ function labelColor(hex: string): string {
   return hex.startsWith("#") ? hex : `#${hex}`;
 }
 
+// ---------------------------------------------------------------------------
+// Markdown renderer (lightweight GFM-subset → JSX, no external deps)
+// ---------------------------------------------------------------------------
+
+/** Parse inline markdown (bold, italic, code, links, strikethrough, images). */
+function renderInline(text: string): React.ReactNode[] {
+  const nodes: React.ReactNode[] = [];
+  // Regex order matters: image before link, bold before italic
+  const inlineRe =
+    /!\[([^\]]*)\]\(([^)]+)\)|(\[([^\]]+)\]\(([^)]+)\))|(`[^`]+`)|(\*\*[^*]+\*\*)|(__[^_]+__)|(\*[^*]+\*)|(_[^_]+_)|(~~[^~]+~~)/g;
+  let last = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = inlineRe.exec(text)) !== null) {
+    if (match.index > last) nodes.push(text.slice(last, match.index));
+    const m = match[0];
+
+    if (m.startsWith("![")) {
+      // Image: ![alt](src)
+      const alt = match[1];
+      const src = match[2];
+      nodes.push(
+        <img key={match.index} src={src} alt={alt} style={{ maxWidth: "100%", borderRadius: "4px", margin: "4px 0" }} />,
+      );
+    } else if (m.startsWith("[")) {
+      // Link: [text](url)
+      const linkText = match[4];
+      const href = match[5];
+      nodes.push(
+        <a
+          key={match.index}
+          href={href}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ color: "var(--text-accent, #8b5cf6)", textDecoration: "underline" }}
+        >
+          {linkText}
+        </a>,
+      );
+    } else if (m.startsWith("`")) {
+      nodes.push(
+        <code
+          key={match.index}
+          style={{
+            background: "var(--bg-secondary, #27272a)",
+            padding: "1px 5px",
+            borderRadius: "3px",
+            fontFamily: "var(--font-mono, ui-monospace, monospace)",
+            fontSize: "0.9em",
+          }}
+        >
+          {m.slice(1, -1)}
+        </code>,
+      );
+    } else if (m.startsWith("**") || m.startsWith("__")) {
+      nodes.push(<strong key={match.index}>{renderInline(m.slice(2, -2))}</strong>);
+    } else if (m.startsWith("~~")) {
+      nodes.push(<del key={match.index}>{renderInline(m.slice(2, -2))}</del>);
+    } else if (m.startsWith("*") || m.startsWith("_")) {
+      nodes.push(<em key={match.index}>{renderInline(m.slice(1, -1))}</em>);
+    }
+    last = match.index + m.length;
+  }
+
+  if (last < text.length) nodes.push(text.slice(last));
+  return nodes;
+}
+
+/** Lightweight Markdown component rendering GFM-subset to JSX. */
+function Markdown({ source }: { source: string }) {
+  const elements = useMemo(() => {
+    const lines = source.split("\n");
+    const result: React.ReactNode[] = [];
+    let i = 0;
+
+    const codeBlockStyle: React.CSSProperties = {
+      background: "var(--bg-secondary, #27272a)",
+      border: "1px solid var(--border-primary, #3f3f46)",
+      borderRadius: "6px",
+      padding: "10px 12px",
+      overflowX: "auto",
+      fontFamily: "var(--font-mono, ui-monospace, monospace)",
+      fontSize: "12px",
+      lineHeight: 1.5,
+      margin: "8px 0",
+      whiteSpace: "pre",
+      color: "var(--text-primary, #e4e4e7)",
+    };
+
+    const blockquoteStyle: React.CSSProperties = {
+      borderLeft: "3px solid var(--border-primary, #3f3f46)",
+      paddingLeft: "12px",
+      margin: "8px 0",
+      color: "var(--text-secondary, #a1a1aa)",
+    };
+
+    while (i < lines.length) {
+      const line = lines[i];
+
+      // Fenced code block
+      if (line.startsWith("```")) {
+        const codeLines: string[] = [];
+        i++;
+        while (i < lines.length && !lines[i].startsWith("```")) {
+          codeLines.push(lines[i]);
+          i++;
+        }
+        i++; // skip closing ```
+        result.push(
+          <pre key={result.length} style={codeBlockStyle}>
+            <code>{codeLines.join("\n")}</code>
+          </pre>,
+        );
+        continue;
+      }
+
+      // Blank line
+      if (!line.trim()) {
+        i++;
+        continue;
+      }
+
+      // Heading
+      const headingMatch = line.match(/^(#{1,6})\s+(.+)/);
+      if (headingMatch) {
+        const level = headingMatch[1].length;
+        const sizes: Record<number, string> = { 1: "1.5em", 2: "1.3em", 3: "1.15em", 4: "1em", 5: "0.95em", 6: "0.9em" };
+        result.push(
+          <div
+            key={result.length}
+            style={{
+              fontSize: sizes[level] || "1em",
+              fontWeight: 600,
+              margin: "12px 0 6px",
+              color: "var(--text-primary, #e4e4e7)",
+              borderBottom: level <= 2 ? "1px solid var(--border-primary, #3f3f46)" : undefined,
+              paddingBottom: level <= 2 ? "4px" : undefined,
+            }}
+          >
+            {renderInline(headingMatch[2])}
+          </div>,
+        );
+        i++;
+        continue;
+      }
+
+      // Horizontal rule
+      if (/^[-*_]{3,}\s*$/.test(line)) {
+        result.push(
+          <hr
+            key={result.length}
+            style={{ border: "none", borderTop: "1px solid var(--border-primary, #3f3f46)", margin: "12px 0" }}
+          />,
+        );
+        i++;
+        continue;
+      }
+
+      // Blockquote
+      if (line.startsWith("> ") || line === ">") {
+        const quoteLines: string[] = [];
+        while (i < lines.length && (lines[i].startsWith("> ") || lines[i] === ">")) {
+          quoteLines.push(lines[i].replace(/^>\s?/, ""));
+          i++;
+        }
+        result.push(
+          <blockquote key={result.length} style={blockquoteStyle}>
+            <Markdown source={quoteLines.join("\n")} />
+          </blockquote>,
+        );
+        continue;
+      }
+
+      // Unordered list
+      if (/^\s*[-*+]\s/.test(line)) {
+        const items: string[] = [];
+        while (i < lines.length && /^\s*[-*+]\s/.test(lines[i])) {
+          items.push(lines[i].replace(/^\s*[-*+]\s+/, ""));
+          i++;
+        }
+        result.push(
+          <ul key={result.length} style={{ margin: "6px 0", paddingLeft: "20px" }}>
+            {items.map((item, idx) => (
+              <li key={idx} style={{ marginBottom: "2px" }}>{renderInline(item)}</li>
+            ))}
+          </ul>,
+        );
+        continue;
+      }
+
+      // Ordered list
+      if (/^\s*\d+[.)]\s/.test(line)) {
+        const items: string[] = [];
+        while (i < lines.length && /^\s*\d+[.)]\s/.test(lines[i])) {
+          items.push(lines[i].replace(/^\s*\d+[.)]\s+/, ""));
+          i++;
+        }
+        result.push(
+          <ol key={result.length} style={{ margin: "6px 0", paddingLeft: "20px" }}>
+            {items.map((item, idx) => (
+              <li key={idx} style={{ marginBottom: "2px" }}>{renderInline(item)}</li>
+            ))}
+          </ol>,
+        );
+        continue;
+      }
+
+      // Task list (checkbox)
+      if (/^\s*[-*]\s\[[ x]\]/.test(line)) {
+        const items: { checked: boolean; text: string }[] = [];
+        while (i < lines.length && /^\s*[-*]\s\[[ x]\]/.test(lines[i])) {
+          const checked = lines[i].includes("[x]");
+          const text = lines[i].replace(/^\s*[-*]\s\[[ x]\]\s*/, "");
+          items.push({ checked, text });
+          i++;
+        }
+        result.push(
+          <ul key={result.length} style={{ margin: "6px 0", paddingLeft: "20px", listStyle: "none" }}>
+            {items.map((item, idx) => (
+              <li key={idx} style={{ marginBottom: "2px" }}>
+                <input type="checkbox" checked={item.checked} readOnly style={{ marginRight: "6px" }} />
+                {renderInline(item.text)}
+              </li>
+            ))}
+          </ul>,
+        );
+        continue;
+      }
+
+      // Regular paragraph — collect consecutive non-blank, non-special lines
+      const paraLines: string[] = [];
+      while (
+        i < lines.length &&
+        lines[i].trim() &&
+        !lines[i].startsWith("```") &&
+        !lines[i].match(/^#{1,6}\s/) &&
+        !/^[-*_]{3,}\s*$/.test(lines[i]) &&
+        !lines[i].startsWith("> ") &&
+        lines[i] !== ">" &&
+        !/^\s*[-*+]\s/.test(lines[i]) &&
+        !/^\s*\d+[.)]\s/.test(lines[i])
+      ) {
+        paraLines.push(lines[i]);
+        i++;
+      }
+      if (paraLines.length > 0) {
+        result.push(
+          <p key={result.length} style={{ margin: "6px 0", lineHeight: 1.6 }}>
+            {renderInline(paraLines.join("\n"))}
+          </p>,
+        );
+      }
+    }
+
+    return result;
+  }, [source]);
+
+  return (
+    <div
+      style={{
+        fontSize: "13px",
+        color: "var(--text-primary, #e4e4e7)",
+        fontFamily: "var(--font-family, system-ui, -apple-system, sans-serif)",
+        wordWrap: "break-word",
+        overflowWrap: "break-word",
+      }}
+    >
+      {elements}
+    </div>
+  );
+}
+
 async function detectRepo(api: PluginAPI): Promise<string | null> {
   try {
     const r = await api.process.exec("gh", [
@@ -1499,7 +1771,7 @@ export function MainPanel({ api }: PanelProps) {
           </div>
         ) : detail.body ? (
           <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--border-primary, #3f3f46)" }}>
-            <pre style={preStyle}>{detail.body}</pre>
+            <Markdown source={detail.body} />
           </div>
         ) : (
           <div style={{ padding: "12px 16px", fontSize: "12px", color: "var(--text-secondary, #a1a1aa)", fontStyle: "italic", borderBottom: "1px solid var(--border-primary, #3f3f46)" }}>
@@ -1532,7 +1804,7 @@ export function MainPanel({ api }: PanelProps) {
                     </span>
                   </div>
                   <div style={{ padding: "8px 10px" }}>
-                    <pre style={preStyle}>{comment.body}</pre>
+                    <Markdown source={comment.body} />
                   </div>
                 </div>
               ))}
@@ -1659,16 +1931,6 @@ const formInput: React.CSSProperties = {
   fontFamily: "var(--font-family, system-ui, -apple-system, sans-serif)",
   boxSizing: "border-box",
   outline: "none",
-};
-
-const preStyle: React.CSSProperties = {
-  whiteSpace: "pre-wrap",
-  wordWrap: "break-word",
-  fontFamily: "var(--font-mono, ui-monospace, monospace)",
-  fontSize: "13px",
-  lineHeight: 1.6,
-  color: "var(--text-primary, #e4e4e7)",
-  margin: 0,
 };
 
 const btnPrimarySmall: React.CSSProperties = {
