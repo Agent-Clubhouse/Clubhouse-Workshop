@@ -1,0 +1,49 @@
+{
+  "permissions": {
+    "0.5": [
+      "files",
+      "files.external",
+      "git",
+      "terminal",
+      "agents",
+      "notifications",
+      "storage",
+      "navigation",
+      "projects",
+      "commands",
+      "events",
+      "widgets",
+      "logging",
+      "process",
+      "badges"
+    ],
+    "0.6": [
+      "files",
+      "files.external",
+      "git",
+      "terminal",
+      "agents",
+      "notifications",
+      "storage",
+      "navigation",
+      "projects",
+      "commands",
+      "events",
+      "widgets",
+      "logging",
+      "process",
+      "badges",
+      "agent-config",
+      "agent-config.cross-project",
+      "agent-config.permissions",
+      "agent-config.mcp"
+    ]
+  },
+  "sensitive": [
+    "files.external",
+    "process",
+    "terminal",
+    "agent-config.permissions",
+    "agent-config.mcp"
+  ]
+}
