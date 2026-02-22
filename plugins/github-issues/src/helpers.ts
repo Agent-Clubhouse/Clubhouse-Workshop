@@ -96,6 +96,11 @@ export function parseInlineSegments(
   return segments;
 }
 
+/** Returns true when a URL uses an allowed protocol (http or https). */
+export function isSafeUrl(url: string): boolean {
+  return /^https?:\/\//i.test(url);
+}
+
 /** Detect block-level markdown elements. */
 export function classifyLine(
   line: string,
