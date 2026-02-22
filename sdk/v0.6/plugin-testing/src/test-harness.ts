@@ -22,7 +22,7 @@ interface RenderResult {
    * const { getByText } = render(element!);
    * ```
    */
-  element: ReturnType<NonNullable<PluginModule["MainPanel"]>> | null;
+  element: React.ReactNode | null;
   /** Calls deactivate() and disposes all subscriptions. */
   cleanup: () => Promise<void>;
 }
@@ -54,12 +54,16 @@ export async function renderPlugin(
   });
 
   // Activate
-  await module.activate(ctx, api);
+  if (module.activate) {
+    await module.activate(ctx, api);
+  }
 
   // Render MainPanel if it exists — panels receive { api } only
   let element: RenderResult["element"] = null;
   if (module.MainPanel) {
-    element = module.MainPanel({ api });
+    // Cast to function component since test harness only supports FC-style invocation
+    const Panel = module.MainPanel as (props: { api: PluginAPI }) => React.ReactNode;
+    element = Panel({ api });
   }
 
   // Cleanup function
