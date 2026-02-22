@@ -2413,6 +2413,7 @@ function WikiViewer({ api }) {
   isDirtyRef.current = isDirty;
   const selectedPathRef = useRef4(selectedPath);
   selectedPathRef.current = selectedPath;
+  const loadFileRequestIdRef = useRef4(0);
   const wikiFilesRef = useRef4(null);
   const pagePathMapRef = useRef4(/* @__PURE__ */ new Map());
   const wikiStyle = api.settings.get("wikiStyle") || "github";
@@ -2472,17 +2473,21 @@ function WikiViewer({ api }) {
     }
   }, []);
   const loadFile = useCallback4(async (path) => {
+    const thisRequest = ++loadFileRequestIdRef.current;
     setLoading(true);
     const scoped = getScopedFiles();
     if (!scoped) {
+      if (thisRequest !== loadFileRequestIdRef.current) return;
       setContent("");
       setLoading(false);
       return;
     }
     try {
       const text2 = await scoped.readFile(path);
+      if (thisRequest !== loadFileRequestIdRef.current) return;
       setContent(text2);
     } catch {
+      if (thisRequest !== loadFileRequestIdRef.current) return;
       setContent("");
     }
     setLoading(false);
