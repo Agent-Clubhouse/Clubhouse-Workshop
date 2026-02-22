@@ -35,14 +35,12 @@ git push origin my-plugin-v1.0.0
 CI handles the rest automatically:
 1. Builds the plugin and validates the manifest
 2. Creates a zip artifact and GitHub Release
-3. Updates `registry.json` directly on main with the new version's sha256, size, and permissions
+3. Opens a PR to update `registry.json` with the new version's sha256, size, and permissions
 
 You can also trigger a release manually:
 ```bash
 gh workflow run "Release Plugin" -f tag=my-plugin-v1.0.0
 ```
-
-> **Note:** The GitHub Actions bot must be allowed to bypass branch protection on `main` so it can push registry updates directly.
 
 ## Registry format
 
