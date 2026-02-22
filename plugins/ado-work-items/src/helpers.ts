@@ -82,6 +82,24 @@ export function escapeWiql(value: string): string {
   return value.replace(/'/g, "''");
 }
 
+/**
+ * Validate that an Azure DevOps organization URL matches expected patterns.
+ * Accepts `https://dev.azure.com/<org>` and `https://<org>.visualstudio.com`
+ * with an optional trailing slash.  Rejects URLs containing shell
+ * metacharacters or unexpected structure.
+ */
+export function validateOrgUrl(url: string): boolean {
+  return /^https:\/\/(dev\.azure\.com\/[\w-]+|[\w-]+\.visualstudio\.com)\/?$/.test(url);
+}
+
+/**
+ * Validate that an Azure DevOps project name contains only safe characters.
+ * ADO project names may include word characters, spaces, hyphens, and dots.
+ */
+export function validateProjectName(name: string): boolean {
+  return name.length > 0 && /^[\w\s.-]+$/.test(name);
+}
+
 /** Strip HTML tags for plain-text display. */
 export function stripHtml(html: string): string {
   return html

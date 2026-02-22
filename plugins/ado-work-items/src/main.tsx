@@ -12,6 +12,8 @@ import {
   statusBadgeStyle,
   stripHtml,
   escapeWiql,
+  validateOrgUrl,
+  validateProjectName,
 } from "./helpers";
 
 const React = globalThis.React;
@@ -51,6 +53,10 @@ interface AdoConfig {
   areaPath: string;
   iterationPath: string;
   queryPath: string;
+  /** false when organization or project fail validation */
+  valid: boolean;
+  /** Human-readable reason when valid is false */
+  validationError: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -154,14 +160,30 @@ const workItemState = {
 // ---------------------------------------------------------------------------
 
 function getConfig(api: PluginAPI): AdoConfig {
+  const organization = (api.settings.get<string>("organization") || "").replace(/\/+$/, "");
+  const project = api.settings.get<string>("project") || "";
+
+  let valid = true;
+  let validationError = "";
+
+  if (organization && !validateOrgUrl(organization)) {
+    valid = false;
+    validationError = "Invalid organization URL format. Expected https://dev.azure.com/<org> or https://<org>.visualstudio.com";
+  } else if (project && !validateProjectName(project)) {
+    valid = false;
+    validationError = "Invalid project name. Only letters, numbers, spaces, hyphens, underscores, and dots are allowed.";
+  }
+
   return {
-    organization: (api.settings.get<string>("organization") || "").replace(/\/+$/, ""),
-    project: api.settings.get<string>("project") || "",
+    organization,
+    project,
     team: api.settings.get<string>("team") || "",
     defaultWorkItemType: api.settings.get<string>("defaultWorkItemType") || "Task",
     areaPath: api.settings.get<string>("areaPath") || "",
     iterationPath: api.settings.get<string>("iterationPath") || "",
     queryPath: api.settings.get<string>("queryPath") || "",
+    valid,
+    validationError,
   };
 }
 
@@ -816,7 +838,7 @@ export function SidebarPanel({ api }: PanelProps) {
 
   // Fetch work items
   const fetchItems = useCallback(async () => {
-    if (!config.organization || !config.project) return;
+    if (!config.organization || !config.project || !config.valid) return;
 
     workItemState.setLoading(true);
     setError(null);
@@ -946,6 +968,21 @@ export function SidebarPanel({ api }: PanelProps) {
 
   if (!config.organization || !config.project) {
     return <ConfigWarning />;
+  }
+
+  if (!config.valid) {
+    return (
+      <div style={{ ...sidebarContainer, justifyContent: "center", alignItems: "center" }}>
+        <div style={{ padding: "16px", textAlign: "center" }}>
+          <div style={{ fontSize: "12px", color: "var(--text-error, #f87171)", marginBottom: "8px" }}>
+            Invalid settings
+          </div>
+          <div style={{ fontSize: "11px", color: "var(--text-secondary, #a1a1aa)", marginBottom: "12px", lineHeight: 1.5 }}>
+            {config.validationError}
+          </div>
+        </div>
+      </div>
+    );
   }
 
   if (error) {
