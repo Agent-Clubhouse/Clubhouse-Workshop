@@ -16,6 +16,6 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop",
-    "directory": "sdk/plugin-types"
+    "directory": "sdk/v0.5/plugin-types"
   }
 }

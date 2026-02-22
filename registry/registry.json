@@ -1,6 +1,11 @@
 {
   "version": 1,
   "updated": "2026-02-21T22:50:00Z",
+  "supportedApis": {
+    "latest": "0.5",
+    "minimum": "0.5",
+    "versions": ["0.5"]
+  },
   "plugins": [
     {
       "id": "example-hello-world",

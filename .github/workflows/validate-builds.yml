@@ -6,6 +6,7 @@ on:
       - 'plugins/*/src/**'
       - 'plugins/*/package.json'
       - 'plugins/*/tsconfig.json'
+      - 'sdk/**'
 
 jobs:
   validate:
@@ -48,3 +49,36 @@ jobs:
           fi
 
           echo "All dist files are up to date."
+
+      - name: Validate plugin API versions
+        run: |
+          node -e "
+            const fs = require('fs');
+            const versions = JSON.parse(fs.readFileSync('sdk/versions.json', 'utf8'));
+            let hasError = false;
+            let hasWarning = false;
+
+            for (const dir of fs.readdirSync('plugins')) {
+              const manifestPath = 'plugins/' + dir + '/manifest.json';
+              if (!fs.existsSync(manifestPath)) continue;
+              const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+              const api = String(manifest.engine?.api);
+              const entry = versions.versions[api];
+
+              if (!entry) {
+                console.error('ERROR: ' + dir + ' targets unknown API version ' + api);
+                hasError = true;
+              } else if (entry.status === 'removed') {
+                console.error('ERROR: ' + dir + ' targets removed API version ' + api);
+                hasError = true;
+              } else if (entry.status === 'deprecated') {
+                console.warn('WARNING: ' + dir + ' targets deprecated API version ' + api + ' (removal target: ' + entry.removalTarget + ')');
+                hasWarning = true;
+              } else {
+                console.log('OK: ' + dir + ' targets API v' + api + ' (' + entry.status + ')');
+              }
+            }
+
+            if (hasError) process.exit(1);
+            if (hasWarning) console.warn('\nSome plugins target deprecated API versions. Consider migrating with /migrate-plugin.');
+          "

@@ -91,6 +91,25 @@ jobs:
                 errors.push(plugin.id + ': Latest version ' + plugin.latest + ' not in releases');
               }
 
+              // Validate API version against SDK versions
+              const versionsPath = 'sdk/versions.json';
+              const hasVersions = fs.existsSync(versionsPath);
+              const sdkVersions = hasVersions ? JSON.parse(fs.readFileSync(versionsPath, 'utf8')) : null;
+
+              if (plugin.releases && sdkVersions) {
+                for (const [version, release] of Object.entries(plugin.releases)) {
+                  const api = String(release.api);
+                  const entry = sdkVersions.versions[api];
+                  if (!entry) {
+                    warnings.push(plugin.id + '@' + version + ': Targets unknown API version ' + api);
+                  } else if (entry.status === 'removed') {
+                    errors.push(plugin.id + '@' + version + ': Targets removed API version ' + api);
+                  } else if (entry.status === 'deprecated') {
+                    warnings.push(plugin.id + '@' + version + ': Targets deprecated API version ' + api + ' (removal target: ' + entry.removalTarget + ')');
+                  }
+                }
+              }
+
               // Check permissions for sensitive ones
               if (plugin.releases) {
                 for (const [version, release] of Object.entries(plugin.releases)) {

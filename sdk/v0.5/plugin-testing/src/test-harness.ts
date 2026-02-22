@@ -1,4 +1,4 @@
-import type { PluginModule, PluginAPI, PluginContext } from "@clubhouse/plugin-types";
+import type { PluginModule, PluginAPI, PluginContext, PanelProps } from "@clubhouse/plugin-types";
 import { createMockAPI } from "./mock-api";
 import { createMockContext } from "./mock-context";
 
@@ -22,7 +22,7 @@ interface RenderResult {
    * const { getByText } = render(element!);
    * ```
    */
-  element: ReturnType<NonNullable<PluginModule["MainPanel"]>> | null;
+  element: React.ReactElement | null;
   /** Calls deactivate() and disposes all subscriptions. */
   cleanup: () => Promise<void>;
 }
@@ -54,12 +54,15 @@ export async function renderPlugin(
   });
 
   // Activate
-  await module.activate(ctx, api);
+  if (module.activate) {
+    await module.activate(ctx, api);
+  }
 
   // Render MainPanel if it exists — panels receive { api } only
-  let element: RenderResult["element"] = null;
+  let element: React.ReactElement | null = null;
   if (module.MainPanel) {
-    element = module.MainPanel({ api });
+    const Panel = module.MainPanel as React.FC<PanelProps>;
+    element = Panel({ api }) as React.ReactElement;
   }
 
   // Cleanup function

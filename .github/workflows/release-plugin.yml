@@ -80,6 +80,33 @@ jobs:
             console.log('Manifest valid:', m.id, 'v' + m.version);
           "
 
+      - name: Validate API version
+        working-directory: ${{ steps.tag.outputs.plugin_dir }}
+        run: |
+          node -e "
+            const fs = require('fs');
+            const manifest = JSON.parse(fs.readFileSync('manifest.json', 'utf8'));
+            const versions = JSON.parse(fs.readFileSync('../../sdk/versions.json', 'utf8'));
+            const api = String(manifest.engine?.api);
+            const entry = versions.versions[api];
+
+            if (!entry) {
+              console.error('ERROR: Plugin targets unknown API version ' + api);
+              console.error('Valid versions:', Object.keys(versions.versions).join(', '));
+              process.exit(1);
+            }
+            if (entry.status === 'removed') {
+              console.error('ERROR: Plugin targets removed API version ' + api);
+              process.exit(1);
+            }
+            if (entry.status === 'deprecated') {
+              console.warn('WARNING: Plugin targets deprecated API version ' + api);
+              console.warn('Removal target: ' + entry.removalTarget);
+              console.warn('Consider migrating to v' + versions.latest);
+            }
+            console.log('API version ' + api + ': ' + entry.status);
+          "
+
       - name: Create release zip
         id: zip
         working-directory: ${{ steps.tag.outputs.plugin_dir }}
@@ -142,6 +169,20 @@ jobs:
               permissions: manifest.permissions,
               size: parseInt('${{ steps.zip.outputs.size }}', 10)
             };
+
+            // Sync supportedApis from sdk/versions.json
+            const versionsPath = 'sdk/versions.json';
+            if (fs.existsSync(versionsPath)) {
+              const sdkVersions = JSON.parse(fs.readFileSync(versionsPath, 'utf8'));
+              const activeVersions = Object.entries(sdkVersions.versions)
+                .filter(([_, e]) => e.status !== 'removed')
+                .map(([v]) => v);
+              registry.supportedApis = {
+                latest: sdkVersions.latest,
+                minimum: sdkVersions.minimum,
+                versions: activeVersions
+              };
+            }
 
             registry.updated = new Date().toISOString();
             fs.writeFileSync('registry/registry.json', JSON.stringify(registry, null, 2) + '\n');

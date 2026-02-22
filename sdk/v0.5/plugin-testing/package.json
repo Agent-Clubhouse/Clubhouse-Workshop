@@ -21,7 +21,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@clubhouse/plugin-types": "^0.5.0"
+    "@clubhouse/plugin-types": "file:../plugin-types"
   },
   "peerDependencies": {
     "react": "^18.0.0 || ^19.0.0",
@@ -46,6 +46,6 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop",
-    "directory": "sdk/plugin-testing"
+    "directory": "sdk/v0.5/plugin-testing"
   }
 }
