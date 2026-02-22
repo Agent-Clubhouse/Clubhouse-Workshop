@@ -1,0 +1,42 @@
+{
+  "id": "automations",
+  "name": "Automations",
+  "version": "0.1.0",
+  "description": "Schedule recurring quick-agent tasks with cron expressions. Create automations with customizable schedules, model selection, and prompt configuration. Track run history with status indicators and summaries.",
+  "author": "Clubhouse Workshop",
+  "engine": { "api": 0.5 },
+  "scope": "project",
+  "main": "./dist/main.js",
+  "permissions": [
+    "storage",
+    "agents",
+    "commands",
+    "notifications",
+    "navigation",
+    "widgets"
+  ],
+  "contributes": {
+    "tab": {
+      "label": "Automations",
+      "icon": "<svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"12\" cy=\"12\" r=\"10\"/><polyline points=\"12 6 12 12 16 14\"/></svg>",
+      "layout": "full"
+    },
+    "commands": [
+      { "id": "create", "title": "Create Automation" }
+    ],
+    "help": {
+      "topics": [
+        {
+          "id": "automations",
+          "title": "Automations",
+          "content": "## Automations\n\nSchedule recurring quick-agent tasks using cron expressions.\n\n### Creating an automation\nUse the **Create Automation** command or click the **+** button. Provide a name, prompt, and cron schedule.\n\n### Managing automations\nThe list view shows all automations for the current project. Click an automation to edit its settings.\n\n### Toggling\nEnable or disable an automation with the toggle switch. Disabled automations keep their schedule but will not run.\n\n### Run history\nEach automation tracks its recent runs with status (success/failure) and timestamps."
+        },
+        {
+          "id": "cron-schedules",
+          "title": "Cron Schedules",
+          "content": "## Cron Schedules\n\nAutomations use standard 5-field cron expressions: `minute hour day-of-month month day-of-week`.\n\n### Presets\n| Preset | Expression | Description |\n|--------|-----------|-------------|\n| Every 15 minutes | `*/15 * * * *` | Runs at :00, :15, :30, :45 |\n| Hourly | `0 * * * *` | Runs at the top of every hour |\n| Daily at midnight | `0 0 * * *` | Runs once per day at 00:00 |\n| Weekly on Monday | `0 0 * * 1` | Runs at midnight every Monday |\n| Monthly | `0 0 1 * *` | Runs at midnight on the 1st |\n\n### Syntax reference\n- `*` — every value\n- `*/N` — every N units\n- `N` — specific value\n- `N,M` — list of values\n- `N-M` — range of values\n\n### Day-of-week values\n`0` = Sunday, `1` = Monday, `2` = Tuesday, `3` = Wednesday, `4` = Thursday, `5` = Friday, `6` = Saturday.\n\n### How scheduling works\nSchedules are evaluated locally on your machine. The automation will only run when Clubhouse is open and the project is active."
+        }
+      ]
+    }
+  }
+}
