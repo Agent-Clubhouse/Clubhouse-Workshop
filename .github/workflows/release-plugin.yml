@@ -12,10 +12,10 @@ on:
 
 permissions:
   contents: write
-  pull-requests: write
 
+# Serialize registry updates so concurrent releases don't conflict
 concurrency:
-  group: release-registry
+  group: registry-update
   cancel-in-progress: false
 
 jobs:
@@ -60,56 +60,34 @@ jobs:
         run: |
           npm install
           npm run build
-          if [ -f package.json ] && grep -q '"test"' package.json; then
-            npm test || true
+
+      - name: Run tests
+        working-directory: ${{ steps.tag.outputs.plugin_dir }}
+        run: |
+          if grep -q '"test"' package.json; then
+            npm test
+          else
+            echo "No test script found, skipping"
           fi
 
       - name: Validate manifest
+        run: node scripts/validate-manifest.mjs "${{ steps.tag.outputs.plugin_dir }}" --strict
+
+      - name: Verify version matches tag
         working-directory: ${{ steps.tag.outputs.plugin_dir }}
         run: |
-          # Basic manifest validation
-          node -e "
-            const fs = require('fs');
-            const m = JSON.parse(fs.readFileSync('manifest.json', 'utf8'));
-            const required = ['id', 'name', 'version', 'description', 'author', 'engine', 'scope', 'main', 'permissions', 'contributes'];
-            const missing = required.filter(f => !(f in m));
-            if (missing.length > 0) {
-              console.error('Missing required fields:', missing.join(', '));
-              process.exit(1);
-            }
-            if (m.id !== '${{ steps.tag.outputs.plugin_id }}') {
-              console.error('Manifest id does not match tag. Expected: ${{ steps.tag.outputs.plugin_id }}, got:', m.id);
-              process.exit(1);
-            }
-            console.log('Manifest valid:', m.id, 'v' + m.version);
-          "
-
-      - name: Validate API version
-        working-directory: ${{ steps.tag.outputs.plugin_dir }}
-        run: |
-          node -e "
-            const fs = require('fs');
-            const manifest = JSON.parse(fs.readFileSync('manifest.json', 'utf8'));
-            const versions = JSON.parse(fs.readFileSync('../../sdk/versions.json', 'utf8'));
-            const api = String(manifest.engine?.api);
-            const entry = versions.versions[api];
-
-            if (!entry) {
-              console.error('ERROR: Plugin targets unknown API version ' + api);
-              console.error('Valid versions:', Object.keys(versions.versions).join(', '));
-              process.exit(1);
-            }
-            if (entry.status === 'removed') {
-              console.error('ERROR: Plugin targets removed API version ' + api);
-              process.exit(1);
-            }
-            if (entry.status === 'deprecated') {
-              console.warn('WARNING: Plugin targets deprecated API version ' + api);
-              console.warn('Removal target: ' + entry.removalTarget);
-              console.warn('Consider migrating to v' + versions.latest);
-            }
-            console.log('API version ' + api + ': ' + entry.status);
-          "
+          MANIFEST_VERSION=$(node -p "JSON.parse(require('fs').readFileSync('manifest.json','utf8')).version")
+          TAG_VERSION="${{ steps.tag.outputs.version }}"
+          if [ "$MANIFEST_VERSION" != "$TAG_VERSION" ]; then
+            echo "ERROR: manifest.json version ($MANIFEST_VERSION) does not match tag version ($TAG_VERSION)"
+            exit 1
+          fi
+          MANIFEST_ID=$(node -p "JSON.parse(require('fs').readFileSync('manifest.json','utf8')).id")
+          TAG_ID="${{ steps.tag.outputs.plugin_id }}"
+          if [ "$MANIFEST_ID" != "$TAG_ID" ]; then
+            echo "ERROR: manifest.json id ($MANIFEST_ID) does not match tag id ($TAG_ID)"
+            exit 1
+          fi
 
       - name: Create release zip
         id: zip
@@ -118,9 +96,9 @@ jobs:
           ZIP_NAME="${{ steps.tag.outputs.tag }}.zip"
           zip -r "../../$ZIP_NAME" manifest.json dist/ README.md
           echo "zip_path=$ZIP_NAME" >> "$GITHUB_OUTPUT"
-          SHA=$(shasum -a 256 "../../$ZIP_NAME" | cut -d' ' -f1)
+          SHA=$(sha256sum "../../$ZIP_NAME" | cut -d' ' -f1)
           echo "sha256=$SHA" >> "$GITHUB_OUTPUT"
-          SIZE=$(stat -f%z "../../$ZIP_NAME" 2>/dev/null || stat -c%s "../../$ZIP_NAME")
+          SIZE=$(wc -c < "../../$ZIP_NAME" | tr -d ' ')
           echo "size=$SIZE" >> "$GITHUB_OUTPUT"
 
       - name: Create GitHub Release
@@ -139,10 +117,12 @@ jobs:
             Or download the zip and extract to `~/.clubhouse/plugins/${{ steps.tag.outputs.plugin_id }}/`.
           files: ${{ steps.zip.outputs.zip_path }}
 
-      - name: Update registry
+      - name: Update registry and push to main
         run: |
           node -e "
             const fs = require('fs');
+
+            // Re-read registry from main (we may be on a tag checkout)
             const registry = JSON.parse(fs.readFileSync('registry/registry.json', 'utf8'));
             const pluginId = '${{ steps.tag.outputs.plugin_id }}';
             const version = '${{ steps.tag.outputs.version }}';
@@ -155,8 +135,8 @@ jobs:
                 name: manifest.name,
                 description: manifest.description,
                 author: manifest.author,
-                official: manifest.official || true,
-                repo: 'https://github.com/\${{ github.repository }}',
+                official: manifest.official === true,
+                repo: 'https://github.com/${{ github.repository }}',
                 path: 'plugins/' + pluginId,
                 tags: [],
                 latest: version,
@@ -165,12 +145,16 @@ jobs:
               registry.plugins.push(plugin);
             }
 
+            // Update metadata from manifest (in case name/description changed)
+            plugin.name = manifest.name;
+            plugin.description = manifest.description;
+            plugin.author = manifest.author;
             plugin.latest = version;
             plugin.releases[version] = {
               api: manifest.engine.api,
-              asset: 'https://github.com/\${{ github.repository }}/releases/download/${{ steps.tag.outputs.tag }}/${{ steps.tag.outputs.tag }}.zip',
+              asset: 'https://github.com/${{ github.repository }}/releases/download/${{ steps.tag.outputs.tag }}/${{ steps.tag.outputs.tag }}.zip',
               sha256: '${{ steps.zip.outputs.sha256 }}',
-              permissions: manifest.permissions,
+              permissions: manifest.permissions || [],
               size: parseInt('${{ steps.zip.outputs.size }}', 10)
             };
 
@@ -192,19 +176,16 @@ jobs:
             fs.writeFileSync('registry/registry.json', JSON.stringify(registry, null, 2) + '\n');
           "
 
-      - name: Open registry update PR
-        run: |
+          # Validate the registry we just generated
+          node scripts/validate-registry.mjs
+
+          # Push registry update directly to main
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          BRANCH="registry-update/${{ steps.tag.outputs.tag }}"
-          git checkout -b "$BRANCH"
+          git fetch origin main
+          git checkout main
+          git pull origin main
           git add registry/registry.json
           git diff --cached --quiet && echo "No registry changes" && exit 0
           git commit -m "registry: update ${{ steps.tag.outputs.plugin_id }} to v${{ steps.tag.outputs.version }}"
-          git push --force origin "$BRANCH"
-          gh pr create \
-            --title "registry: update ${{ steps.tag.outputs.plugin_id }} to v${{ steps.tag.outputs.version }}" \
-            --body "Automated registry update from release pipeline." \
-            --base main
-        env:
-          GH_TOKEN: ${{ github.token }}
+          git push origin main
