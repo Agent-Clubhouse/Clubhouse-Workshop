@@ -1,0 +1,22 @@
+{
+  "latest": "0.6",
+  "minimum": "0.5",
+  "versions": {
+    "0.5": {
+      "status": "active",
+      "released": "2026-02-21",
+      "deprecated": null,
+      "removalTarget": null,
+      "sdkPath": "sdk/v0.5",
+      "notes": "Initial versioned SDK: 16 sub-APIs including files, git, agents, terminal, badges, and process."
+    },
+    "0.6": {
+      "status": "active",
+      "released": "2026-02-21",
+      "deprecated": null,
+      "removalTarget": null,
+      "sdkPath": "sdk/v0.6",
+      "notes": "Adds AgentConfigAPI for plugin-driven agent configuration (skills, templates, instructions, permissions, MCP servers). Extends CommandsAPI with keyboard binding support. Extends NavigationAPI with popOutAgent, toggleSidebar, and toggleAccessoryPanel."
+    }
+  }
+}
