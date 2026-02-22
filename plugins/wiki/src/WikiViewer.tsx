@@ -145,7 +145,7 @@ function UnsavedDialog({ fileName, onSave, onDiscard, onCancel }: UnsavedDialogP
           onClick: onDiscard,
         }, 'Discard'),
         React.createElement('button', {
-          style: { padding: '4px 12px', fontSize: 12, background: color.accent, color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontFamily: font.family },
+          style: { padding: '4px 12px', fontSize: 12, background: color.accent, color: color.textOnAccent, border: 'none', borderRadius: 6, cursor: 'pointer', fontFamily: font.family },
           onClick: onSave,
         }, 'Save'),
       ),

@@ -25,15 +25,15 @@ function statusBadge(status: AgentInfo['status']) {
   switch (status) {
     case 'sleeping':
       return React.createElement('span', {
-        style: { ...base, background: 'rgba(34, 197, 94, 0.15)', color: color.textSuccess },
+        style: { ...base, background: color.successBg, color: color.textSuccess },
       }, 'sleeping');
     case 'running':
       return React.createElement('span', {
-        style: { ...base, background: 'rgba(234, 179, 8, 0.15)', color: color.textWarning },
+        style: { ...base, background: color.warningBg, color: color.textWarning },
       }, 'running');
     case 'error':
       return React.createElement('span', {
-        style: { ...base, background: 'rgba(248, 113, 113, 0.15)', color: color.textError },
+        style: { ...base, background: color.errorBgSubtle, color: color.textError },
       }, 'error');
     default:
       return null;

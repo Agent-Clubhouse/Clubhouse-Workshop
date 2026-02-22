@@ -209,7 +209,7 @@ function ContextMenu({ x, y, node, onClose, onAction }: ContextMenuProps) {
       background: color.bgSecondary,
       border: `1px solid ${color.border}`,
       borderRadius: 6,
-      boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+      boxShadow: color.shadowMenu,
       padding: '4px 0',
       minWidth: 140,
       left: x,
