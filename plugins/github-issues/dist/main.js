@@ -26,6 +26,10 @@ function extractYamlValue(yaml, key) {
   const match = yaml.match(new RegExp(`^${key}:\\s*["']?(.+?)["']?\\s*$`, "m"));
   return match ? match[1] : null;
 }
+var SAFE_IMG_URL = /^https?:\/\//i;
+function isSafeImageUrl(src) {
+  return SAFE_IMG_URL.test(src);
+}
 
 // src/main.tsx
 import { Fragment, jsx, jsxs } from "react/jsx-runtime";
@@ -124,9 +128,15 @@ function renderInline(text) {
     if (m.startsWith("![")) {
       const alt = match[1];
       const src = match[2];
-      nodes.push(
-        /* @__PURE__ */ jsx("img", { src, alt, style: { maxWidth: "100%", borderRadius: "4px", margin: "4px 0" } }, match.index)
-      );
+      if (isSafeImageUrl(src)) {
+        nodes.push(
+          /* @__PURE__ */ jsx("img", { src, alt, style: { maxWidth: "100%", borderRadius: "4px", margin: "4px 0" } }, match.index)
+        );
+      } else {
+        nodes.push(
+          /* @__PURE__ */ jsx("span", { style: { color: "var(--text-secondary, #a1a1aa)", fontSize: "12px" }, children: "[image blocked: unsafe URL]" }, match.index)
+        );
+      }
     } else if (m.startsWith("[")) {
       const linkText = match[4];
       const href = match[5];
