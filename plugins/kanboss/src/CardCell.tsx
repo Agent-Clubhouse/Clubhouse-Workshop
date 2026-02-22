@@ -57,7 +57,7 @@ function MoveButton({ card, allStates, onMove }: {
           background: S.color.bgSecondary,
           border: `1px solid ${S.color.border}`,
           borderRadius: 10,
-          boxShadow: '0 10px 25px rgba(0,0,0,0.3)',
+          boxShadow: `0 10px 25px ${S.color.shadow}`,
           padding: '4px 0',
           minWidth: 120,
           zIndex: 50,
@@ -132,10 +132,10 @@ function CardTile({ card, allStates, boardLabels, onMoveCard, onDeleteCard, onCl
         cursor: 'grab',
         transition: 'border-color 0.2s, box-shadow 0.2s',
         boxShadow: stuck
-          ? `0 0 8px rgba(248, 113, 113, 0.3)`
+          ? `0 0 8px ${S.color.glowError}`
           : automating
-          ? `0 0 8px rgba(139, 92, 246, 0.3)`
-          : '0 1px 3px rgba(0,0,0,0.15)',
+          ? `0 0 8px ${S.color.glowAccent}`
+          : `0 1px 3px ${S.color.shadowLight}`,
         fontFamily: S.font.family,
         ...(automating ? {
           animation: 'kanboss-pulse 2s ease-in-out infinite',
@@ -264,7 +264,7 @@ function CardTile({ card, allStates, boardLabels, onMoveCard, onDeleteCard, onCl
               fontSize: 9,
               padding: '2px 8px',
               borderRadius: 99,
-              background: 'rgba(34, 197, 94, 0.15)',
+              background: S.color.bgSuccess,
               color: S.color.textSuccess,
               border: 'none',
               cursor: 'pointer',
@@ -288,7 +288,7 @@ function CardTile({ card, allStates, boardLabels, onMoveCard, onDeleteCard, onCl
           borderRadius: 99,
           fontSize: 8,
           fontWeight: 700,
-          color: '#fff',
+          color: S.color.textOnBadge,
           background: S.color.textError,
         }}>
           {'!'} Stuck
@@ -303,7 +303,7 @@ function CardTile({ card, allStates, boardLabels, onMoveCard, onDeleteCard, onCl
           borderRadius: 99,
           fontSize: 8,
           fontWeight: 700,
-          color: '#fff',
+          color: S.color.textOnBadge,
           background: S.color.textSuccess,
         }}>
           1st Attempt
@@ -318,8 +318,8 @@ function CardTile({ card, allStates, boardLabels, onMoveCard, onDeleteCard, onCl
           borderRadius: 99,
           fontSize: 8,
           fontWeight: 700,
-          color: '#fff',
-          background: '#eab308',
+          color: S.color.textOnBadge,
+          background: S.color.textWarning,
         }}>
           Retry: {card.automationAttempts - 1}
         </div>
@@ -342,7 +342,7 @@ function CardTile({ card, allStates, boardLabels, onMoveCard, onDeleteCard, onCl
               background: S.color.bgSecondary,
               border: `1px solid ${S.color.border}`,
               borderRadius: 10,
-              boxShadow: '0 10px 25px rgba(0,0,0,0.3)',
+              boxShadow: `0 10px 25px ${S.color.shadow}`,
               padding: '4px 0',
               zIndex: 50,
               minWidth: 130,
@@ -452,8 +452,8 @@ export function CardCell({ cards, stateId, swimlaneId, isLastState, allStates, b
           justifyContent: 'center',
           transition: 'background 0.2s',
           ...(isDragOver ? {
-            background: 'rgba(59, 130, 246, 0.1)',
-            boxShadow: 'inset 0 0 0 1px rgba(59, 130, 246, 0.3)',
+            background: S.color.bgInfo,
+            boxShadow: `inset 0 0 0 1px ${S.color.borderInfo}`,
             borderRadius: 10,
           } : {}),
         }}
@@ -464,7 +464,7 @@ export function CardCell({ cards, stateId, swimlaneId, isLastState, allStates, b
             padding: '4px 12px',
             fontSize: 11,
             borderRadius: 99,
-            background: 'rgba(34, 197, 94, 0.15)',
+            background: S.color.bgSuccess,
             color: S.color.textSuccess,
             border: 'none',
             cursor: 'pointer',
@@ -491,10 +491,10 @@ export function CardCell({ cards, stateId, swimlaneId, isLastState, allStates, b
         gap: 6,
         minHeight: 60,
         transition: 'background 0.2s',
-        ...(overWip ? { background: 'rgba(248, 113, 113, 0.05)' } : {}),
+        ...(overWip ? { background: S.color.bgErrorSubtle } : {}),
         ...(isDragOver ? {
-          background: 'rgba(59, 130, 246, 0.1)',
-          boxShadow: 'inset 0 0 0 1px rgba(59, 130, 246, 0.3)',
+          background: S.color.bgInfo,
+          boxShadow: `inset 0 0 0 1px ${S.color.borderInfo}`,
           borderRadius: 10,
         } : {}),
       }}
@@ -503,7 +503,7 @@ export function CardCell({ cards, stateId, swimlaneId, isLastState, allStates, b
       {wipLimit > 0 && (
         <div style={{
           fontSize: 9,
-          color: overWip ? S.color.textError : atWip ? '#eab308' : S.color.textTertiary,
+          color: overWip ? S.color.textError : atWip ? S.color.textWarning : S.color.textTertiary,
           textAlign: 'right',
           fontWeight: overWip ? 600 : 400,
         }}>
