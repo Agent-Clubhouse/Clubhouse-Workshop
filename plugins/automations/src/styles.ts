@@ -29,19 +29,19 @@ export const color = {
   accentBg: 'var(--bg-accent, rgba(137, 180, 250, 0.15))',
   accentBorder: 'var(--border-accent, rgba(137, 180, 250, 0.3))',
 
-  success: '#a6e3a1',
-  successBg: 'rgba(166, 227, 161, 0.15)',
+  success: 'var(--text-success, #a6e3a1)',
+  successBg: 'var(--bg-success, rgba(166, 227, 161, 0.15))',
 
-  warning: '#f9e2af',
-  warningBg: 'rgba(249, 226, 175, 0.15)',
+  warning: 'var(--text-warning, #f9e2af)',
+  warningBg: 'var(--bg-warning, rgba(249, 226, 175, 0.15))',
 
   error: 'var(--text-error, #f38ba8)',
   errorBg: 'var(--bg-error, rgba(243, 139, 168, 0.1))',
   errorBorder: 'rgba(243, 139, 168, 0.3)',
 
-  blue: '#89b4fa',
-  blueBg: 'rgba(137, 180, 250, 0.15)',
-  blueBorder: 'rgba(137, 180, 250, 0.3)',
+  blue: 'var(--text-info, #89b4fa)',
+  blueBg: 'var(--bg-info, rgba(137, 180, 250, 0.15))',
+  blueBorder: 'var(--border-info, rgba(137, 180, 250, 0.3))',
 };
 
 // ── Common style patterns ──────────────────────────────────────────────
@@ -97,7 +97,7 @@ export const baseButton: React.CSSProperties = {
 export const accentButton: React.CSSProperties = {
   ...baseButton,
   background: color.accent,
-  color: '#fff',
+  color: 'var(--text-on-accent, #fff)',
   fontWeight: 500,
 };
 
