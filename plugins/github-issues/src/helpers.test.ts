@@ -7,6 +7,7 @@ import {
   filterIssues,
   parseInlineSegments,
   classifyLine,
+  isSafeImageUrl,
   IssueListItem,
 } from "./helpers";
 
@@ -303,5 +304,54 @@ describe("classifyLine", () => {
 
   it("defaults to paragraph", () => {
     expect(classifyLine("Regular text")).toBe("paragraph");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// isSafeImageUrl (SSRF prevention for markdown images)
+// ---------------------------------------------------------------------------
+
+describe("isSafeImageUrl", () => {
+  it("allows http URLs", () => {
+    expect(isSafeImageUrl("http://example.com/img.png")).toBe(true);
+  });
+
+  it("allows https URLs", () => {
+    expect(isSafeImageUrl("https://example.com/img.png")).toBe(true);
+  });
+
+  it("allows case-insensitive http/https", () => {
+    expect(isSafeImageUrl("HTTP://example.com/img.png")).toBe(true);
+    expect(isSafeImageUrl("HTTPS://example.com/img.png")).toBe(true);
+    expect(isSafeImageUrl("Https://example.com/img.png")).toBe(true);
+  });
+
+  it("blocks javascript: protocol", () => {
+    expect(isSafeImageUrl("javascript:alert(1)")).toBe(false);
+  });
+
+  it("blocks data: URLs", () => {
+    expect(isSafeImageUrl("data:image/svg+xml;base64,PHN2Zz4=")).toBe(false);
+  });
+
+  it("blocks ftp: URLs", () => {
+    expect(isSafeImageUrl("ftp://example.com/img.png")).toBe(false);
+  });
+
+  it("blocks file: URLs", () => {
+    expect(isSafeImageUrl("file:///etc/passwd")).toBe(false);
+  });
+
+  it("blocks protocol-relative URLs", () => {
+    expect(isSafeImageUrl("//evil.com/img.png")).toBe(false);
+  });
+
+  it("blocks empty strings", () => {
+    expect(isSafeImageUrl("")).toBe(false);
+  });
+
+  it("blocks relative paths", () => {
+    expect(isSafeImageUrl("/local/path.png")).toBe(false);
+    expect(isSafeImageUrl("../path.png")).toBe(false);
   });
 });

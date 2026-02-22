@@ -96,6 +96,13 @@ export function parseInlineSegments(
   return segments;
 }
 
+/** Only allow http: and https: image URLs to prevent SSRF via markdown images. */
+const SAFE_IMG_URL = /^https?:\/\//i;
+
+export function isSafeImageUrl(src: string): boolean {
+  return SAFE_IMG_URL.test(src);
+}
+
 /** Detect block-level markdown elements. */
 export function classifyLine(
   line: string,

@@ -4,7 +4,7 @@ import type {
   PanelProps,
   AgentInfo,
 } from "@clubhouse/plugin-types";
-import { relativeTime, labelColor, labelColorAlpha, extractYamlValue } from "./helpers";
+import { relativeTime, labelColor, labelColorAlpha, extractYamlValue, isSafeImageUrl } from "./helpers";
 
 const React = globalThis.React;
 const { useState, useEffect, useCallback, useRef, useMemo } = React;
@@ -164,12 +164,18 @@ function renderInline(text: string): React.ReactNode[] {
     const m = match[0];
 
     if (m.startsWith("![")) {
-      // Image: ![alt](src)
+      // Image: ![alt](src) — only allow http/https to prevent SSRF
       const alt = match[1];
       const src = match[2];
-      nodes.push(
-        <img key={match.index} src={src} alt={alt} style={{ maxWidth: "100%", borderRadius: "4px", margin: "4px 0" }} />,
-      );
+      if (isSafeImageUrl(src)) {
+        nodes.push(
+          <img key={match.index} src={src} alt={alt} style={{ maxWidth: "100%", borderRadius: "4px", margin: "4px 0" }} />,
+        );
+      } else {
+        nodes.push(
+          <span key={match.index} style={{ color: "var(--text-secondary, #a1a1aa)", fontSize: "12px" }}>[image blocked: unsafe URL]</span>,
+        );
+      }
     } else if (m.startsWith("[")) {
       // Link: [text](url)
       const linkText = match[4];
