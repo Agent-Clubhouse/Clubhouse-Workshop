@@ -254,9 +254,11 @@ describe("escapeWiql", () => {
     const payload = "MyProject' OR 1=1 --";
     const escaped = escapeWiql(payload);
     expect(escaped).toBe("MyProject'' OR 1=1 --");
-    // When interpolated into WIQL: '...MyProject'' OR 1=1 --...'
-    // The doubled quote stays inside the string literal, so injection fails
-    expect(escaped).not.toContain("' OR");
+    // When interpolated into WIQL as: '[Field] = '${escaped}''
+    // the '' is interpreted as a literal single-quote character,
+    // keeping the entire value inside the string literal.
+    // The original unescaped single quote is no longer present:
+    expect(escaped).not.toMatch(/[^']'[^']/);
   });
 
   it("handles a value that is only a single quote", () => {

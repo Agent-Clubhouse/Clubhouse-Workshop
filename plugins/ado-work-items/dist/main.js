@@ -79,6 +79,9 @@ function statusBadgeStyle(status) {
       return base;
   }
 }
+function escapeWiql(value) {
+  return value.replace(/'/g, "''");
+}
 function stripHtml(html) {
   return html.replace(/<br\s*\/?>/gi, "\n").replace(/<\/p>/gi, "\n").replace(/<\/div>/gi, "\n").replace(/<\/li>/gi, "\n").replace(/<[^>]+>/g, "").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&nbsp;/g, " ").replace(/\n{3,}/g, "\n\n").trim();
 }
@@ -759,19 +762,19 @@ function SidebarPanel({ api }) {
         ).filter(Boolean);
       } else {
         const conditions = [
-          `[System.TeamProject] = '${config.project}'`
+          `[System.TeamProject] = '${escapeWiql(config.project)}'`
         ];
         if (workItemState.stateFilter) {
-          conditions.push(`[System.State] = '${workItemState.stateFilter}'`);
+          conditions.push(`[System.State] = '${escapeWiql(workItemState.stateFilter)}'`);
         }
         if (workItemState.typeFilter) {
-          conditions.push(`[System.WorkItemType] = '${workItemState.typeFilter}'`);
+          conditions.push(`[System.WorkItemType] = '${escapeWiql(workItemState.typeFilter)}'`);
         }
         if (config.areaPath) {
-          conditions.push(`[System.AreaPath] UNDER '${config.areaPath}'`);
+          conditions.push(`[System.AreaPath] UNDER '${escapeWiql(config.areaPath)}'`);
         }
         if (config.iterationPath) {
-          conditions.push(`[System.IterationPath] UNDER '${config.iterationPath}'`);
+          conditions.push(`[System.IterationPath] UNDER '${escapeWiql(config.iterationPath)}'`);
         }
         const wiql = `SELECT [System.Id] FROM WorkItems WHERE ${conditions.join(" AND ")} ORDER BY [System.ChangedDate] DESC`;
         const args = [
