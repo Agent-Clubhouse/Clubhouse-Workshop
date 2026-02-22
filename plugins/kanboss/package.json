@@ -1,0 +1,21 @@
+{
+  "name": "kanboss",
+  "version": "0.1.0",
+  "private": true,
+  "license": "MIT",
+  "description": "Kanban boards with AI-powered automation for Clubhouse",
+  "scripts": {
+    "build": "esbuild src/main.tsx --bundle --format=esm --platform=browser --external:react --outfile=dist/main.js",
+    "watch": "esbuild src/main.tsx --bundle --format=esm --platform=browser --external:react --outfile=dist/main.js --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@clubhouse/plugin-types": "file:../../sdk/v0.5/plugin-types",
+    "@clubhouse/plugin-testing": "file:../../sdk/v0.5/plugin-testing",
+    "@types/react": "^19.0.0",
+    "esbuild": "^0.24.0",
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0"
+  }
+}
