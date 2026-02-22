@@ -4,6 +4,7 @@ import type {
   PanelProps,
   AgentInfo,
 } from "@clubhouse/plugin-types";
+import { relativeTime, labelColor, extractYamlValue } from "./helpers";
 
 const React = globalThis.React;
 const { useState, useEffect, useCallback, useRef, useMemo } = React;
@@ -143,25 +144,7 @@ const issueState = {
 // Helpers
 // ---------------------------------------------------------------------------
 
-function relativeTime(dateStr: string): string {
-  const now = Date.now();
-  const then = new Date(dateStr).getTime();
-  const diffMs = now - then;
-  const diffMin = Math.floor(diffMs / 60000);
-  if (diffMin < 1) return "just now";
-  if (diffMin < 60) return `${diffMin}m ago`;
-  const diffH = Math.floor(diffMin / 60);
-  if (diffH < 24) return `${diffH}h ago`;
-  const diffD = Math.floor(diffH / 24);
-  if (diffD < 30) return `${diffD}d ago`;
-  const diffMo = Math.floor(diffD / 30);
-  return `${diffMo}mo ago`;
-}
-
-function labelColor(hex: string): string {
-  if (!hex) return "#888";
-  return hex.startsWith("#") ? hex : `#${hex}`;
-}
+// relativeTime, labelColor, and extractYamlValue imported from ./helpers
 
 // ---------------------------------------------------------------------------
 // Markdown renderer (lightweight GFM-subset → JSX, no external deps)
@@ -496,10 +479,7 @@ function parseTemplate(content: string, filename: string): IssueTemplate | null 
   };
 }
 
-function extractYamlValue(yaml: string, key: string): string | null {
-  const match = yaml.match(new RegExp(`^${key}:\\s*["']?(.+?)["']?\\s*$`, "m"));
-  return match ? match[1] : null;
-}
+// extractYamlValue imported from ./helpers
 
 // ---------------------------------------------------------------------------
 // Lifecycle
