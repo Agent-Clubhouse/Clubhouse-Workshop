@@ -2,6 +2,7 @@ import type { PluginAPI, Disposable } from '@clubhouse/plugin-types';
 import type { Card, Board, AutomationRun } from './types';
 import { BOARDS_KEY, cardsKey, AUTOMATION_RUNS_KEY } from './types';
 import { kanBossState } from './state';
+import { mutateStorage } from './storageQueue';
 
 // ── Module-level engine state ───────────────────────────────────────────
 
@@ -72,30 +73,32 @@ export async function triggerAutomation(api: PluginAPI, card: Card, board: Board
 
     // Record run
     const configuredEvalAgent = swimlane.evaluationAgentId ?? swimlane.managerAgentId;
-    const runs = await loadRuns(api);
-    runs.push({
-      cardId: card.id,
-      boardId: board.id,
-      stateId: card.stateId,
-      swimlaneId: card.swimlaneId,
-      executionAgentId,
-      evaluationAgentId: null,
-      configuredEvaluationAgentId: configuredEvalAgent,
-      phase: 'executing',
-      attempt: card.automationAttempts + 1,
-      startedAt: Date.now(),
+    await mutateStorage<AutomationRun>(api.storage.projectLocal, AUTOMATION_RUNS_KEY, (runs) => {
+      runs.push({
+        cardId: card.id,
+        boardId: board.id,
+        stateId: card.stateId,
+        swimlaneId: card.swimlaneId,
+        executionAgentId,
+        evaluationAgentId: null,
+        configuredEvaluationAgentId: configuredEvalAgent,
+        phase: 'executing',
+        attempt: card.automationAttempts + 1,
+        startedAt: Date.now(),
+      });
+      return runs;
     });
-    await saveRuns(api, runs);
 
     // Update card
-    const cards = await loadCards(api, board);
-    const idx = cards.findIndex((c) => c.id === card.id);
-    if (idx !== -1) {
-      cards[idx].automationAttempts++;
-      addHistory(cards[idx], 'automation-started',
-        `Automation attempt ${cards[idx].automationAttempts} started`, executionAgentId);
-      await saveCards(api, board, cards);
-    }
+    await mutateStorage<Card>(cardsStor(api, board), cardsKey(board.id), (cards) => {
+      const idx = cards.findIndex((c) => c.id === card.id);
+      if (idx !== -1) {
+        cards[idx].automationAttempts++;
+        addHistory(cards[idx], 'automation-started',
+          `Automation attempt ${cards[idx].automationAttempts} started`, executionAgentId);
+      }
+      return cards;
+    });
 
     kanBossState.triggerRefresh();
   } catch {
@@ -106,30 +109,36 @@ export async function triggerAutomation(api: PluginAPI, card: Card, board: Board
 // ── Handle agent completion ─────────────────────────────────────────────
 
 async function onAgentCompleted(api: PluginAPI, agentId: string, outcome: 'success' | 'error'): Promise<void> {
-  const runs = await loadRuns(api);
-  const runIdx = runs.findIndex((r) =>
+  // Read-only lookup to find the matching run and decide what to do.
+  const allRuns = await loadRuns(api);
+  const run = allRuns.find((r) =>
     (r.executionAgentId === agentId && r.phase === 'executing') ||
     (r.evaluationAgentId === agentId && r.phase === 'evaluating')
   );
-  if (runIdx === -1) return;
+  if (!run) return;
 
-  const run = runs[runIdx];
   const board = await loadBoard(api, run.boardId);
   if (!board) return;
 
-  const cards = await loadCards(api, board);
-  const cardIdx = cards.findIndex((c) => c.id === run.cardId);
-  if (cardIdx === -1) return;
+  // Read-only snapshot of the card for building prompts.
+  const cardSnapshot = (await loadCards(api, board)).find((c) => c.id === run.cardId);
+  if (!cardSnapshot) return;
 
-  const card = cards[cardIdx];
+  const stor = cardsStor(api, board);
+  const key = cardsKey(board.id);
 
   if (run.phase === 'executing') {
     if (outcome === 'error') {
-      addHistory(card, 'automation-failed', 'Execution agent errored', agentId);
-      checkStuck(card, board);
-      runs.splice(runIdx, 1);
-      await saveRuns(api, runs);
-      await saveCards(api, board, cards);
+      await mutateStorage<AutomationRun>(api.storage.projectLocal, AUTOMATION_RUNS_KEY, (runs) =>
+        runs.filter((r) => r.executionAgentId !== agentId || r.phase !== 'executing'));
+      await mutateStorage<Card>(stor, key, (cards) => {
+        const idx = cards.findIndex((c) => c.id === run.cardId);
+        if (idx !== -1) {
+          addHistory(cards[idx], 'automation-failed', 'Execution agent errored', agentId);
+          checkStuck(cards[idx], board);
+        }
+        return cards;
+      });
       kanBossState.triggerRefresh();
       return;
     }
@@ -141,7 +150,6 @@ async function onAgentCompleted(api: PluginAPI, agentId: string, outcome: 'succe
     const state = board.states.find((s) => s.id === run.stateId);
     if (!state) return;
 
-    // Use per-state evaluation prompt if provided, otherwise fall back to execution prompt
     const evalCriteria = state.evaluationPrompt?.trim()
       ? state.evaluationPrompt
       : state.automationPrompt;
@@ -151,7 +159,7 @@ async function onAgentCompleted(api: PluginAPI, agentId: string, outcome: 'succe
       '',
       `OUTCOME: ${evalCriteria}`,
       '',
-      `CARD: ${card.title} — ${card.body}`,
+      `CARD: ${cardSnapshot.title} — ${cardSnapshot.body}`,
       '',
       `AGENT SUMMARY: ${info?.summary ?? 'No summary available'}`,
       `FILES MODIFIED: ${info?.filesModified?.join(', ') ?? 'None'}`,
@@ -165,14 +173,23 @@ async function onAgentCompleted(api: PluginAPI, agentId: string, outcome: 'succe
 
     try {
       const evalAgentId = await api.agents.runQuick(evalPrompt);
-      runs[runIdx] = { ...run, evaluationAgentId: evalAgentId, phase: 'evaluating' };
-      await saveRuns(api, runs);
+      await mutateStorage<AutomationRun>(api.storage.projectLocal, AUTOMATION_RUNS_KEY, (runs) =>
+        runs.map((r) =>
+          r.executionAgentId === agentId && r.phase === 'executing'
+            ? { ...r, evaluationAgentId: evalAgentId, phase: 'evaluating' as const }
+            : r
+        ));
     } catch {
-      addHistory(card, 'automation-failed', 'Failed to spawn evaluation agent', agentId);
-      checkStuck(card, board);
-      runs.splice(runIdx, 1);
-      await saveRuns(api, runs);
-      await saveCards(api, board, cards);
+      await mutateStorage<AutomationRun>(api.storage.projectLocal, AUTOMATION_RUNS_KEY, (runs) =>
+        runs.filter((r) => r.executionAgentId !== agentId || r.phase !== 'executing'));
+      await mutateStorage<Card>(stor, key, (cards) => {
+        const idx = cards.findIndex((c) => c.id === run.cardId);
+        if (idx !== -1) {
+          addHistory(cards[idx], 'automation-failed', 'Failed to spawn evaluation agent', agentId);
+          checkStuck(cards[idx], board);
+        }
+        return cards;
+      });
       kanBossState.triggerRefresh();
     }
     return;
@@ -186,12 +203,11 @@ async function onAgentCompleted(api: PluginAPI, agentId: string, outcome: 'succe
     const summary = info?.summary ?? '';
     const passed = summary.includes('RESULT: PASS');
 
-    runs.splice(runIdx, 1);
-    await saveRuns(api, runs);
+    await mutateStorage<AutomationRun>(api.storage.projectLocal, AUTOMATION_RUNS_KEY, (runs) =>
+      runs.filter((r) => r.evaluationAgentId !== agentId || r.phase !== 'evaluating'));
 
     if (passed) {
-      // Move card to next state
-      const currentState = board.states.find((s) => s.id === card.stateId);
+      const currentState = board.states.find((s) => s.id === cardSnapshot.stateId);
       if (!currentState) return;
 
       const sortedStates = [...board.states].sort((a, b) => a.order - b.order);
@@ -199,37 +215,52 @@ async function onAgentCompleted(api: PluginAPI, agentId: string, outcome: 'succe
 
       if (nextStateIdx < sortedStates.length) {
         const nextState = sortedStates[nextStateIdx];
-        card.stateId = nextState.id;
-        card.automationAttempts = 0;
-        addHistory(card, 'automation-succeeded',
-          `Automation passed — moved to "${nextState.name}"`, agentId);
-        addHistory(card, 'moved', `Moved from "${currentState.name}" to "${nextState.name}"`);
-        await saveCards(api, board, cards);
+        const updatedCards = await mutateStorage<Card>(stor, key, (cards) => {
+          const idx = cards.findIndex((c) => c.id === run.cardId);
+          if (idx !== -1) {
+            cards[idx].stateId = nextState.id;
+            cards[idx].automationAttempts = 0;
+            addHistory(cards[idx], 'automation-succeeded',
+              `Automation passed — moved to "${nextState.name}"`, agentId);
+            addHistory(cards[idx], 'moved', `Moved from "${currentState.name}" to "${nextState.name}"`);
+          }
+          return cards;
+        });
         kanBossState.triggerRefresh();
 
         // If next state is also automatic, trigger recursively
         if (nextState.isAutomatic) {
-          const freshCards = await loadCards(api, board);
-          const freshCard = freshCards.find((c) => c.id === card.id);
+          const freshCard = updatedCards.find((c) => c.id === run.cardId);
           if (freshCard) {
             await triggerAutomation(api, freshCard, board);
           }
         }
       } else {
-        addHistory(card, 'automation-succeeded', 'Automation passed (already at final state)', agentId);
-        await saveCards(api, board, cards);
+        await mutateStorage<Card>(stor, key, (cards) => {
+          const idx = cards.findIndex((c) => c.id === run.cardId);
+          if (idx !== -1) {
+            addHistory(cards[idx], 'automation-succeeded', 'Automation passed (already at final state)', agentId);
+          }
+          return cards;
+        });
         kanBossState.triggerRefresh();
       }
     } else {
       const reason = summary.replace(/RESULT:\s*FAIL\s*/i, '').trim() || 'Evaluation failed';
-      addHistory(card, 'automation-failed', `Automation failed: ${reason}`, agentId);
-      checkStuck(card, board);
-      await saveCards(api, board, cards);
+      const updatedCards = await mutateStorage<Card>(stor, key, (cards) => {
+        const idx = cards.findIndex((c) => c.id === run.cardId);
+        if (idx !== -1) {
+          addHistory(cards[idx], 'automation-failed', `Automation failed: ${reason}`, agentId);
+          checkStuck(cards[idx], board);
+        }
+        return cards;
+      });
       kanBossState.triggerRefresh();
 
       // Retry if not stuck
-      if (card.automationAttempts < board.config.maxRetries) {
-        await triggerAutomation(api, card, board);
+      const updatedCard = updatedCards.find((c) => c.id === run.cardId);
+      if (updatedCard && updatedCard.automationAttempts < board.config.maxRetries) {
+        await triggerAutomation(api, updatedCard, board);
       }
     }
   }
