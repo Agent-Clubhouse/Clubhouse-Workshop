@@ -2,51 +2,51 @@
  * File icon color mapping based on file extension.
  */
 
+import { color } from './styles';
+
 const EXT_COLORS: Record<string, string> = {
   // Markdown
-  md: '#3b82f6',
-  mdx: '#3b82f6',
+  md: color.blue,
+  mdx: color.blue,
   // JavaScript/TypeScript
-  js: '#eab308',
-  jsx: '#eab308',
-  ts: '#3b82f6',
-  tsx: '#3b82f6',
+  js: color.yellow,
+  jsx: color.yellow,
+  ts: color.blue,
+  tsx: color.blue,
   // Config/data
-  json: '#22c55e',
-  yaml: '#22c55e',
-  yml: '#22c55e',
-  toml: '#22c55e',
-  xml: '#f97316',
+  json: color.green,
+  yaml: color.green,
+  yml: color.green,
+  toml: color.green,
+  xml: color.orange,
   // Styles
-  css: '#a855f7',
-  scss: '#a855f7',
-  less: '#a855f7',
+  css: color.purple,
+  scss: color.purple,
+  less: color.purple,
   // Shell
-  sh: '#22c55e',
-  bash: '#22c55e',
-  zsh: '#22c55e',
+  sh: color.green,
+  bash: color.green,
+  zsh: color.green,
   // Python
-  py: '#3b82f6',
+  py: color.blue,
   // Rust
-  rs: '#f97316',
+  rs: color.orange,
   // Go
-  go: '#06b6d4',
+  go: color.cyan,
   // HTML
-  html: '#f97316',
-  htm: '#f97316',
+  html: color.orange,
+  htm: color.orange,
   // Images
-  png: '#a855f7',
-  jpg: '#a855f7',
-  jpeg: '#a855f7',
-  gif: '#a855f7',
-  svg: '#a855f7',
+  png: color.purple,
+  jpg: color.purple,
+  jpeg: color.purple,
+  gif: color.purple,
+  svg: color.purple,
   // Text
-  txt: '#a1a1aa',
-  log: '#a1a1aa',
+  txt: color.textSecondary,
+  log: color.textSecondary,
 };
 
-const DEFAULT_COLOR = '#a1a1aa';
-
 export function getFileIconColor(ext: string): string {
-  return EXT_COLORS[ext.toLowerCase()] || DEFAULT_COLOR;
+  return EXT_COLORS[ext.toLowerCase()] || color.textSecondary;
 }
