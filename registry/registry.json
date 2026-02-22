@@ -285,10 +285,14 @@
       "name": "Automations",
       "description": "Schedule recurring quick-agent tasks with cron expressions. Create automations with customizable schedules, model selection, and prompt configuration. Track run history with status indicators and summaries.",
       "author": "Clubhouse Workshop",
-      "official": false,
+      "official": true,
       "repo": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop",
       "path": "plugins/automations",
-      "tags": [],
+      "tags": [
+        "automation",
+        "cron",
+        "agents"
+      ],
       "latest": "0.1.0",
       "releases": {
         "0.1.0": {
