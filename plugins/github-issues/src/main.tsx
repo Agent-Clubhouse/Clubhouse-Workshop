@@ -320,9 +320,9 @@ function LabelPicker({
           flexWrap: "wrap",
           gap: "4px",
           padding: "4px 8px",
-          border: "1px solid var(--border-color, #333)",
+          border: "1px solid var(--border-primary, #3f3f46)",
           borderRadius: "6px",
-          background: "var(--input-bg, #1a1a2e)",
+          background: "var(--bg-secondary, #27272a)",
           minHeight: "30px",
           cursor: "text",
           alignItems: "center",
@@ -338,8 +338,8 @@ function LabelPicker({
               gap: "4px",
               padding: "1px 6px",
               borderRadius: "10px",
-              background: "var(--accent-bg, #2a2a4a)",
-              color: "var(--text-primary, #e0e0e0)",
+              background: "var(--bg-accent, rgba(139,92,246,0.15))",
+              color: "var(--text-primary, #e4e4e7)",
               fontSize: "11px",
             }}
           >
@@ -367,11 +367,11 @@ function LabelPicker({
             border: "none",
             outline: "none",
             background: "transparent",
-            color: "var(--text-primary, #e0e0e0)",
+            color: "var(--text-primary, #e4e4e7)",
             fontSize: "12px",
             flex: 1,
             minWidth: "60px",
-            fontFamily: "var(--font-family)",
+            fontFamily: "var(--font-family, system-ui, -apple-system, sans-serif)",
           }}
         />
       </div>
@@ -389,15 +389,15 @@ function LabelPicker({
               right: 0,
               maxHeight: "180px",
               overflowY: "auto",
-              border: "1px solid var(--border-color, #333)",
+              border: "1px solid var(--border-primary, #3f3f46)",
               borderRadius: "6px",
-              background: "var(--dropdown-bg, #1e1e3a)",
+              background: "var(--bg-primary, #18181b)",
               zIndex: 100,
               marginTop: "2px",
             }}
           >
             {filtered.length === 0 ? (
-              <div style={{ padding: "6px 10px", color: "var(--text-secondary, #888)", fontSize: "12px" }}>
+              <div style={{ padding: "6px 10px", color: "var(--text-secondary, #a1a1aa)", fontSize: "12px" }}>
                 {filter ? "No matching labels" : "No labels available"}
               </div>
             ) : (
@@ -409,11 +409,11 @@ function LabelPicker({
                     padding: "4px 10px",
                     cursor: "pointer",
                     fontSize: "12px",
-                    color: "var(--text-primary, #e0e0e0)",
+                    color: "var(--text-primary, #e4e4e7)",
                     display: "flex",
                     alignItems: "center",
                     gap: "6px",
-                    background: selected.includes(label) ? "var(--accent-bg, #2a2a4a)" : "transparent",
+                    background: selected.includes(label) ? "var(--bg-accent, rgba(139,92,246,0.15))" : "transparent",
                   }}
                 >
                   <span style={{ width: "14px", textAlign: "center", fontSize: "10px" }}>
@@ -575,8 +575,8 @@ function SendToAgentDialog({
     >
       <div
         style={{
-          background: "var(--panel-bg, #1e1e2e)",
-          border: "1px solid var(--border-color, #333)",
+          background: "var(--bg-primary, #18181b)",
+          border: "1px solid var(--border-primary, #3f3f46)",
           borderRadius: "8px",
           padding: "16px",
           width: "320px",
@@ -586,10 +586,10 @@ function SendToAgentDialog({
         }}
       >
         {/* Title */}
-        <div style={{ fontSize: "14px", fontWeight: 500, color: "var(--text-primary, #e0e0e0)", marginBottom: "4px" }}>
+        <div style={{ fontSize: "14px", fontWeight: 500, color: "var(--text-primary, #e4e4e7)", marginBottom: "4px" }}>
           Assign to Agent
         </div>
-        <div style={{ fontSize: "10px", color: "var(--text-secondary, #888)", marginBottom: "12px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+        <div style={{ fontSize: "10px", color: "var(--text-secondary, #a1a1aa)", marginBottom: "12px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
           #{issue.number} {issue.title}
         </div>
 
@@ -606,12 +606,12 @@ function SendToAgentDialog({
             width: "100%",
             padding: "6px 8px",
             fontSize: "12px",
-            background: "var(--input-bg, #1a1a2e)",
-            border: "1px solid var(--border-color, #333)",
+            background: "var(--bg-secondary, #27272a)",
+            border: "1px solid var(--border-primary, #3f3f46)",
             borderRadius: "4px",
-            color: "var(--text-primary, #e0e0e0)",
+            color: "var(--text-primary, #e4e4e7)",
             resize: "none",
-            fontFamily: "var(--font-family)",
+            fontFamily: "var(--font-family, system-ui, -apple-system, sans-serif)",
             boxSizing: "border-box",
           }}
         />
@@ -619,7 +619,7 @@ function SendToAgentDialog({
         {/* Agent list */}
         <div style={{ marginTop: "12px", display: "flex", flexDirection: "column", gap: "4px" }}>
           {durableAgents.length === 0 ? (
-            <div style={{ fontSize: "12px", color: "var(--text-secondary, #888)", textAlign: "center", padding: "16px 0" }}>
+            <div style={{ fontSize: "12px", color: "var(--text-secondary, #a1a1aa)", textAlign: "center", padding: "16px 0" }}>
               No durable agents found
             </div>
           ) : (
@@ -634,12 +634,12 @@ function SendToAgentDialog({
                     textAlign: "left",
                     padding: "8px 10px",
                     fontSize: "12px",
-                    color: "var(--text-primary, #e0e0e0)",
+                    color: "var(--text-primary, #e4e4e7)",
                     borderRadius: "4px",
-                    border: isSelected ? "1px solid var(--accent-color, #4a6cf7)" : "1px solid transparent",
+                    border: isSelected ? "1px solid var(--text-accent, #8b5cf6)" : "1px solid transparent",
                     background: isSelected ? "rgba(74,108,247,0.1)" : "transparent",
                     cursor: "pointer",
-                    fontFamily: "var(--font-family)",
+                    fontFamily: "var(--font-family, system-ui, -apple-system, sans-serif)",
                   }}
                 >
                   <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
@@ -647,7 +647,7 @@ function SendToAgentDialog({
                     <span style={{ fontWeight: 500 }}>{agent.name}</span>
                     <span style={statusBadgeStyle(agent.status)}>{agent.status}</span>
                   </div>
-                  <div style={{ fontSize: "10px", color: "var(--text-secondary, #888)", marginTop: "2px", paddingLeft: "22px" }}>
+                  <div style={{ fontSize: "10px", color: "var(--text-secondary, #a1a1aa)", marginTop: "2px", paddingLeft: "22px" }}>
                     {agent.status === "running" ? "Will interrupt current work" : "Assign issue to this agent"}
                   </div>
                 </button>
@@ -661,7 +661,7 @@ function SendToAgentDialog({
           style={{
             marginTop: "12px",
             paddingTop: "12px",
-            borderTop: "1px solid var(--border-color, #333)",
+            borderTop: "1px solid var(--border-primary, #3f3f46)",
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
@@ -684,7 +684,7 @@ function SendToAgentDialog({
                   setSaveAsDefault((e.target as HTMLInputElement).checked)
                 }
               />
-              <span style={{ fontSize: "10px", color: "var(--text-secondary, #888)" }}>
+              <span style={{ fontSize: "10px", color: "var(--text-secondary, #a1a1aa)" }}>
                 Save as default
               </span>
             </label>
@@ -792,12 +792,15 @@ export function SidebarPanel({ api }: PanelProps) {
     }
   }, [needsRefresh, fetchIssues]);
 
-  // Filter issues by search query (client-side)
+  // Filter issues by search query (client-side: title, number, and labels)
   const filteredIssues = useMemo(() => {
     if (!searchQuery.trim()) return issues;
     const q = searchQuery.toLowerCase();
     return issues.filter(
-      i => i.title.toLowerCase().includes(q) || `#${i.number}`.includes(q),
+      i =>
+        i.title.toLowerCase().includes(q) ||
+        `#${i.number}`.includes(q) ||
+        i.labels.some(l => l.name.toLowerCase().includes(q)),
     );
   }, [issues, searchQuery]);
 
@@ -817,7 +820,7 @@ export function SidebarPanel({ api }: PanelProps) {
           <div style={{ fontSize: "12px", color: "var(--text-error, #f87171)", marginBottom: "8px" }}>
             Could not load issues
           </div>
-          <div style={{ fontSize: "11px", color: "var(--text-secondary, #888)", marginBottom: "12px" }}>
+          <div style={{ fontSize: "11px", color: "var(--text-secondary, #a1a1aa)", marginBottom: "12px" }}>
             {error}
           </div>
           <button onClick={() => fetchIssues(1, false)} style={btnSecondarySmall}>
@@ -832,7 +835,7 @@ export function SidebarPanel({ api }: PanelProps) {
     <div style={sidebarContainer}>
       {/* Header */}
       <div style={sidebarHeader}>
-        <span style={{ fontSize: "12px", fontWeight: 500, color: "var(--text-primary, #e0e0e0)" }}>
+        <span style={{ fontSize: "12px", fontWeight: 500, color: "var(--text-primary, #e4e4e7)" }}>
           Issues
         </span>
         <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
@@ -855,23 +858,23 @@ export function SidebarPanel({ api }: PanelProps) {
       </div>
 
       {/* Search + state filter */}
-      <div style={{ padding: "6px 8px", borderBottom: "1px solid var(--border-color, #222)", display: "flex", gap: "6px", alignItems: "center" }}>
+      <div style={{ padding: "6px 8px", borderBottom: "1px solid var(--border-primary, #3f3f46)", display: "flex", gap: "6px", alignItems: "center" }}>
         <input
           type="text"
           value={searchQuery}
           onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
             handleSearchChange((e.target as HTMLInputElement).value)
           }
-          placeholder="Filter\u2026"
+          placeholder="Filter..."
           style={{
             flex: 1,
             padding: "4px 6px",
             fontSize: "11px",
-            border: "1px solid var(--border-color, #333)",
+            border: "1px solid var(--border-primary, #3f3f46)",
             borderRadius: "4px",
-            background: "var(--input-bg, #1a1a2e)",
-            color: "var(--text-primary, #e0e0e0)",
-            fontFamily: "var(--font-family)",
+            background: "var(--bg-secondary, #27272a)",
+            color: "var(--text-primary, #e4e4e7)",
+            fontFamily: "var(--font-family, system-ui, -apple-system, sans-serif)",
             outline: "none",
           }}
         />
@@ -883,11 +886,11 @@ export function SidebarPanel({ api }: PanelProps) {
           style={{
             padding: "4px 4px",
             fontSize: "11px",
-            border: "1px solid var(--border-color, #333)",
+            border: "1px solid var(--border-primary, #3f3f46)",
             borderRadius: "4px",
-            background: "var(--input-bg, #1a1a2e)",
-            color: "var(--text-primary, #e0e0e0)",
-            fontFamily: "var(--font-family)",
+            background: "var(--bg-secondary, #27272a)",
+            color: "var(--text-primary, #e4e4e7)",
+            fontFamily: "var(--font-family, system-ui, -apple-system, sans-serif)",
             cursor: "pointer",
           }}
         >
@@ -899,11 +902,11 @@ export function SidebarPanel({ api }: PanelProps) {
       {/* Issue list */}
       <div style={{ flex: 1, overflowY: "auto" }}>
         {loading && issues.length === 0 ? (
-          <div style={{ padding: "16px", textAlign: "center", fontSize: "12px", color: "var(--text-secondary, #888)" }}>
+          <div style={{ padding: "16px", textAlign: "center", fontSize: "12px", color: "var(--text-secondary, #a1a1aa)" }}>
             Loading issues{"\u2026"}
           </div>
         ) : filteredIssues.length === 0 ? (
-          <div style={{ padding: "16px", textAlign: "center", fontSize: "12px", color: "var(--text-secondary, #888)" }}>
+          <div style={{ padding: "16px", textAlign: "center", fontSize: "12px", color: "var(--text-secondary, #a1a1aa)" }}>
             {searchQuery ? "No matching issues" : `No ${stateFilter} issues`}
           </div>
         ) : (
@@ -915,15 +918,15 @@ export function SidebarPanel({ api }: PanelProps) {
                 style={{
                   padding: "8px 10px",
                   cursor: "pointer",
-                  background: issue.number === selected ? "var(--item-active-bg, #2a2a4a)" : "transparent",
+                  background: issue.number === selected ? "var(--bg-active, #3f3f46)" : "transparent",
                 }}
               >
                 {/* Top row: number + title */}
                 <div style={{ display: "flex", alignItems: "center", gap: "6px", minWidth: 0 }}>
-                  <span style={{ fontSize: "10px", color: "var(--text-secondary, #888)", flexShrink: 0 }}>
+                  <span style={{ fontSize: "10px", color: "var(--text-secondary, #a1a1aa)", flexShrink: 0 }}>
                     #{issue.number}
                   </span>
-                  <span style={{ fontSize: "12px", color: "var(--text-primary, #e0e0e0)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  <span style={{ fontSize: "12px", color: "var(--text-primary, #e4e4e7)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     {issue.title}
                   </span>
                 </div>
@@ -945,7 +948,7 @@ export function SidebarPanel({ api }: PanelProps) {
                       {label.name}
                     </span>
                   ))}
-                  <span style={{ fontSize: "10px", color: "var(--text-secondary, #888)", marginLeft: "auto", flexShrink: 0 }}>
+                  <span style={{ fontSize: "10px", color: "var(--text-secondary, #a1a1aa)", marginLeft: "auto", flexShrink: 0 }}>
                     {relativeTime(issue.updatedAt)}
                   </span>
                 </div>
@@ -1219,7 +1222,7 @@ export function MainPanel({ api }: PanelProps) {
     return (
       <div style={mainContainer}>
         <div style={mainHeader}>
-          <span style={{ fontSize: "13px", fontWeight: 500, color: "var(--text-primary, #e0e0e0)" }}>
+          <span style={{ fontSize: "13px", fontWeight: 500, color: "var(--text-primary, #e4e4e7)" }}>
             New Issue
           </span>
         </div>
@@ -1324,7 +1327,7 @@ export function MainPanel({ api }: PanelProps) {
   if (selected === null) {
     return (
       <div style={{ ...mainContainer, justifyContent: "center", alignItems: "center" }}>
-        <span style={{ fontSize: "12px", color: "var(--text-secondary, #888)" }}>
+        <span style={{ fontSize: "12px", color: "var(--text-secondary, #a1a1aa)" }}>
           Select an issue to view details
         </span>
       </div>
@@ -1334,7 +1337,7 @@ export function MainPanel({ api }: PanelProps) {
   if (loading) {
     return (
       <div style={{ ...mainContainer, justifyContent: "center", alignItems: "center" }}>
-        <span style={{ fontSize: "12px", color: "var(--text-secondary, #888)" }}>
+        <span style={{ fontSize: "12px", color: "var(--text-secondary, #a1a1aa)" }}>
           Loading issue{"\u2026"}
         </span>
       </div>
@@ -1344,7 +1347,7 @@ export function MainPanel({ api }: PanelProps) {
   if (!detail) {
     return (
       <div style={{ ...mainContainer, justifyContent: "center", alignItems: "center" }}>
-        <span style={{ fontSize: "12px", color: "var(--text-secondary, #888)" }}>
+        <span style={{ fontSize: "12px", color: "var(--text-secondary, #a1a1aa)" }}>
           Failed to load issue details
         </span>
       </div>
@@ -1382,10 +1385,10 @@ export function MainPanel({ api }: PanelProps) {
           </div>
         ) : (
           <div style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: "6px" }}>
-            <span style={{ fontSize: "12px", color: "var(--text-secondary, #888)", flexShrink: 0 }}>
+            <span style={{ fontSize: "12px", color: "var(--text-secondary, #a1a1aa)", flexShrink: 0 }}>
               #{detail.number}
             </span>
-            <span style={{ fontSize: "13px", fontWeight: 500, color: "var(--text-primary, #e0e0e0)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            <span style={{ fontSize: "13px", fontWeight: 500, color: "var(--text-primary, #e4e4e7)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
               {detail.title}
             </span>
           </div>
@@ -1410,14 +1413,14 @@ export function MainPanel({ api }: PanelProps) {
       </div>
 
       {/* Metadata row */}
-      <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: "6px", padding: "8px 16px", borderBottom: "1px solid var(--border-color, #222)", background: "var(--panel-bg-alt, rgba(0,0,0,0.15))" }}>
+      <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: "6px", padding: "8px 16px", borderBottom: "1px solid var(--border-primary, #3f3f46)", background: "var(--bg-secondary, #27272a)" }}>
         <button onClick={handleToggleState} style={stateBadge} title={isOpen ? "Close issue" : "Reopen issue"}>
           {detail.state}
         </button>
-        <span style={{ fontSize: "10px", color: "var(--text-secondary, #888)" }}>
+        <span style={{ fontSize: "10px", color: "var(--text-secondary, #a1a1aa)" }}>
           by {detail.author.login}
         </span>
-        <span style={{ fontSize: "10px", color: "var(--text-secondary, #888)" }}>
+        <span style={{ fontSize: "10px", color: "var(--text-secondary, #a1a1aa)" }}>
           opened {relativeTime(detail.createdAt)}
         </span>
 
@@ -1429,7 +1432,7 @@ export function MainPanel({ api }: PanelProps) {
               setEditLabels((e.target as HTMLInputElement).value)
             }
             placeholder="Labels (comma separated)"
-            style={{ fontSize: "10px", padding: "2px 6px", background: "var(--input-bg, #1a1a2e)", border: "1px solid var(--border-color, #333)", borderRadius: "4px", color: "var(--text-primary, #e0e0e0)", fontFamily: "var(--font-family)", outline: "none" }}
+            style={{ fontSize: "10px", padding: "2px 6px", background: "var(--bg-secondary, #27272a)", border: "1px solid var(--border-primary, #3f3f46)", borderRadius: "4px", color: "var(--text-primary, #e4e4e7)", fontFamily: "var(--font-family, system-ui, -apple-system, sans-serif)", outline: "none" }}
           />
         ) : (
           detail.labels.map(label => (
@@ -1456,8 +1459,8 @@ export function MainPanel({ api }: PanelProps) {
             style={{
               fontSize: "10px",
               padding: "1px 6px",
-              background: "var(--item-active-bg, #2a2a4a)",
-              color: "var(--text-secondary, #aaa)",
+              background: "var(--bg-active, #3f3f46)",
+              color: "var(--text-secondary, #a1a1aa)",
               borderRadius: "4px",
               display: "inline-flex",
               alignItems: "center",
@@ -1483,7 +1486,7 @@ export function MainPanel({ api }: PanelProps) {
       <div style={{ flex: 1, overflowY: "auto" }}>
         {/* Body */}
         {editing ? (
-          <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--border-color, #222)" }}>
+          <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--border-primary, #3f3f46)" }}>
             <textarea
               value={editBody}
               onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
@@ -1495,19 +1498,19 @@ export function MainPanel({ api }: PanelProps) {
             />
           </div>
         ) : detail.body ? (
-          <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--border-color, #222)" }}>
+          <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--border-primary, #3f3f46)" }}>
             <pre style={preStyle}>{detail.body}</pre>
           </div>
         ) : (
-          <div style={{ padding: "12px 16px", fontSize: "12px", color: "var(--text-secondary, #888)", fontStyle: "italic", borderBottom: "1px solid var(--border-color, #222)" }}>
+          <div style={{ padding: "12px 16px", fontSize: "12px", color: "var(--text-secondary, #a1a1aa)", fontStyle: "italic", borderBottom: "1px solid var(--border-primary, #3f3f46)" }}>
             No description provided.
           </div>
         )}
 
         {/* Comments */}
         {detail.comments.length > 0 && (
-          <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--border-color, #222)" }}>
-            <div style={{ fontSize: "12px", fontWeight: 500, color: "var(--text-primary, #e0e0e0)", marginBottom: "12px" }}>
+          <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--border-primary, #3f3f46)" }}>
+            <div style={{ fontSize: "12px", fontWeight: 500, color: "var(--text-primary, #e4e4e7)", marginBottom: "12px" }}>
               {detail.comments.length} comment{detail.comments.length === 1 ? "" : "s"}
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
@@ -1515,16 +1518,16 @@ export function MainPanel({ api }: PanelProps) {
                 <div
                   key={i}
                   style={{
-                    border: "1px solid var(--border-color, #222)",
+                    border: "1px solid var(--border-primary, #3f3f46)",
                     borderRadius: "6px",
                     overflow: "hidden",
                   }}
                 >
-                  <div style={{ display: "flex", alignItems: "center", gap: "8px", padding: "6px 10px", background: "var(--panel-bg-alt, rgba(0,0,0,0.15))", borderBottom: "1px solid var(--border-color, #222)" }}>
-                    <span style={{ fontSize: "12px", fontWeight: 500, color: "var(--text-primary, #e0e0e0)" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px", padding: "6px 10px", background: "var(--bg-secondary, #27272a)", borderBottom: "1px solid var(--border-primary, #3f3f46)" }}>
+                    <span style={{ fontSize: "12px", fontWeight: 500, color: "var(--text-primary, #e4e4e7)" }}>
                       {comment.author.login}
                     </span>
-                    <span style={{ fontSize: "10px", color: "var(--text-secondary, #888)" }}>
+                    <span style={{ fontSize: "10px", color: "var(--text-secondary, #a1a1aa)" }}>
                       {relativeTime(comment.createdAt)}
                     </span>
                   </div>
@@ -1539,7 +1542,7 @@ export function MainPanel({ api }: PanelProps) {
 
         {/* Add comment */}
         <div style={{ padding: "12px 16px" }}>
-          <div style={{ fontSize: "12px", fontWeight: 500, color: "var(--text-primary, #e0e0e0)", marginBottom: "8px" }}>
+          <div style={{ fontSize: "12px", fontWeight: 500, color: "var(--text-primary, #e4e4e7)", marginBottom: "8px" }}>
             Add a comment
           </div>
           <textarea
@@ -1586,8 +1589,8 @@ const sidebarContainer: React.CSSProperties = {
   display: "flex",
   flexDirection: "column",
   height: "100%",
-  fontFamily: "var(--font-family)",
-  background: "var(--sidebar-bg, #181825)",
+  fontFamily: "var(--font-family, system-ui, -apple-system, sans-serif)",
+  background: "var(--bg-primary, #18181b)",
 };
 
 const sidebarHeader: React.CSSProperties = {
@@ -1595,34 +1598,34 @@ const sidebarHeader: React.CSSProperties = {
   alignItems: "center",
   justifyContent: "space-between",
   padding: "8px 10px",
-  borderBottom: "1px solid var(--border-color, #222)",
+  borderBottom: "1px solid var(--border-primary, #3f3f46)",
 };
 
 const sidebarHeaderBtn: React.CSSProperties = {
   padding: "2px 8px",
   fontSize: "12px",
-  color: "var(--text-secondary, #888)",
+  color: "var(--text-secondary, #a1a1aa)",
   background: "transparent",
   border: "none",
   borderRadius: "4px",
   cursor: "pointer",
-  fontFamily: "var(--font-family)",
+  fontFamily: "var(--font-family, system-ui, -apple-system, sans-serif)",
 };
 
 const mainContainer: React.CSSProperties = {
   display: "flex",
   flexDirection: "column",
   height: "100%",
-  fontFamily: "var(--font-family)",
-  background: "var(--panel-bg, #1e1e2e)",
+  fontFamily: "var(--font-family, system-ui, -apple-system, sans-serif)",
+  background: "var(--bg-primary, #18181b)",
 };
 
 const mainHeader: React.CSSProperties = {
   display: "flex",
   alignItems: "center",
   padding: "8px 16px",
-  borderBottom: "1px solid var(--border-color, #222)",
-  background: "var(--sidebar-bg, #181825)",
+  borderBottom: "1px solid var(--border-primary, #3f3f46)",
+  background: "var(--bg-primary, #18181b)",
   flexShrink: 0,
 };
 
@@ -1632,8 +1635,8 @@ const mainFooter: React.CSSProperties = {
   justifyContent: "flex-end",
   gap: "8px",
   padding: "10px 16px",
-  borderTop: "1px solid var(--border-color, #222)",
-  background: "var(--sidebar-bg, #181825)",
+  borderTop: "1px solid var(--border-primary, #3f3f46)",
+  background: "var(--bg-primary, #18181b)",
   flexShrink: 0,
 };
 
@@ -1641,7 +1644,7 @@ const formLabel: React.CSSProperties = {
   display: "block",
   fontSize: "12px",
   fontWeight: 500,
-  color: "var(--text-secondary, #aaa)",
+  color: "var(--text-secondary, #a1a1aa)",
   marginBottom: "4px",
 };
 
@@ -1649,11 +1652,11 @@ const formInput: React.CSSProperties = {
   width: "100%",
   padding: "6px 10px",
   borderRadius: "6px",
-  border: "1px solid var(--border-color, #333)",
-  background: "var(--input-bg, #1a1a2e)",
-  color: "var(--text-primary, #e0e0e0)",
+  border: "1px solid var(--border-primary, #3f3f46)",
+  background: "var(--bg-secondary, #27272a)",
+  color: "var(--text-primary, #e4e4e7)",
   fontSize: "13px",
-  fontFamily: "var(--font-family)",
+  fontFamily: "var(--font-family, system-ui, -apple-system, sans-serif)",
   boxSizing: "border-box",
   outline: "none",
 };
@@ -1661,10 +1664,10 @@ const formInput: React.CSSProperties = {
 const preStyle: React.CSSProperties = {
   whiteSpace: "pre-wrap",
   wordWrap: "break-word",
-  fontFamily: "var(--font-mono, monospace)",
+  fontFamily: "var(--font-mono, ui-monospace, monospace)",
   fontSize: "13px",
   lineHeight: 1.6,
-  color: "var(--text-primary, #e0e0e0)",
+  color: "var(--text-primary, #e4e4e7)",
   margin: 0,
 };
 
@@ -1674,19 +1677,19 @@ const btnPrimarySmall: React.CSSProperties = {
   fontWeight: 500,
   borderRadius: "4px",
   border: "none",
-  background: "var(--accent-color, #4a6cf7)",
+  background: "var(--text-accent, #8b5cf6)",
   color: "#fff",
   cursor: "pointer",
-  fontFamily: "var(--font-family)",
+  fontFamily: "var(--font-family, system-ui, -apple-system, sans-serif)",
 };
 
 const btnSecondarySmall: React.CSSProperties = {
   padding: "4px 12px",
   fontSize: "12px",
   borderRadius: "4px",
-  border: "1px solid var(--border-color, #333)",
+  border: "1px solid var(--border-primary, #3f3f46)",
   background: "transparent",
-  color: "var(--text-primary, #e0e0e0)",
+  color: "var(--text-primary, #e4e4e7)",
   cursor: "pointer",
-  fontFamily: "var(--font-family)",
+  fontFamily: "var(--font-family, system-ui, -apple-system, sans-serif)",
 };
