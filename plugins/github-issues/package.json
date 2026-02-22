@@ -1,0 +1,19 @@
+{
+  "name": "github-issues",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "build": "esbuild src/main.tsx --bundle --format=esm --platform=browser --external:react --outfile=dist/main.js",
+    "watch": "esbuild src/main.tsx --bundle --format=esm --platform=browser --external:react --outfile=dist/main.js --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@clubhouse/plugin-types": "^0.5.0",
+    "@clubhouse/plugin-testing": "^0.5.0",
+    "@types/react": "^19.0.0",
+    "esbuild": "^0.24.0",
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0"
+  }
+}
