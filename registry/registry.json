@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated": "2026-02-22T21:42:00.429Z",
+  "updated": "2026-02-23T01:04:28.903Z",
   "supportedApis": {
     "latest": "0.6",
     "minimum": "0.5",
@@ -22,7 +22,7 @@
         "example",
         "starter"
       ],
-      "latest": "0.1.0",
+      "latest": "1.0.0",
       "releases": {
         "0.1.0": {
           "api": 0.5,
@@ -35,6 +35,18 @@
             "commands"
           ],
           "size": 3116
+        },
+        "1.0.0": {
+          "api": 0.5,
+          "asset": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop/releases/download/example-hello-world-v1.0.0/example-hello-world-v1.0.0.zip",
+          "sha256": "aec05670bb78bbc9fddfe6fa44fecb0e47b74f48e1ffc3763e8b122f05840ecb",
+          "permissions": [
+            "logging",
+            "storage",
+            "notifications",
+            "commands"
+          ],
+          "size": 3103
         }
       }
     },
