@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated": "2026-02-23T01:04:28.903Z",
+  "updated": "2026-02-23T06:00:00.000Z",
   "supportedApis": {
     "latest": "0.6",
     "minimum": "0.5",
@@ -63,7 +63,7 @@
         "code-review",
         "git"
       ],
-      "latest": "0.1.0",
+      "latest": "1.0.0",
       "releases": {
         "0.1.0": {
           "api": 0.5,
@@ -80,6 +80,22 @@
             "process"
           ],
           "size": 4654
+        },
+        "1.0.0": {
+          "api": 0.5,
+          "asset": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop/releases/download/code-review-v1.0.0/code-review-v1.0.0.zip",
+          "sha256": "5e14a86d7bc2a6484160bfe40a51dc4f623824791dd56c4a7b37ed88656da187",
+          "permissions": [
+            "logging",
+            "storage",
+            "notifications",
+            "files",
+            "git",
+            "agents",
+            "commands",
+            "process"
+          ],
+          "size": 4963
         }
       }
     },
@@ -96,7 +112,7 @@
         "standup",
         "productivity"
       ],
-      "latest": "0.1.0",
+      "latest": "1.0.0",
       "releases": {
         "0.1.0": {
           "api": 0.5,
@@ -112,6 +128,21 @@
             "commands"
           ],
           "size": 3851
+        },
+        "1.0.0": {
+          "api": 0.5,
+          "asset": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop/releases/download/standup-v1.0.0/standup-v1.0.0.zip",
+          "sha256": "47c46b6a3ba447e1533da87085a1684c0c53cb5c5d900d1a805906d323de1830",
+          "permissions": [
+            "logging",
+            "storage",
+            "notifications",
+            "agents",
+            "projects",
+            "git",
+            "commands"
+          ],
+          "size": 3853
         }
       }
     },
@@ -127,7 +158,7 @@
         "productivity",
         "timer"
       ],
-      "latest": "0.1.0",
+      "latest": "1.0.0",
       "releases": {
         "0.1.0": {
           "api": 0.5,
@@ -141,6 +172,19 @@
             "widgets"
           ],
           "size": 3713
+        },
+        "1.0.0": {
+          "api": 0.5,
+          "asset": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop/releases/download/pomodoro-v1.0.0/pomodoro-v1.0.0.zip",
+          "sha256": "49837c812e8ae768c32fea48a482593e07dac166f9db40d98075f4ffb1405e13",
+          "permissions": [
+            "logging",
+            "storage",
+            "notifications",
+            "commands",
+            "widgets"
+          ],
+          "size": 4031
         }
       }
     },
@@ -157,7 +201,7 @@
         "ai",
         "project-management"
       ],
-      "latest": "0.1.0",
+      "latest": "1.0.0",
       "releases": {
         "0.1.0": {
           "api": 0.5,
@@ -173,6 +217,21 @@
             "widgets"
           ],
           "size": 19966
+        },
+        "1.0.0": {
+          "api": 0.5,
+          "asset": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop/releases/download/kanboss-v1.0.0/kanboss-v1.0.0.zip",
+          "sha256": "45be940a000def618fd2bd98a8f66e0c571e02c4cb16aa1691b5b1afd0192b40",
+          "permissions": [
+            "logging",
+            "storage",
+            "agents",
+            "commands",
+            "notifications",
+            "navigation",
+            "widgets"
+          ],
+          "size": 20956
         }
       }
     },
@@ -189,7 +248,7 @@
         "issues",
         "project-management"
       ],
-      "latest": "0.1.1",
+      "latest": "1.0.0",
       "releases": {
         "0.1.0": {
           "api": 0.5,
@@ -224,6 +283,23 @@
             "widgets"
           ],
           "size": 14235
+        },
+        "1.0.0": {
+          "api": 0.5,
+          "asset": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop/releases/download/github-issues-v1.0.0/github-issues-v1.0.0.zip",
+          "sha256": "7415f6630a35a5ca984ad1ea9e24fd80ee169d0109fcff6a09de20c383d7e190",
+          "permissions": [
+            "logging",
+            "storage",
+            "notifications",
+            "files",
+            "agents",
+            "commands",
+            "process",
+            "git",
+            "widgets"
+          ],
+          "size": 14475
         }
       }
     },
@@ -240,7 +316,7 @@
         "work-items",
         "project-management"
       ],
-      "latest": "0.1.0",
+      "latest": "1.0.0",
       "releases": {
         "0.1.0": {
           "api": 0.5,
@@ -256,6 +332,21 @@
             "widgets"
           ],
           "size": 13986
+        },
+        "1.0.0": {
+          "api": 0.5,
+          "asset": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop/releases/download/ado-work-items-v1.0.0/ado-work-items-v1.0.0.zip",
+          "sha256": "33442aea18a827013c48679e9bfe9ba63d7e3f0b548132579cb564cb4bd1921c",
+          "permissions": [
+            "logging",
+            "storage",
+            "notifications",
+            "agents",
+            "commands",
+            "process",
+            "widgets"
+          ],
+          "size": 14385
         }
       }
     },
@@ -272,7 +363,7 @@
         "markdown",
         "documentation"
       ],
-      "latest": "1.0.0",
+      "latest": "1.1.0",
       "releases": {
         "1.0.0": {
           "api": 0.5,
@@ -289,6 +380,22 @@
             "widgets"
           ],
           "size": 14364
+        },
+        "1.1.0": {
+          "api": 0.5,
+          "asset": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop/releases/download/wiki-v1.1.0/wiki-v1.1.0.zip",
+          "sha256": "f5eb1a1173fe53de74830d1b6a8b689cfc4e28f4d91f9415e395cf34a80f4039",
+          "permissions": [
+            "files",
+            "files.external",
+            "commands",
+            "notifications",
+            "agents",
+            "navigation",
+            "storage",
+            "widgets"
+          ],
+          "size": 26808
         }
       }
     },
@@ -305,7 +412,7 @@
         "cron",
         "agents"
       ],
-      "latest": "0.1.0",
+      "latest": "1.0.0",
       "releases": {
         "0.1.0": {
           "api": 0.5,
@@ -320,6 +427,20 @@
             "widgets"
           ],
           "size": 7786
+        },
+        "1.0.0": {
+          "api": 0.5,
+          "asset": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop/releases/download/automations-v1.0.0/automations-v1.0.0.zip",
+          "sha256": "fc1e80cc1e3373dcf65ee89e91e03f37d2016c12e2fd055ee66461b04c06d3e6",
+          "permissions": [
+            "storage",
+            "agents",
+            "commands",
+            "notifications",
+            "navigation",
+            "widgets"
+          ],
+          "size": 8364
         }
       }
     }
