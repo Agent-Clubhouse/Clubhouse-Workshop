@@ -1,7 +1,7 @@
 {
   "id": "standup",
   "name": "Standup",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "AI-generated daily standup summaries across all your projects.",
   "author": "Clubhouse Workshop",
   "official": true,

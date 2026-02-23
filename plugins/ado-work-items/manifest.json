@@ -1,7 +1,7 @@
 {
   "id": "ado-work-items",
   "name": "Azure DevOps Work Items",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Browse, create, and manage Azure DevOps work items with WIQL query support and agent assignment",
   "author": "Clubhouse Workshop",
   "engine": { "api": 0.5 },

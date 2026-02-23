@@ -1,7 +1,7 @@
 {
   "id": "code-review",
   "name": "Code Review",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "AI-powered code review for your staged changes.",
   "author": "Clubhouse Workshop",
   "official": true,
