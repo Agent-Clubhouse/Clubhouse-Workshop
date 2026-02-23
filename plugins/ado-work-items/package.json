@@ -1,6 +1,6 @@
 {
   "name": "ado-work-items",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "license": "MIT",
   "description": "Azure DevOps Work Items plugin for Clubhouse with WIQL query support and agent assignment",

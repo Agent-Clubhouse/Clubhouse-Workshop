@@ -1,6 +1,6 @@
 {
   "name": "automations",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "license": "MIT",
   "description": "Schedule recurring quick-agent tasks with cron expressions for Clubhouse",
