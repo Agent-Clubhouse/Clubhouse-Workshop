@@ -3,6 +3,7 @@ import type {
   PluginAPI,
   PanelProps,
 } from "@clubhouse/plugin-types";
+import { useTheme } from './use-theme';
 
 const React = globalThis.React;
 const { useState, useEffect, useCallback } = React;
@@ -120,6 +121,7 @@ export function deactivate(): void {}
 // ---------------------------------------------------------------------------
 
 export function MainPanel({ api }: PanelProps) {
+  const { style: themeStyle } = useTheme(api.theme);
   const [history, setHistory] = useState<ReviewEntry[]>([]);
   const [running, setRunning] = useState(false);
   const [selectedReview, setSelectedReview] = useState<ReviewEntry | null>(null);
@@ -220,7 +222,7 @@ export function MainPanel({ api }: PanelProps) {
   };
 
   return (
-    <div style={styles.container}>
+    <div style={{ ...themeStyle, ...styles.container }}>
       <h2 style={{ marginTop: 0 }}>Code Review</h2>
 
       <div style={styles.header}>

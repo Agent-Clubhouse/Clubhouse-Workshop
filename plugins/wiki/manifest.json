@@ -4,7 +4,7 @@
   "version": "1.1.0",
   "description": "Browse and edit markdown wikis stored in external directories.",
   "author": "Clubhouse Workshop",
-  "engine": { "api": 0.5 },
+  "engine": { "api": 0.6 },
   "scope": "project",
   "main": "./dist/main.js",
   "permissions": [
@@ -15,7 +15,8 @@
     "agents",
     "navigation",
     "storage",
-    "widgets"
+    "widgets",
+    "theme"
   ],
   "externalRoots": [{ "settingKey": "wikiPath", "root": "wiki" }],
   "contributes": {

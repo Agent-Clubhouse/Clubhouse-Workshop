@@ -5,10 +5,10 @@
   "description": "AI-generated daily standup summaries across all your projects.",
   "author": "Clubhouse Workshop",
   "official": true,
-  "engine": { "api": 0.5 },
+  "engine": { "api": 0.6 },
   "scope": "app",
   "main": "./dist/main.js",
-  "permissions": ["logging", "storage", "notifications", "agents", "projects", "git", "commands"],
+  "permissions": ["logging", "storage", "notifications", "agents", "projects", "git", "commands", "theme"],
   "contributes": {
     "railItem": {
       "label": "Standup",

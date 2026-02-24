@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "description": "Kanban boards with AI-powered automation. Create boards with customizable states and swimlanes, assign AI agents to automate work, and track card progress with labels, priorities, and WIP limits.",
   "author": "Clubhouse Workshop",
-  "engine": { "api": 0.5 },
+  "engine": { "api": 0.6 },
   "scope": "project",
   "main": "./dist/main.js",
   "permissions": [
@@ -14,7 +14,8 @@
     "commands",
     "notifications",
     "navigation",
-    "widgets"
+    "widgets",
+    "theme"
   ],
   "contributes": {
     "tab": {

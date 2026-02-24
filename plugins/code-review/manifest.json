@@ -5,10 +5,10 @@
   "description": "AI-powered code review for your staged changes.",
   "author": "Clubhouse Workshop",
   "official": true,
-  "engine": { "api": 0.5 },
+  "engine": { "api": 0.6 },
   "scope": "project",
   "main": "./dist/main.js",
-  "permissions": ["logging", "storage", "notifications", "files", "git", "agents", "commands", "process"],
+  "permissions": ["logging", "storage", "notifications", "files", "git", "agents", "commands", "process", "theme"],
   "allowedCommands": ["git"],
   "contributes": {
     "tab": {

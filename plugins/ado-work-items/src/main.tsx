@@ -15,6 +15,7 @@ import {
   validateOrgUrl,
   validateProjectName,
 } from "./helpers";
+import { useTheme } from './use-theme';
 
 const React = globalThis.React;
 const { useState, useEffect, useCallback, useRef, useMemo } = React;
@@ -808,6 +809,7 @@ function ConfigWarning() {
 // ---------------------------------------------------------------------------
 
 export function SidebarPanel({ api }: PanelProps) {
+  const { style: themeStyle } = useTheme(api.theme);
   const [items, setItems] = useState<WorkItemListItem[]>(workItemState.items);
   const [selected, setSelected] = useState<number | null>(workItemState.selectedId);
   const [loading, setLoading] = useState(false);
@@ -972,7 +974,7 @@ export function SidebarPanel({ api }: PanelProps) {
 
   if (!config.valid) {
     return (
-      <div style={{ ...sidebarContainer, justifyContent: "center", alignItems: "center" }}>
+      <div style={{ ...themeStyle, ...sidebarContainer, justifyContent: "center", alignItems: "center" }}>
         <div style={{ padding: "16px", textAlign: "center" }}>
           <div style={{ fontSize: "12px", color: "var(--text-error, #f87171)", marginBottom: "8px" }}>
             Invalid settings
@@ -987,7 +989,7 @@ export function SidebarPanel({ api }: PanelProps) {
 
   if (error) {
     return (
-      <div style={{ ...sidebarContainer, justifyContent: "center", alignItems: "center" }}>
+      <div style={{ ...themeStyle, ...sidebarContainer, justifyContent: "center", alignItems: "center" }}>
         <div style={{ padding: "16px", textAlign: "center" }}>
           <div style={{ fontSize: "12px", color: "var(--text-error, #f87171)", marginBottom: "8px" }}>
             Could not load work items
@@ -1004,7 +1006,7 @@ export function SidebarPanel({ api }: PanelProps) {
   }
 
   return (
-    <div style={sidebarContainer}>
+    <div style={{ ...themeStyle, ...sidebarContainer }}>
       {/* Header */}
       <div style={sidebarHeader}>
         <span style={{ fontSize: "12px", fontWeight: 500, color: "var(--text-primary, #e4e4e7)" }}>
@@ -1159,6 +1161,7 @@ export function SidebarPanel({ api }: PanelProps) {
 // ---------------------------------------------------------------------------
 
 export function MainPanel({ api }: PanelProps) {
+  const { style: themeStyle } = useTheme(api.theme);
   const [selected, setSelected] = useState<number | null>(workItemState.selectedId);
   const [creatingNew, setCreatingNew] = useState(workItemState.creatingNew);
   const [detail, setDetail] = useState<WorkItemDetail | null>(null);
@@ -1594,7 +1597,7 @@ export function MainPanel({ api }: PanelProps) {
   };
 
   return (
-    <div style={{ ...mainContainer, position: "relative" }}>
+    <div style={{ ...themeStyle, ...mainContainer, position: "relative" }}>
       {/* Header bar */}
       <div style={{ ...mainHeader, gap: "8px" }}>
         {editing ? (
