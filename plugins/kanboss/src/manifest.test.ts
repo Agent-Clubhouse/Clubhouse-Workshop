@@ -10,8 +10,8 @@ describe('KanBoss manifest', () => {
     expect(manifest.scope).toBe('project');
   });
 
-  it('targets API version 0.5', () => {
-    expect(manifest.engine.api).toBe(0.5);
+  it('targets API version 0.6', () => {
+    expect(manifest.engine.api).toBe(0.6);
   });
 
   it('declares required permissions', () => {
@@ -20,6 +20,7 @@ describe('KanBoss manifest', () => {
     expect(manifest.permissions).toContain('commands');
     expect(manifest.permissions).toContain('notifications');
     expect(manifest.permissions).toContain('logging');
+    expect(manifest.permissions).toContain('theme');
   });
 
   it('contributes a tab with sidebar-content layout', () => {

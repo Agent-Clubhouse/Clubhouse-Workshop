@@ -10,8 +10,8 @@ describe("github-issues manifest", () => {
     expect(manifest.scope).toBe("project");
   });
 
-  it("targets API version 0.5", () => {
-    expect(manifest.engine.api).toBe(0.5);
+  it("targets API version 0.6", () => {
+    expect(manifest.engine.api).toBe(0.6);
   });
 
   it("declares required permissions", () => {
@@ -23,6 +23,7 @@ describe("github-issues manifest", () => {
     expect(manifest.permissions).toContain("commands");
     expect(manifest.permissions).toContain("process");
     expect(manifest.permissions).toContain("widgets");
+    expect(manifest.permissions).toContain("theme");
   });
 
   it("does not declare invalid permissions", () => {
@@ -32,6 +33,7 @@ describe("github-issues manifest", () => {
       "commands", "events", "widgets", "logging", "process", "badges",
       "agent-config", "agent-config.cross-project",
       "agent-config.permissions", "agent-config.mcp",
+      "sounds", "theme",
     ];
     for (const perm of manifest.permissions) {
       expect(validPermissions).toContain(perm);
