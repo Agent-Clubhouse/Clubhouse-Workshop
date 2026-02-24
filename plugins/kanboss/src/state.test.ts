@@ -213,6 +213,23 @@ describe('kanBossState', () => {
     expect(callCount).toBe(1);
   });
 
+  it('selectedBoardId is immediately readable in subscriber (regression: stale ref bug)', () => {
+    // The BoardView subscriber must be able to read the updated selectedBoardId
+    // synchronously during notification. Previously, loadBoard read from a React
+    // state ref that lagged behind, so the board never loaded.
+    const observedIds: (string | null)[] = [];
+
+    kanBossState.subscribe(() => {
+      observedIds.push(kanBossState.selectedBoardId);
+    });
+
+    kanBossState.selectBoard('board-1');
+    kanBossState.selectBoard('board-2');
+    kanBossState.selectBoard(null);
+
+    expect(observedIds).toEqual(['board-1', 'board-2', null]);
+  });
+
   it('unsubscribing one listener does not affect others', () => {
     let count1 = 0;
     let count2 = 0;
