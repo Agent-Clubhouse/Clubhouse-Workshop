@@ -32,7 +32,7 @@ const standupState = createStandupState();
 // ---------------------------------------------------------------------------
 
 export async function loadHistory(api: PluginAPI): Promise<StandupEntry[]> {
-  const raw = await api.storage.global.read(HISTORY_KEY);
+  const raw = await api.storage.projectLocal.read(HISTORY_KEY);
   if (typeof raw === "string") {
     try { return JSON.parse(raw); } catch { return []; }
   }
@@ -42,7 +42,7 @@ export async function loadHistory(api: PluginAPI): Promise<StandupEntry[]> {
 
 async function saveHistory(api: PluginAPI, history: StandupEntry[]): Promise<void> {
   if (history.length > MAX_HISTORY) history.length = MAX_HISTORY;
-  await api.storage.global.write(HISTORY_KEY, history);
+  await api.storage.projectLocal.write(HISTORY_KEY, history);
 }
 
 // ---------------------------------------------------------------------------

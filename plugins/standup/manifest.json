@@ -5,16 +5,15 @@
   "description": "AI-generated daily standup summaries from your git activity — local commits, branches, and merged PRs.",
   "author": "Clubhouse Workshop",
   "engine": { "api": 0.6 },
-  "scope": "app",
+  "scope": "project",
   "main": "./dist/main.js",
   "settingsPanel": "custom",
   "permissions": ["logging", "storage", "notifications", "agents", "projects", "commands", "theme", "process"],
   "allowedCommands": ["git", "gh"],
   "contributes": {
-    "railItem": {
+    "tab": {
       "label": "Standup",
       "icon": "<svg width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'><rect x='3' y='4' width='18' height='18' rx='2' ry='2'/><line x1='16' y1='2' x2='16' y2='6'/><line x1='8' y1='2' x2='8' y2='6'/><line x1='3' y1='10' x2='21' y2='10'/></svg>",
-      "position": "top",
       "layout": "sidebar-content"
     },
     "commands": [
@@ -65,7 +64,7 @@
         {
           "id": "features",
           "title": "Key Features",
-          "content": "## Key Features\n\n**Git-Powered** — Gathers real commit history, branch activity, and merged PRs from the active project.\n\n**Backfill** — Missed a few days? Click Generate and it fills in missing dates automatically (configurable lookback).\n\n**History** — Browse past standups in the sidebar. Click any date to view its report.\n\n**Configurable** — Choose orchestrator, model, free agent mode, and customize the prompt in Settings."
+          "content": "## Key Features\n\n**Git-Powered** — Gathers real commit history, branch activity, and merged PRs from the project.\n\n**Backfill** — Missed a few days? Click Generate and it fills in missing dates automatically (configurable lookback).\n\n**History** — Browse past standups in the sidebar panel. Click any date to view its report.\n\n**Configurable** — Choose orchestrator, model, free agent mode, and customize the prompt in Settings."
         },
         {
           "id": "commands",
@@ -75,7 +74,7 @@
         {
           "id": "permissions",
           "title": "Permissions",
-          "content": "## Permissions\n\n| Permission | Why it's needed |\n|------------|----------------|\n| **logging** | Log diagnostic information |\n| **storage** | Persist standup history globally |\n| **notifications** | Show completion and error notifications |\n| **agents** | Spawn a quick agent to generate summaries |\n| **projects** | Access the active project for git data |\n| **commands** | Register the Generate Standup command |\n| **theme** | Adapt to the user's color theme |\n| **settings** | Read user configuration |\n| **process** | Execute git and gh CLI commands |"
+          "content": "## Permissions\n\n| Permission | Why it's needed |\n|------------|----------------|\n| **logging** | Log diagnostic information |\n| **storage** | Persist standup history per-project |\n| **notifications** | Show completion and error notifications |\n| **agents** | Spawn a quick agent to generate summaries |\n| **projects** | Access project information for git data |\n| **commands** | Register the Generate Standup command |\n| **theme** | Adapt to the user's color theme |\n| **settings** | Read user configuration |\n| **process** | Execute git and gh CLI commands |"
         }
       ]
     }
