@@ -15,6 +15,7 @@ import {
   validateOrgUrl,
   validateProjectName,
   normalizeProjectName,
+  parseRawWorkItem,
 } from "./helpers";
 import { useTheme } from './use-theme';
 
@@ -268,6 +269,28 @@ function parseWorkItemDetail(raw: Record<string, unknown>, config: AdoConfig): W
   };
 }
 
+/** Fetch a single work item by ID. */
+async function fetchSingleWorkItem(
+  api: PluginAPI,
+  config: AdoConfig,
+  id: number,
+): Promise<WorkItemListItem | null> {
+  const args = [
+    "boards", "work-item", "show",
+    "--id", String(id),
+    "--output", "json",
+    ...baseArgs(config),
+  ];
+  const r = await api.process.exec("az", args, { timeout: 30000 });
+  if (r.exitCode !== 0 || !r.stdout.trim()) return null;
+  try {
+    const parsed = JSON.parse(r.stdout) as Record<string, unknown>;
+    return parseRawWorkItem(parsed);
+  } catch {
+    return null;
+  }
+}
+
 /** Parse WIQL query results (list of IDs) and fetch work item details. */
 async function fetchWorkItemsByIds(
   api: PluginAPI,
@@ -276,12 +299,20 @@ async function fetchWorkItemsByIds(
 ): Promise<WorkItemListItem[]> {
   if (ids.length === 0) return [];
 
-  // az boards work-item show supports single ID; batch via comma-separated IDs
+  // Try batch fetch first (comma-separated IDs), fall back to individual fetches
   const batchSize = 50;
   const results: WorkItemListItem[] = [];
 
   for (let i = 0; i < ids.length; i += batchSize) {
     const batch = ids.slice(i, i + batchSize);
+
+    if (batch.length === 1) {
+      // Single ID — fetch directly
+      const item = await fetchSingleWorkItem(api, config, batch[0]);
+      if (item) results.push(item);
+      continue;
+    }
+
     const args = [
       "boards", "work-item", "show",
       "--id", batch.join(","),
@@ -289,32 +320,38 @@ async function fetchWorkItemsByIds(
       ...baseArgs(config),
     ];
     const r = await api.process.exec("az", args, { timeout: 30000 });
-    if (r.exitCode !== 0 || !r.stdout.trim()) continue;
 
-    const parsed = JSON.parse(r.stdout);
-    // Single ID returns object, multiple returns array
-    const items: Record<string, unknown>[] = Array.isArray(parsed) ? parsed : [parsed];
-
-    for (const raw of items) {
-      const fields = raw.fields as Record<string, unknown> | undefined;
-      if (!fields) continue;
-      const assignedToField = fields["System.AssignedTo"];
-      const assignedTo = typeof assignedToField === "object" && assignedToField !== null
-        ? (assignedToField as Record<string, string>).displayName || ""
-        : typeof assignedToField === "string" ? assignedToField : "";
-
-      results.push({
-        id: (raw.id as number) || 0,
-        title: (fields["System.Title"] as string) || "",
-        state: (fields["System.State"] as string) || "",
-        workItemType: (fields["System.WorkItemType"] as string) || "",
-        assignedTo,
-        changedDate: (fields["System.ChangedDate"] as string) || "",
-        tags: (fields["System.Tags"] as string) || "",
-        priority: (fields["Microsoft.VSTS.Common.Priority"] as number) || 0,
-        areaPath: (fields["System.AreaPath"] as string) || "",
-        iterationPath: (fields["System.IterationPath"] as string) || "",
+    if (r.exitCode !== 0 || !r.stdout.trim()) {
+      // Batch fetch failed — fall back to individual fetches
+      api.logging.warn("ADO batch work-item show failed, falling back to individual fetches", {
+        exitCode: r.exitCode,
+        stderr: r.stderr,
+        batchSize: batch.length,
       });
+      for (const id of batch) {
+        const item = await fetchSingleWorkItem(api, config, id);
+        if (item) results.push(item);
+      }
+      continue;
+    }
+
+    try {
+      const parsed = JSON.parse(r.stdout);
+      // Single ID returns object, multiple returns array
+      const items: Record<string, unknown>[] = Array.isArray(parsed) ? parsed : [parsed];
+
+      for (const raw of items) {
+        const item = parseRawWorkItem(raw);
+        if (item) results.push(item);
+      }
+    } catch (err) {
+      api.logging.warn("ADO batch response parse failed, falling back to individual fetches", {
+        error: String(err),
+      });
+      for (const id of batch) {
+        const item = await fetchSingleWorkItem(api, config, id);
+        if (item) results.push(item);
+      }
     }
   }
 
@@ -1512,7 +1549,7 @@ export function MainPanel({ api }: PanelProps) {
 
   if (creatingNew) {
     return (
-      <div style={mainContainer}>
+      <div style={{ ...themeStyle, ...mainContainer }}>
         <div style={mainHeader}>
           <span style={{ fontSize: "13px", fontWeight: 500, color: "var(--text-primary, #e4e4e7)" }}>
             New Work Item
@@ -1655,7 +1692,7 @@ export function MainPanel({ api }: PanelProps) {
 
   if (selected === null) {
     return (
-      <div style={{ ...mainContainer, justifyContent: "center", alignItems: "center" }}>
+      <div style={{ ...themeStyle, ...mainContainer, justifyContent: "center", alignItems: "center" }}>
         <span style={{ fontSize: "12px", color: "var(--text-secondary, #a1a1aa)" }}>
           Select a work item to view details
         </span>
@@ -1665,7 +1702,7 @@ export function MainPanel({ api }: PanelProps) {
 
   if (loading) {
     return (
-      <div style={{ ...mainContainer, justifyContent: "center", alignItems: "center" }}>
+      <div style={{ ...themeStyle, ...mainContainer, justifyContent: "center", alignItems: "center" }}>
         <span style={{ fontSize: "12px", color: "var(--text-secondary, #a1a1aa)" }}>
           Loading work item{"\u2026"}
         </span>
@@ -1675,7 +1712,7 @@ export function MainPanel({ api }: PanelProps) {
 
   if (!detail) {
     return (
-      <div style={{ ...mainContainer, justifyContent: "center", alignItems: "center" }}>
+      <div style={{ ...themeStyle, ...mainContainer, justifyContent: "center", alignItems: "center" }}>
         <span style={{ fontSize: "12px", color: "var(--text-secondary, #a1a1aa)" }}>
           Failed to load work item details
         </span>
