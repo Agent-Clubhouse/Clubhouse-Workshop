@@ -25,7 +25,7 @@ function createSpyStorage(): ScopedStorage & { _data: Map<string, unknown> } {
 
 function createApiWithStorage(storage: ScopedStorage): PluginAPI {
   return createMockAPI({
-    storage: { global: storage },
+    storage: { projectLocal: storage },
   } as Parameters<typeof createMockAPI>[0]);
 }
 
@@ -36,8 +36,8 @@ describe('standup plugin manifest', () => {
     expect(manifest.id).toBe('standup');
   });
 
-  it('is app-scoped', () => {
-    expect(manifest.scope).toBe('app');
+  it('is project-scoped', () => {
+    expect(manifest.scope).toBe('project');
   });
 
   it('targets API v0.6', () => {
@@ -61,11 +61,10 @@ describe('standup plugin manifest', () => {
     }
   });
 
-  it('contributes a rail item with sidebar-content layout', () => {
-    expect(manifest.contributes?.railItem).toBeDefined();
-    expect(manifest.contributes!.railItem!.label).toBe('Standup');
-    expect(manifest.contributes!.railItem!.position).toBe('top');
-    expect((manifest.contributes!.railItem as { layout?: string }).layout).toBe('sidebar-content');
+  it('contributes a tab with sidebar-content layout', () => {
+    expect(manifest.contributes?.tab).toBeDefined();
+    expect(manifest.contributes!.tab!.label).toBe('Standup');
+    expect(manifest.contributes!.tab!.layout).toBe('sidebar-content');
   });
 
   it('contributes the generate command', () => {
@@ -91,8 +90,8 @@ describe('standup plugin manifest', () => {
     expect(manifest.contributes!.help!.topics!.length).toBeGreaterThan(0);
   });
 
-  it('has a rail item icon (SVG string)', () => {
-    expect(manifest.contributes!.railItem!.icon).toContain('<svg');
+  it('has a tab icon (SVG string)', () => {
+    expect(manifest.contributes!.tab!.icon).toContain('<svg');
   });
 
   it('specifies main entry point', () => {

@@ -129,7 +129,7 @@ var MAX_HISTORY = 90;
 var DEFAULT_PROMPT = "You are a concise standup report generator. Given git activity data, produce a brief daily standup in first person with sections: **Done** (what was accomplished), **Next** (what's planned based on context), **Blockers** (any potential issues). Keep each section to 3-5 bullet points max. Be specific about what changed \u2014 reference file names, features, and fixes.";
 var standupState = createStandupState();
 async function loadHistory(api) {
-  const raw = await api.storage.global.read(HISTORY_KEY);
+  const raw = await api.storage.projectLocal.read(HISTORY_KEY);
   if (typeof raw === "string") {
     try {
       return JSON.parse(raw);
@@ -142,7 +142,7 @@ async function loadHistory(api) {
 }
 async function saveHistory(api, history) {
   if (history.length > MAX_HISTORY) history.length = MAX_HISTORY;
-  await api.storage.global.write(HISTORY_KEY, history);
+  await api.storage.projectLocal.write(HISTORY_KEY, history);
 }
 function toDateStr(d) {
   return d.toISOString().split("T")[0];
