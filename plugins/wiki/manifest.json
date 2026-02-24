@@ -60,9 +60,24 @@
     "help": {
       "topics": [
         {
-          "id": "wiki-browser",
-          "title": "Wiki Browser",
-          "content": "## Wiki Browser\n\nThe Wiki tab lets you browse and edit markdown wikis stored outside the project.\n\n### View mode\n- Renders `.md` files with syntax-highlighted preview\n- File names are prettified (dashes/underscores become spaces, title-cased)\n- Only markdown files are shown in the tree\n\n### Edit mode\n- Full file explorer with all files visible\n- Editor with Cmd+S / Ctrl+S to save\n- Right-click for file operations (create, rename, copy, delete)\n\n### Agent integration\n- **Run Agent in Wiki** button spawns a quick agent with wiki context\n- **Send to Agent** sends the current page to a quick or durable agent\n\n### Settings\n- **Wiki path** — Set the absolute path to your wiki directory\n- **Wiki format** — Choose GitHub or ADO (Azure DevOps) wiki format\n- **Show hidden files** — Toggle visibility of dotfiles (edit mode only)\n\n### ADO Wiki support\n- Respects `.order` files for page ordering\n- Standard markdown links navigate within the wiki\n- Folder index pages (same-named `.md` file) shown as folder content"
+          "id": "overview",
+          "title": "Overview",
+          "content": "## Wiki\n\nBrowse and edit markdown wikis stored in external directories. Supports both GitHub wiki format ([[wiki links]], alphabetical ordering) and Azure DevOps wiki format (.order files, markdown links).\n\nConfigure the wiki path and format in settings."
+        },
+        {
+          "id": "features",
+          "title": "Key Features",
+          "content": "## Key Features\n\n**View Mode** — Renders markdown files with syntax-highlighted preview. File names are prettified (dashes/underscores become spaces). Only markdown files are shown.\n\n**Edit Mode** — Full file explorer showing all files. Edit with Cmd+S / Ctrl+S to save. Right-click for file operations (create, rename, copy, delete).\n\n**Agent Integration** — **Run Agent in Wiki** spawns a quick agent with wiki context. **Send to Agent** sends the current page to a quick or durable agent.\n\n**ADO Wiki Support** — Respects `.order` files for page ordering. Folder index pages (same-named `.md` file) are shown as folder content.\n\n**Settings** — Wiki path (absolute or relative to project root), wiki format (GitHub or ADO), and show hidden files toggle."
+        },
+        {
+          "id": "commands",
+          "title": "Commands",
+          "content": "## Commands\n\nAvailable from the command palette:\n\n| Command | Description |\n|---------|-------------|\n| **Refresh Wiki Tree** | Reloads the file tree from disk |\n| **New Wiki Page** | Creates a new markdown page at the wiki root |\n| **Toggle View/Edit Mode** | Switches between view and edit mode |"
+        },
+        {
+          "id": "permissions",
+          "title": "Permissions",
+          "content": "## Permissions\n\n| Permission | Why it's needed |\n|------------|----------------|\n| **files** | Read and write wiki files within the project |\n| **files.external** | Access wiki directories outside the project root |\n| **commands** | Register command palette entries |\n| **notifications** | Show success/error notifications |\n| **agents** | Spawn quick agents for wiki-context tasks |\n| **navigation** | Navigate to agent panels |\n| **storage** | Persist plugin state |\n| **widgets** | Render UI components |\n| **theme** | Adapt colors and styles to the current theme |"
         }
       ]
     }
