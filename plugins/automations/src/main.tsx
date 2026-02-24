@@ -3,6 +3,7 @@ import type { PluginContext, PluginAPI, PluginModule, ModelOption, CompletedQuic
 import type { Automation, RunRecord } from './types';
 import { matchesCron, describeSchedule, validateCronExpression, PRESETS } from './cron';
 import * as S from './styles';
+import { useTheme } from './use-theme';
 
 // ── Storage keys ────────────────────────────────────────────────────────
 const AUTOMATIONS_KEY = 'automations';
@@ -153,6 +154,7 @@ function formatTime(ts: number): string {
 // ── MainPanel ───────────────────────────────────────────────────────────
 
 export function MainPanel({ api }: { api: PluginAPI }) {
+  const { style: themeStyle } = useTheme(api.theme);
   const storage = api.storage.projectLocal;
 
   const [automations, setAutomations] = useState<Automation[]>([]);
@@ -303,7 +305,7 @@ export function MainPanel({ api }: { api: PluginAPI }) {
 
   // ── Render ──────────────────────────────────────────────────────────
   return (
-    <div style={S.container}>
+    <div style={{ ...themeStyle, ...S.container }}>
       {/* ── Left sidebar: automation list ────────────────────────────── */}
       <div style={S.sidebar}>
         {/* Header */}

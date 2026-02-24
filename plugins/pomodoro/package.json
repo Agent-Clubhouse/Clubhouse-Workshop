@@ -11,8 +11,8 @@
     "test": "vitest run"
   },
   "devDependencies": {
-    "@clubhouse/plugin-testing": "file:../../sdk/v0.5/plugin-testing",
-    "@clubhouse/plugin-types": "file:../../sdk/v0.5/plugin-types",
+    "@clubhouse/plugin-testing": "file:../../sdk/v0.6/plugin-testing",
+    "@clubhouse/plugin-types": "file:../../sdk/v0.6/plugin-types",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "esbuild": "^0.24.0",

@@ -16,7 +16,7 @@
       "deprecated": null,
       "removalTarget": null,
       "sdkPath": "sdk/v0.6",
-      "notes": "Adds AgentConfigAPI for plugin-driven agent configuration (skills, templates, instructions, permissions, MCP servers). Extends CommandsAPI with keyboard binding support. Extends NavigationAPI with popOutAgent, toggleSidebar, and toggleAccessoryPanel."
+      "notes": "Adds ThemeAPI for reading the active theme and subscribing to theme changes. Adds SoundsAPI for custom notification sound packs. Adds AgentConfigAPI for plugin-driven agent configuration (skills, templates, instructions, permissions, MCP servers). Extends CommandsAPI with keyboard binding support. Extends NavigationAPI with popOutAgent, toggleSidebar, and toggleAccessoryPanel."
     }
   }
 }

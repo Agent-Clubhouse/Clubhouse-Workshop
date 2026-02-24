@@ -4,6 +4,8 @@ import type {
   PanelProps,
 } from "@clubhouse/plugin-types";
 
+import { useTheme } from './use-theme';
+
 const React = globalThis.React;
 const { useState, useEffect, useCallback } = React;
 
@@ -63,6 +65,7 @@ export function deactivate(): void {}
 // ---------------------------------------------------------------------------
 
 export function MainPanel({ api }: PanelProps) {
+  const { style: themeStyle } = useTheme(api.theme);
   const [history, setHistory] = useState<StandupEntry[]>([]);
   const [running, setRunning] = useState(false);
   const [selected, setSelected] = useState<StandupEntry | null>(null);
@@ -126,7 +129,7 @@ Keep it brief — 3-5 bullet points per section. Write in first person.`;
   };
 
   return (
-    <div style={styles.container}>
+    <div style={{ ...themeStyle, ...styles.container }}>
       <h2 style={{ marginTop: 0 }}>Standup</h2>
 
       <button onClick={generate} disabled={running} style={{ cursor: "pointer" }}>

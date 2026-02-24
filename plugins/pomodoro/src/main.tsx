@@ -1,4 +1,5 @@
 import type { PluginContext, PluginAPI, PanelProps } from "@clubhouse/plugin-types";
+import { useTheme } from './use-theme';
 
 const React = globalThis.React;
 const { useState, useEffect, useCallback, useRef } = React;
@@ -81,6 +82,7 @@ export function deactivate(): void {}
 // ---------------------------------------------------------------------------
 
 export function MainPanel({ api }: PanelProps) {
+  const { style: themeStyle } = useTheme(api.theme);
   const [phase, setPhase] = useState<TimerPhase>("idle");
   const [remaining, setRemaining] = useState(WORK_DURATION);
   const [todaySessions, setTodaySessions] = useState(0);
@@ -220,7 +222,7 @@ export function MainPanel({ api }: PanelProps) {
   };
 
   return (
-    <div style={styles.container}>
+    <div style={{ ...themeStyle, ...styles.container }}>
       <h2 style={{ marginTop: 0 }}>Pomodoro</h2>
 
       <div style={styles.phaseLabel}>

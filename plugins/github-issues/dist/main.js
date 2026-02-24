@@ -127,6 +127,87 @@ function createIssueState() {
   return state;
 }
 
+// src/use-theme.ts
+function hexToRgba(hex, alpha) {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+function mapThemeToCSS(theme) {
+  const c = theme.colors;
+  const onAccent = theme.type === "dark" ? "#ffffff" : "#000000";
+  return {
+    // Text
+    "--text-primary": c.text,
+    "--text-secondary": c.subtext1,
+    "--text-tertiary": c.subtext0,
+    "--text-muted": c.surface2,
+    "--text-error": c.error,
+    "--text-success": c.success,
+    "--text-warning": c.warning,
+    "--text-info": c.info,
+    "--text-accent": c.accent,
+    "--text-on-badge": onAccent,
+    "--text-on-accent": onAccent,
+    // Backgrounds
+    "--bg-primary": c.base,
+    "--bg-secondary": c.mantle,
+    "--bg-tertiary": c.crust,
+    "--bg-surface": c.surface0,
+    "--bg-surface-hover": c.surface1,
+    "--bg-surface-raised": c.surface2,
+    "--bg-active": c.surface1,
+    "--bg-error": hexToRgba(c.error, 0.1),
+    "--bg-error-subtle": hexToRgba(c.error, 0.05),
+    "--bg-success": hexToRgba(c.success, 0.15),
+    "--bg-warning": hexToRgba(c.warning, 0.15),
+    "--bg-info": hexToRgba(c.info, 0.1),
+    "--bg-accent": hexToRgba(c.accent, 0.15),
+    "--bg-overlay": "rgba(0, 0, 0, 0.5)",
+    // Borders
+    "--border-primary": c.surface0,
+    "--border-secondary": c.surface1,
+    "--border-error": hexToRgba(c.error, 0.3),
+    "--border-info": hexToRgba(c.info, 0.3),
+    "--border-accent": hexToRgba(c.accent, 0.3),
+    // Shadows & overlays
+    "--shadow": "rgba(0, 0, 0, 0.3)",
+    "--shadow-light": "rgba(0, 0, 0, 0.15)",
+    "--shadow-heavy": "rgba(0, 0, 0, 0.5)",
+    "--shadow-menu": "rgba(0, 0, 0, 0.3)",
+    "--shadow-color": "rgba(0, 0, 0, 0.5)",
+    "--overlay": "rgba(0, 0, 0, 0.5)",
+    "--glow-error": hexToRgba(c.error, 0.3),
+    "--glow-accent": hexToRgba(c.accent, 0.3),
+    // Fonts
+    "--font-family": "system-ui, -apple-system, sans-serif",
+    "--font-mono": "ui-monospace, monospace",
+    // Color aliases (file icons, labels, etc.)
+    "--color-blue": c.info,
+    "--color-green": c.success,
+    "--color-yellow": c.warning,
+    "--color-orange": c.warning,
+    "--color-red": c.error,
+    "--color-purple": c.accent,
+    "--color-cyan": c.info
+  };
+}
+function useTheme(themeApi) {
+  const React2 = globalThis.React;
+  const [theme, setTheme] = React2.useState(() => themeApi.getCurrent());
+  React2.useEffect(() => {
+    setTheme(themeApi.getCurrent());
+    const disposable = themeApi.onDidChange((t) => setTheme(t));
+    return () => disposable.dispose();
+  }, [themeApi]);
+  const style = React2.useMemo(
+    () => mapThemeToCSS(theme),
+    [theme]
+  );
+  return { style, themeType: theme.type };
+}
+
 // src/main.tsx
 import { Fragment, jsx, jsxs } from "react/jsx-runtime";
 var React = globalThis.React;
@@ -869,6 +950,7 @@ ${instructions.trim()}`;
   );
 }
 function SidebarPanel({ api }) {
+  const { style: themeStyle } = useTheme(api.theme);
   const [issues, setIssues] = useState(issueState.issues);
   const [selected, setSelected] = useState(issueState.selectedIssueNumber);
   const [loading, setLoading] = useState(false);
@@ -964,13 +1046,13 @@ function SidebarPanel({ api }) {
     issueState.setStateFilter(val);
   }, []);
   if (error) {
-    return /* @__PURE__ */ jsx("div", { style: { ...sidebarContainer, justifyContent: "center", alignItems: "center" }, children: /* @__PURE__ */ jsxs("div", { style: { padding: "16px", textAlign: "center" }, children: [
+    return /* @__PURE__ */ jsx("div", { style: { ...themeStyle, ...sidebarContainer, justifyContent: "center", alignItems: "center" }, children: /* @__PURE__ */ jsxs("div", { style: { padding: "16px", textAlign: "center" }, children: [
       /* @__PURE__ */ jsx("div", { style: { fontSize: "12px", color: "var(--text-error, #f87171)", marginBottom: "8px" }, children: "Could not load issues" }),
       /* @__PURE__ */ jsx("div", { style: { fontSize: "11px", color: "var(--text-secondary, #a1a1aa)", marginBottom: "12px" }, children: error }),
       /* @__PURE__ */ jsx("button", { onClick: () => fetchIssues(1, false), style: btnSecondarySmall, children: "Retry" })
     ] }) });
   }
-  return /* @__PURE__ */ jsxs("div", { style: sidebarContainer, children: [
+  return /* @__PURE__ */ jsxs("div", { style: { ...themeStyle, ...sidebarContainer }, children: [
     /* @__PURE__ */ jsxs("div", { style: sidebarHeader, children: [
       /* @__PURE__ */ jsx("span", { style: { fontSize: "12px", fontWeight: 500, color: "var(--text-primary, #e4e4e7)" }, children: "Issues" }),
       /* @__PURE__ */ jsxs("div", { style: { display: "flex", alignItems: "center", gap: "4px" }, children: [
@@ -1095,6 +1177,7 @@ function SidebarPanel({ api }) {
   ] });
 }
 function MainPanel({ api }) {
+  const { style: themeStyle } = useTheme(api.theme);
   const [selected, setSelected] = useState(issueState.selectedIssueNumber);
   const [creatingNew, setCreatingNew] = useState(issueState.creatingNew);
   const [detail, setDetail] = useState(null);
@@ -1416,7 +1499,7 @@ function MainPanel({ api }) {
     border: "1px solid",
     ...isOpen ? { background: "rgba(64,200,100,0.1)", color: "#4ade80", borderColor: "rgba(64,200,100,0.3)" } : { background: "rgba(168,85,247,0.1)", color: "#c084fc", borderColor: "rgba(168,85,247,0.3)" }
   };
-  return /* @__PURE__ */ jsxs("div", { style: { ...mainContainer, position: "relative" }, children: [
+  return /* @__PURE__ */ jsxs("div", { style: { ...themeStyle, ...mainContainer, position: "relative" }, children: [
     /* @__PURE__ */ jsxs("div", { style: { ...mainHeader, gap: "8px" }, children: [
       editing ? /* @__PURE__ */ jsx("div", { style: { flex: 1, minWidth: 0 }, children: /* @__PURE__ */ jsx(
         "input",

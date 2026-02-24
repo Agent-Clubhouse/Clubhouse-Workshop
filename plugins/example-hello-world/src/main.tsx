@@ -1,4 +1,5 @@
 import type { PluginContext, PluginAPI, PanelProps } from "@clubhouse/plugin-types";
+import { useTheme } from './use-theme';
 
 const React = globalThis.React;
 const { useState, useEffect, useCallback } = React;
@@ -29,6 +30,7 @@ export function deactivate(): void {
 // ---------------------------------------------------------------------------
 
 export function MainPanel({ api }: PanelProps) {
+  const { style: themeStyle } = useTheme(api.theme);
   const [count, setCount] = useState<number>(0);
   const [loaded, setLoaded] = useState(false);
 
@@ -63,7 +65,7 @@ export function MainPanel({ api }: PanelProps) {
   }
 
   return (
-    <div style={{ padding: 24, fontFamily: "var(--font-family, sans-serif)" }}>
+    <div style={{ ...themeStyle, padding: 24, fontFamily: "var(--font-family, sans-serif)" }}>
       <h2 style={{ marginTop: 0 }}>Hello from Workshop!</h2>
       <p style={{ color: "var(--text-secondary, #888)" }}>
         This is a minimal Clubhouse plugin. It demonstrates storage, logging,

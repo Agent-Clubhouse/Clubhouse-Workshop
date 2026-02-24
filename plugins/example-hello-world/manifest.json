@@ -5,10 +5,10 @@
   "description": "A minimal example plugin for Clubhouse.",
   "author": "Clubhouse Workshop",
   "official": true,
-  "engine": { "api": 0.5 },
+  "engine": { "api": 0.6 },
   "scope": "project",
   "main": "./dist/main.js",
-  "permissions": ["logging", "storage", "notifications", "commands"],
+  "permissions": ["logging", "storage", "notifications", "commands", "theme"],
   "contributes": {
     "tab": {
       "label": "Hello",

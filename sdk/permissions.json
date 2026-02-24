@@ -36,7 +36,9 @@
       "agent-config",
       "agent-config.cross-project",
       "agent-config.permissions",
-      "agent-config.mcp"
+      "agent-config.mcp",
+      "sounds",
+      "theme"
     ]
   },
   "sensitive": [

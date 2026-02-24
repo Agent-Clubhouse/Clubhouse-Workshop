@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "description": "Create and manage GitHub issues with template support, label validation, and agent assignment",
   "author": "Clubhouse Workshop",
-  "engine": { "api": 0.5 },
+  "engine": { "api": 0.6 },
   "scope": "project",
   "main": "./dist/main.js",
   "settingsPanel": "declarative",
@@ -48,7 +48,8 @@
     "commands",
     "process",
     "git",
-    "widgets"
+    "widgets",
+    "theme"
   ],
   "allowedCommands": ["gh"]
 }

@@ -5,10 +5,10 @@
   "description": "A simple Pomodoro timer to keep your work sessions focused.",
   "author": "Clubhouse Workshop",
   "official": true,
-  "engine": { "api": 0.5 },
+  "engine": { "api": 0.6 },
   "scope": "app",
   "main": "./dist/main.js",
-  "permissions": ["logging", "storage", "notifications", "commands", "widgets"],
+  "permissions": ["logging", "storage", "notifications", "commands", "widgets", "theme"],
   "contributes": {
     "railItem": {
       "label": "Pomodoro",

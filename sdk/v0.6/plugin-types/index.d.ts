@@ -167,7 +167,9 @@ export type PluginPermission =
   | "agent-config"
   | "agent-config.cross-project"
   | "agent-config.permissions"
-  | "agent-config.mcp";
+  | "agent-config.mcp"
+  | "sounds"
+  | "theme";
 
 export interface PluginExternalRoot {
   settingKey: string;
@@ -206,6 +208,16 @@ export interface PluginHelpContribution {
   topics?: PluginHelpTopic[];
 }
 
+export interface PluginSoundPackDeclaration {
+  /** Display name for the sound pack. */
+  name: string;
+  /**
+   * Mapping of sound event names to audio file paths relative to the plugin directory.
+   * e.g., { "agent-done": "sounds/done.mp3", "error": "sounds/error.wav" }
+   */
+  sounds: Record<string, string>;
+}
+
 export interface PluginContributes {
   tab?: {
     label: string;
@@ -221,6 +233,8 @@ export interface PluginContributes {
   settings?: PluginSettingDeclaration[];
   storage?: PluginStorageDeclaration;
   help?: PluginHelpContribution;
+  /** Declare a sound pack that ships with this plugin. */
+  sounds?: PluginSoundPackDeclaration;
 }
 
 export interface PluginManifest {
@@ -446,6 +460,41 @@ export interface ProcessAPI {
 }
 
 // ---------------------------------------------------------------------------
+// Sounds API (v0.6+)
+// ---------------------------------------------------------------------------
+
+export interface SoundsAPI {
+  /** Register a sound pack from this plugin. Uses the plugin's sounds/ directory. */
+  registerPack(name?: string): Promise<void>;
+  /** Unregister the sound pack from this plugin. */
+  unregisterPack(): Promise<void>;
+  /** List all available sound packs (user + plugin). */
+  listPacks(): Promise<Array<{ id: string; name: string; source: "user" | "plugin" }>>;
+}
+
+// ---------------------------------------------------------------------------
+// Theme API (v0.6+)
+// ---------------------------------------------------------------------------
+
+export interface ThemeInfo {
+  id: string;
+  name: string;
+  type: "dark" | "light";
+  colors: Record<string, string>;
+  hljs: Record<string, string>;
+  terminal: Record<string, string>;
+}
+
+export interface ThemeAPI {
+  /** Get the current theme ID and full color definition. */
+  getCurrent(): ThemeInfo;
+  /** Subscribe to theme changes (fires on user theme switch). Returns a Disposable. */
+  onDidChange(callback: (theme: ThemeInfo) => void): Disposable;
+  /** Get a single resolved CSS color value by token name (e.g. 'base', 'accent', 'hljs.keyword'). */
+  getColor(token: string): string | null;
+}
+
+// ---------------------------------------------------------------------------
 // Agent Config API (v0.6+)
 // ---------------------------------------------------------------------------
 
@@ -547,6 +596,8 @@ export interface PluginAPI {
   process: ProcessAPI;
   badges: BadgesAPI;
   agentConfig: AgentConfigAPI;
+  sounds: SoundsAPI;
+  theme: ThemeAPI;
   context: PluginContextInfo;
 }
 

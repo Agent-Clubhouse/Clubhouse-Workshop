@@ -4,6 +4,7 @@ import type { PluginContext, PluginAPI, PanelProps } from '@clubhouse/plugin-typ
 import { wikiState } from './state';
 import { WikiTree } from './WikiTree';
 import { WikiViewer } from './WikiViewer';
+import { useTheme } from './use-theme';
 
 export function activate(ctx: PluginContext, api: PluginAPI): void {
   const disposable = api.commands.register('refresh', () => {
@@ -17,9 +18,19 @@ export function deactivate(): void {
 }
 
 export function SidebarPanel({ api }: PanelProps) {
-  return <WikiTree api={api} />;
+  const { style: themeStyle } = useTheme(api.theme);
+  return (
+    <div style={{ ...themeStyle, height: '100%' }}>
+      <WikiTree api={api} />
+    </div>
+  );
 }
 
 export function MainPanel({ api }: PanelProps) {
-  return <WikiViewer api={api} />;
+  const { style: themeStyle } = useTheme(api.theme);
+  return (
+    <div style={{ ...themeStyle }}>
+      <WikiViewer api={api} />
+    </div>
+  );
 }
