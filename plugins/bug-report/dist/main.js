@@ -532,11 +532,7 @@ async function fetchIssues(api, page, author) {
     "--limit",
     String(PER_PAGE + 1),
     "--state",
-    "all",
-    "--sort",
-    "created",
-    "--order",
-    "desc"
+    "all"
   ];
   if (author) {
     args.push("--author", author);

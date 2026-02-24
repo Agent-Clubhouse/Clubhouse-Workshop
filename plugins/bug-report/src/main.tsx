@@ -386,8 +386,6 @@ export async function fetchIssues(
     "--json", ISSUE_FIELDS,
     "--limit", String(PER_PAGE + 1),
     "--state", "all",
-    "--sort", "created",
-    "--order", "desc",
   ];
   if (author) {
     args.push("--author", author);
