@@ -16,6 +16,8 @@ import {
   validateProjectName,
   normalizeProjectName,
   parseRawWorkItem,
+  baseArgs,
+  orgArgs,
 } from "./helpers";
 import { useTheme } from './use-theme';
 
@@ -206,13 +208,6 @@ function getConfig(api: PluginAPI): AdoConfig {
   };
 }
 
-function baseArgs(config: AdoConfig): string[] {
-  const args: string[] = [];
-  if (config.organization) args.push("--org", config.organization);
-  if (config.project) args.push("--project", config.project);
-  return args;
-}
-
 function buildWorkItemUrl(config: AdoConfig, id: number): string {
   return `${config.organization}/${encodeURIComponent(config.project)}/_workitems/edit/${id}`;
 }
@@ -279,14 +274,18 @@ async function fetchSingleWorkItem(
     "boards", "work-item", "show",
     "--id", String(id),
     "--output", "json",
-    ...baseArgs(config),
+    ...orgArgs(config),
   ];
   const r = await api.process.exec("az", args, { timeout: 30000 });
-  if (r.exitCode !== 0 || !r.stdout.trim()) return null;
+  if (r.exitCode !== 0 || !r.stdout.trim()) {
+    api.logging.debug("ADO work-item show failed", { id, exitCode: r.exitCode, stderr: r.stderr });
+    return null;
+  }
   try {
     const parsed = JSON.parse(r.stdout) as Record<string, unknown>;
     return parseRawWorkItem(parsed);
-  } catch {
+  } catch (err) {
+    api.logging.debug("ADO work-item show parse failed", { id, error: String(err) });
     return null;
   }
 }
@@ -317,7 +316,7 @@ async function fetchWorkItemsByIds(
       "boards", "work-item", "show",
       "--id", batch.join(","),
       "--output", "json",
-      ...baseArgs(config),
+      ...orgArgs(config),
     ];
     const r = await api.process.exec("az", args, { timeout: 30000 });
 
@@ -369,7 +368,10 @@ async function fetchComments(
   // We use the REST API via `az rest` to get comments.
   const url = `${config.organization}/${encodeURIComponent(config.project)}/_apis/wit/workItems/${workItemId}/comments?api-version=7.1-preview.4`;
   const r = await api.process.exec("az", ["rest", "--method", "get", "--url", url, "--output", "json"], { timeout: 30000 });
-  if (r.exitCode !== 0 || !r.stdout.trim()) return [];
+  if (r.exitCode !== 0 || !r.stdout.trim()) {
+    api.logging.debug("ADO comment fetch failed", { workItemId, exitCode: r.exitCode, stderr: r.stderr });
+    return [];
+  }
   try {
     const data = JSON.parse(r.stdout);
     const comments: Array<{ author: string; body: string; createdDate: string }> = [];
@@ -383,7 +385,8 @@ async function fetchComments(
       }
     }
     return comments;
-  } catch {
+  } catch (err) {
+    api.logging.debug("ADO comment parse failed", { workItemId, error: String(err) });
     return [];
   }
 }
@@ -984,8 +987,9 @@ export function SidebarPanel({ api }: PanelProps) {
       const results = await fetchWorkItemsByIds(api, config, ids);
       if (!mountedRef.current) return;
       workItemState.setItems(results);
-    } catch {
+    } catch (err) {
       if (!mountedRef.current) return;
+      api.logging.warn("ADO fetchItems failed", { error: String(err) });
       setError("Failed to load work items. Is the Azure CLI installed and authenticated?");
     } finally {
       workItemState.setLoading(false);
@@ -1007,12 +1011,18 @@ export function SidebarPanel({ api }: PanelProps) {
     }
   }, [needsRefresh, fetchItems]);
 
-  // Re-fetch on settings change
+  // Re-fetch on settings change (debounced to avoid duplicate fetches when
+  // multiple settings fire in rapid succession during plugin load/reload)
   useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | null = null;
     const unsub = api.settings.onChange(() => {
-      workItemState.requestRefresh();
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => {
+        timer = null;
+        workItemState.requestRefresh();
+      }, 300);
     });
-    return () => unsub.dispose();
+    return () => { if (timer) clearTimeout(timer); unsub.dispose(); };
   }, [api]);
 
   // Filter items by search query (client-side)
@@ -1362,7 +1372,7 @@ export function MainPanel({ api }: PanelProps) {
         "boards", "work-item", "show",
         "--id", String(selected),
         "--output", "json",
-        ...baseArgs(config),
+        ...orgArgs(config),
       ];
       const r = await api.process.exec("az", args, { timeout: 30000 });
       if (cancelled) return;

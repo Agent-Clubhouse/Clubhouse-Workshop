@@ -157,6 +157,27 @@ export function parseRawWorkItem(
   };
 }
 
+/**
+ * Build the common --org and --project CLI args for az commands that accept both.
+ * Used by: `az boards query`, `az boards work-item create`, `az boards work-item update`.
+ */
+export function baseArgs(config: { organization: string; project: string }): string[] {
+  const args: string[] = [];
+  if (config.organization) args.push("--org", config.organization);
+  if (config.project) args.push("--project", config.project);
+  return args;
+}
+
+/**
+ * Build only the --org CLI arg.  Use for `az boards work-item show` which
+ * does NOT accept --project (work item IDs are unique within an organization).
+ */
+export function orgArgs(config: { organization: string }): string[] {
+  const args: string[] = [];
+  if (config.organization) args.push("--org", config.organization);
+  return args;
+}
+
 /** Strip HTML tags for plain-text display. */
 export function stripHtml(html: string): string {
   return html
