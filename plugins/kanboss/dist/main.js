@@ -2267,10 +2267,8 @@ function BoardView({ api }) {
   const [showConfigDialog, setShowConfigDialog] = useState5(false);
   const [zoomLevel, setZoomLevel] = useState5(1);
   const [filter, setFilter] = useState5(kanBossState.filter);
-  const selectedBoardIdRef = useRef3(selectedBoardId);
-  selectedBoardIdRef.current = selectedBoardId;
   const loadBoard2 = useCallback6(async () => {
-    const boardId = selectedBoardIdRef.current;
+    const boardId = kanBossState.selectedBoardId;
     if (!boardId) {
       setBoard(null);
       setCards([]);
