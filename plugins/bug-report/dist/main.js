@@ -465,20 +465,59 @@ function Markdown({ source }) {
 async function checkGhAuth(api) {
   try {
     const r = await api.process.exec("gh", ["api", "user", "-q", ".login"]);
+    api.logging.info(`gh api user: exitCode=${r.exitCode} stdout="${r.stdout.trim()}" stderr="${r.stderr.trim()}"`);
     const login = r.stdout.trim();
     if (login && r.exitCode === 0) return login;
-  } catch {
+  } catch (err) {
+    api.logging.warn(`gh api user threw: ${err instanceof Error ? err.message : String(err)}`);
   }
   try {
     const r = await api.process.exec("gh", ["auth", "status"]);
     const output = r.stdout + r.stderr;
+    api.logging.info(`gh auth status: exitCode=${r.exitCode} output="${output.slice(0, 200)}"`);
     if (output.includes("Logged in")) {
       const m = output.match(/account\s+(\S+)/);
       return m ? m[1] : "unknown";
     }
-  } catch {
+  } catch (err) {
+    api.logging.warn(`gh auth status threw: ${err instanceof Error ? err.message : String(err)}`);
   }
+  try {
+    const r = await api.process.exec("gh", [
+      "issue",
+      "list",
+      "--repo",
+      REPO,
+      "--limit",
+      "1",
+      "--json",
+      "number"
+    ]);
+    api.logging.info(`gh issue list probe: exitCode=${r.exitCode} stdout="${r.stdout.trim().slice(0, 100)}"`);
+    if (r.exitCode === 0 && r.stdout.trim().startsWith("[")) {
+      try {
+        const u = await api.process.exec("gh", ["api", "user", "-q", ".login"]);
+        if (u.exitCode === 0 && u.stdout.trim()) return u.stdout.trim();
+      } catch {
+      }
+      return "unknown";
+    }
+  } catch (err) {
+    api.logging.warn(`gh issue list probe threw: ${err instanceof Error ? err.message : String(err)}`);
+  }
+  api.logging.warn("All gh auth checks failed \u2014 treating as unauthenticated");
   return null;
+}
+function runAuthCheck(api) {
+  checkGhAuth(api).then((username) => {
+    if (username) {
+      reportState.setGhUsername(username);
+      reportState.setGhAuthed(true);
+      reportState.requestRefresh();
+    } else {
+      reportState.setGhAuthed(false);
+    }
+  });
 }
 var ISSUE_FIELDS = "number,title,state,url,createdAt,updatedAt,author,labels";
 var PER_PAGE = 30;
@@ -852,15 +891,7 @@ function SidebarPanel({ api }) {
   useEffect(() => reportState.subscribe(rerender), [rerender]);
   useEffect(() => {
     if (reportState.ghAuthed === null) {
-      checkGhAuth(api).then((username) => {
-        if (username) {
-          reportState.setGhUsername(username);
-          reportState.setGhAuthed(true);
-          reportState.requestRefresh();
-        } else {
-          reportState.setGhAuthed(false);
-        }
-      });
+      runAuthCheck(api);
     }
   }, [api]);
   useEffect(() => {
@@ -918,15 +949,8 @@ function SidebarPanel({ api }) {
             style: { ...S.btnSecondary, marginTop: "12px" },
             onClick: () => {
               reportState.ghAuthed = null;
-              checkGhAuth(api).then((username) => {
-                if (username) {
-                  reportState.setGhUsername(username);
-                  reportState.setGhAuthed(true);
-                  reportState.requestRefresh();
-                } else {
-                  reportState.setGhAuthed(false);
-                }
-              });
+              reportState.notify();
+              runAuthCheck(api);
             },
             children: "Retry"
           }
@@ -1230,12 +1254,20 @@ function MainPanel({ api }) {
   const [, setTick] = useState(0);
   const rerender = useCallback(() => setTick((t) => t + 1), []);
   useEffect(() => reportState.subscribe(rerender), [rerender]);
+  useEffect(() => {
+    if (reportState.ghAuthed === null) {
+      runAuthCheck(api);
+    }
+  }, [api]);
   const handleCreated = useCallback((num) => {
     reportState.setCreatingNew(false);
     reportState.setSelectedIssue(num);
     reportState.requestRefresh();
   }, []);
-  if (reportState.ghAuthed === false || reportState.ghAuthed === null) {
+  if (reportState.ghAuthed === null) {
+    return /* @__PURE__ */ jsx("div", { style: { ...themeStyle, ...S.main }, children: /* @__PURE__ */ jsx("div", { style: S.empty, children: /* @__PURE__ */ jsx("div", { style: S.spinner, children: "Checking GitHub authentication..." }) }) });
+  }
+  if (reportState.ghAuthed === false) {
     return /* @__PURE__ */ jsx("div", { style: { ...themeStyle, ...S.main }, children: /* @__PURE__ */ jsxs("div", { style: S.empty, children: [
       /* @__PURE__ */ jsxs("svg", { width: "48", height: "48", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5", strokeLinecap: "round", strokeLinejoin: "round", children: [
         /* @__PURE__ */ jsx("path", { d: "M8 2l1.88 1.88" }),
@@ -1255,7 +1287,19 @@ function MainPanel({ api }) {
         "Run ",
         /* @__PURE__ */ jsx("code", { style: { background: "var(--bg-secondary, #27272a)", padding: "1px 5px", borderRadius: "3px" }, children: "gh auth login" }),
         " to get started"
-      ] })
+      ] }),
+      /* @__PURE__ */ jsx(
+        "button",
+        {
+          style: { ...S.btnSecondary, marginTop: "12px" },
+          onClick: () => {
+            reportState.ghAuthed = null;
+            reportState.notify();
+            runAuthCheck(api);
+          },
+          children: "Retry"
+        }
+      )
     ] }) });
   }
   if (reportState.creatingNew) {
@@ -1286,5 +1330,6 @@ export {
   MainPanel,
   SidebarPanel,
   activate,
+  checkGhAuth,
   deactivate
 };
