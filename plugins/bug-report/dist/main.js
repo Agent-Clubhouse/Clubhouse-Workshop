@@ -1249,73 +1249,29 @@ function IssueDetailView({ api, issueNumber }) {
     ] })
   ] });
 }
-function MainPanel({ api }) {
-  const { style: themeStyle } = useTheme(api.theme);
+function ContentPane({ api }) {
   const [, setTick] = useState(0);
   const rerender = useCallback(() => setTick((t) => t + 1), []);
   useEffect(() => reportState.subscribe(rerender), [rerender]);
-  useEffect(() => {
-    if (reportState.ghAuthed === null) {
-      runAuthCheck(api);
-    }
-  }, [api]);
   const handleCreated = useCallback((num) => {
     reportState.setCreatingNew(false);
     reportState.setSelectedIssue(num);
     reportState.requestRefresh();
   }, []);
-  if (reportState.ghAuthed === null) {
-    return /* @__PURE__ */ jsx("div", { style: { ...themeStyle, ...S.main }, children: /* @__PURE__ */ jsx("div", { style: S.empty, children: /* @__PURE__ */ jsx("div", { style: S.spinner, children: "Checking GitHub authentication..." }) }) });
-  }
-  if (reportState.ghAuthed === false) {
-    return /* @__PURE__ */ jsx("div", { style: { ...themeStyle, ...S.main }, children: /* @__PURE__ */ jsxs("div", { style: S.empty, children: [
-      /* @__PURE__ */ jsxs("svg", { width: "48", height: "48", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5", strokeLinecap: "round", strokeLinejoin: "round", children: [
-        /* @__PURE__ */ jsx("path", { d: "M8 2l1.88 1.88" }),
-        /* @__PURE__ */ jsx("path", { d: "M14.12 3.88 16 2" }),
-        /* @__PURE__ */ jsx("path", { d: "M9 7.13v-1a3.003 3.003 0 1 1 6 0v1" }),
-        /* @__PURE__ */ jsx("path", { d: "M12 20c-3.3 0-6-2.7-6-6v-3a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v3c0 3.3-2.7 6-6 6" }),
-        /* @__PURE__ */ jsx("path", { d: "M12 20v-9" }),
-        /* @__PURE__ */ jsx("path", { d: "M6.53 9C4.6 8.8 3 7.1 3 5" }),
-        /* @__PURE__ */ jsx("path", { d: "M6 13H2" }),
-        /* @__PURE__ */ jsx("path", { d: "M3 21c0-2.1 1.7-3.9 3.8-4" }),
-        /* @__PURE__ */ jsx("path", { d: "M20.97 5c0 2.1-1.6 3.8-3.5 4" }),
-        /* @__PURE__ */ jsx("path", { d: "M22 13h-4" }),
-        /* @__PURE__ */ jsx("path", { d: "M17.2 17c2.1.1 3.8 1.9 3.8 4" })
-      ] }),
-      /* @__PURE__ */ jsx("div", { style: { fontSize: "14px" }, children: "Authenticate with GitHub to file bug reports" }),
-      /* @__PURE__ */ jsxs("div", { style: { fontSize: "12px" }, children: [
-        "Run ",
-        /* @__PURE__ */ jsx("code", { style: { background: "var(--bg-secondary, #27272a)", padding: "1px 5px", borderRadius: "3px" }, children: "gh auth login" }),
-        " to get started"
-      ] }),
-      /* @__PURE__ */ jsx(
-        "button",
-        {
-          style: { ...S.btnSecondary, marginTop: "12px" },
-          onClick: () => {
-            reportState.ghAuthed = null;
-            reportState.notify();
-            runAuthCheck(api);
-          },
-          children: "Retry"
-        }
-      )
-    ] }) });
-  }
   if (reportState.creatingNew) {
-    return /* @__PURE__ */ jsx("div", { style: { ...themeStyle, ...S.main }, children: /* @__PURE__ */ jsx(ReportForm, { api, onCreated: handleCreated }) });
+    return /* @__PURE__ */ jsx("div", { style: S.main, children: /* @__PURE__ */ jsx(ReportForm, { api, onCreated: handleCreated }) });
   }
   if (reportState.selectedIssueNumber) {
-    return /* @__PURE__ */ jsx("div", { style: { ...themeStyle, ...S.main }, children: /* @__PURE__ */ jsx(IssueDetailView, { api, issueNumber: reportState.selectedIssueNumber }) });
+    return /* @__PURE__ */ jsx("div", { style: S.main, children: /* @__PURE__ */ jsx(IssueDetailView, { api, issueNumber: reportState.selectedIssueNumber }) });
   }
-  return /* @__PURE__ */ jsx("div", { style: { ...themeStyle, ...S.main }, children: /* @__PURE__ */ jsxs("div", { style: S.empty, children: [
+  return /* @__PURE__ */ jsx("div", { style: S.main, children: /* @__PURE__ */ jsxs("div", { style: S.empty, children: [
     /* @__PURE__ */ jsxs("svg", { width: "48", height: "48", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5", children: [
       /* @__PURE__ */ jsx("circle", { cx: "12", cy: "12", r: "10" }),
       /* @__PURE__ */ jsx("line", { x1: "12", y1: "8", x2: "12", y2: "12" }),
       /* @__PURE__ */ jsx("line", { x1: "12", y1: "16", x2: "12.01", y2: "16" })
     ] }),
     /* @__PURE__ */ jsx("div", { style: { fontSize: "14px" }, children: "Help improve Clubhouse" }),
-    /* @__PURE__ */ jsx("div", { style: { fontSize: "12px", maxWidth: "300px" }, children: "File a bug report or feature request to the Clubhouse project. Select an existing report from the sidebar or create a new one." }),
+    /* @__PURE__ */ jsx("div", { style: { fontSize: "12px", maxWidth: "300px" }, children: "File a bug report or feature request, or select an existing report from the list." }),
     /* @__PURE__ */ jsx(
       "button",
       {
@@ -1325,6 +1281,24 @@ function MainPanel({ api }) {
       }
     )
   ] }) });
+}
+function MainPanel({ api }) {
+  const { style: themeStyle } = useTheme(api.theme);
+  return /* @__PURE__ */ jsxs("div", { style: {
+    ...themeStyle,
+    display: "flex",
+    height: "100%",
+    fontFamily: "var(--font-family, system-ui, -apple-system, sans-serif)",
+    color: "var(--text-primary, #e4e4e7)"
+  }, children: [
+    /* @__PURE__ */ jsx("div", { style: {
+      width: 280,
+      flexShrink: 0,
+      borderRight: "1px solid var(--border-primary, #3f3f46)",
+      overflow: "hidden"
+    }, children: /* @__PURE__ */ jsx(SidebarPanel, { api }) }),
+    /* @__PURE__ */ jsx("div", { style: { flex: 1, overflow: "hidden" }, children: /* @__PURE__ */ jsx(ContentPane, { api }) })
+  ] });
 }
 export {
   MainPanel,
