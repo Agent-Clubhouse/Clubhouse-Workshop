@@ -113,6 +113,50 @@ export function normalizeProjectName(name: string): string {
   }
 }
 
+/**
+ * Parse the AssignedTo field which may be a string or an identity object.
+ */
+function parseIdentityField(field: unknown): string {
+  if (typeof field === "object" && field !== null) {
+    return (field as Record<string, string>).displayName || (field as Record<string, string>).uniqueName || "";
+  }
+  return typeof field === "string" ? field : "";
+}
+
+/**
+ * Extract work item list fields from a raw `az boards work-item show` response object.
+ * Returns null if the object has no `fields` property.
+ */
+export function parseRawWorkItem(
+  raw: Record<string, unknown>,
+): {
+  id: number;
+  title: string;
+  state: string;
+  workItemType: string;
+  assignedTo: string;
+  changedDate: string;
+  tags: string;
+  priority: number;
+  areaPath: string;
+  iterationPath: string;
+} | null {
+  const fields = raw.fields as Record<string, unknown> | undefined;
+  if (!fields) return null;
+  return {
+    id: (raw.id as number) || 0,
+    title: (fields["System.Title"] as string) || "",
+    state: (fields["System.State"] as string) || "",
+    workItemType: (fields["System.WorkItemType"] as string) || "",
+    assignedTo: parseIdentityField(fields["System.AssignedTo"]),
+    changedDate: (fields["System.ChangedDate"] as string) || "",
+    tags: (fields["System.Tags"] as string) || "",
+    priority: (fields["Microsoft.VSTS.Common.Priority"] as number) || 0,
+    areaPath: (fields["System.AreaPath"] as string) || "",
+    iterationPath: (fields["System.IterationPath"] as string) || "",
+  };
+}
+
 /** Strip HTML tags for plain-text display. */
 export function stripHtml(html: string): string {
   return html

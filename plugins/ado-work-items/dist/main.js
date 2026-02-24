@@ -95,6 +95,28 @@ function normalizeProjectName(name) {
     return name;
   }
 }
+function parseIdentityField(field) {
+  if (typeof field === "object" && field !== null) {
+    return field.displayName || field.uniqueName || "";
+  }
+  return typeof field === "string" ? field : "";
+}
+function parseRawWorkItem(raw) {
+  const fields = raw.fields;
+  if (!fields) return null;
+  return {
+    id: raw.id || 0,
+    title: fields["System.Title"] || "",
+    state: fields["System.State"] || "",
+    workItemType: fields["System.WorkItemType"] || "",
+    assignedTo: parseIdentityField(fields["System.AssignedTo"]),
+    changedDate: fields["System.ChangedDate"] || "",
+    tags: fields["System.Tags"] || "",
+    priority: fields["Microsoft.VSTS.Common.Priority"] || 0,
+    areaPath: fields["System.AreaPath"] || "",
+    iterationPath: fields["System.IterationPath"] || ""
+  };
+}
 function stripHtml(html) {
   return html.replace(/<br\s*\/?>/gi, "\n").replace(/<\/p>/gi, "\n").replace(/<\/div>/gi, "\n").replace(/<\/li>/gi, "\n").replace(/<[^>]+>/g, "").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&nbsp;/g, " ").replace(/\n{3,}/g, "\n\n").trim();
 }
@@ -345,12 +367,37 @@ function parseWorkItemDetail(raw, config) {
     comments: []
   };
 }
+async function fetchSingleWorkItem(api, config, id) {
+  const args = [
+    "boards",
+    "work-item",
+    "show",
+    "--id",
+    String(id),
+    "--output",
+    "json",
+    ...baseArgs(config)
+  ];
+  const r = await api.process.exec("az", args, { timeout: 3e4 });
+  if (r.exitCode !== 0 || !r.stdout.trim()) return null;
+  try {
+    const parsed = JSON.parse(r.stdout);
+    return parseRawWorkItem(parsed);
+  } catch {
+    return null;
+  }
+}
 async function fetchWorkItemsByIds(api, config, ids) {
   if (ids.length === 0) return [];
   const batchSize = 50;
   const results = [];
   for (let i = 0; i < ids.length; i += batchSize) {
     const batch = ids.slice(i, i + batchSize);
+    if (batch.length === 1) {
+      const item = await fetchSingleWorkItem(api, config, batch[0]);
+      if (item) results.push(item);
+      continue;
+    }
     const args = [
       "boards",
       "work-item",
@@ -362,26 +409,33 @@ async function fetchWorkItemsByIds(api, config, ids) {
       ...baseArgs(config)
     ];
     const r = await api.process.exec("az", args, { timeout: 3e4 });
-    if (r.exitCode !== 0 || !r.stdout.trim()) continue;
-    const parsed = JSON.parse(r.stdout);
-    const items = Array.isArray(parsed) ? parsed : [parsed];
-    for (const raw of items) {
-      const fields = raw.fields;
-      if (!fields) continue;
-      const assignedToField = fields["System.AssignedTo"];
-      const assignedTo = typeof assignedToField === "object" && assignedToField !== null ? assignedToField.displayName || "" : typeof assignedToField === "string" ? assignedToField : "";
-      results.push({
-        id: raw.id || 0,
-        title: fields["System.Title"] || "",
-        state: fields["System.State"] || "",
-        workItemType: fields["System.WorkItemType"] || "",
-        assignedTo,
-        changedDate: fields["System.ChangedDate"] || "",
-        tags: fields["System.Tags"] || "",
-        priority: fields["Microsoft.VSTS.Common.Priority"] || 0,
-        areaPath: fields["System.AreaPath"] || "",
-        iterationPath: fields["System.IterationPath"] || ""
+    if (r.exitCode !== 0 || !r.stdout.trim()) {
+      api.logging.warn("ADO batch work-item show failed, falling back to individual fetches", {
+        exitCode: r.exitCode,
+        stderr: r.stderr,
+        batchSize: batch.length
       });
+      for (const id of batch) {
+        const item = await fetchSingleWorkItem(api, config, id);
+        if (item) results.push(item);
+      }
+      continue;
+    }
+    try {
+      const parsed = JSON.parse(r.stdout);
+      const items = Array.isArray(parsed) ? parsed : [parsed];
+      for (const raw of items) {
+        const item = parseRawWorkItem(raw);
+        if (item) results.push(item);
+      }
+    } catch (err) {
+      api.logging.warn("ADO batch response parse failed, falling back to individual fetches", {
+        error: String(err)
+      });
+      for (const id of batch) {
+        const item = await fetchSingleWorkItem(api, config, id);
+        if (item) results.push(item);
+      }
     }
   }
   return results;
@@ -1411,7 +1465,7 @@ function MainPanel({ api }) {
     workItemState.setCreatingNew(false);
   }, []);
   if (creatingNew) {
-    return /* @__PURE__ */ jsxs("div", { style: mainContainer, children: [
+    return /* @__PURE__ */ jsxs("div", { style: { ...themeStyle, ...mainContainer }, children: [
       /* @__PURE__ */ jsx("div", { style: mainHeader, children: /* @__PURE__ */ jsx("span", { style: { fontSize: "13px", fontWeight: 500, color: "var(--text-primary, #e4e4e7)" }, children: "New Work Item" }) }),
       /* @__PURE__ */ jsx("div", { style: { flex: 1, overflowY: "auto", padding: "16px" }, children: /* @__PURE__ */ jsxs("div", { style: { display: "flex", flexDirection: "column", gap: "14px" }, children: [
         /* @__PURE__ */ jsxs("div", { children: [
@@ -1537,16 +1591,16 @@ function MainPanel({ api }) {
     ] });
   }
   if (selected === null) {
-    return /* @__PURE__ */ jsx("div", { style: { ...mainContainer, justifyContent: "center", alignItems: "center" }, children: /* @__PURE__ */ jsx("span", { style: { fontSize: "12px", color: "var(--text-secondary, #a1a1aa)" }, children: "Select a work item to view details" }) });
+    return /* @__PURE__ */ jsx("div", { style: { ...themeStyle, ...mainContainer, justifyContent: "center", alignItems: "center" }, children: /* @__PURE__ */ jsx("span", { style: { fontSize: "12px", color: "var(--text-secondary, #a1a1aa)" }, children: "Select a work item to view details" }) });
   }
   if (loading) {
-    return /* @__PURE__ */ jsx("div", { style: { ...mainContainer, justifyContent: "center", alignItems: "center" }, children: /* @__PURE__ */ jsxs("span", { style: { fontSize: "12px", color: "var(--text-secondary, #a1a1aa)" }, children: [
+    return /* @__PURE__ */ jsx("div", { style: { ...themeStyle, ...mainContainer, justifyContent: "center", alignItems: "center" }, children: /* @__PURE__ */ jsxs("span", { style: { fontSize: "12px", color: "var(--text-secondary, #a1a1aa)" }, children: [
       "Loading work item",
       "\u2026"
     ] }) });
   }
   if (!detail) {
-    return /* @__PURE__ */ jsx("div", { style: { ...mainContainer, justifyContent: "center", alignItems: "center" }, children: /* @__PURE__ */ jsx("span", { style: { fontSize: "12px", color: "var(--text-secondary, #a1a1aa)" }, children: "Failed to load work item details" }) });
+    return /* @__PURE__ */ jsx("div", { style: { ...themeStyle, ...mainContainer, justifyContent: "center", alignItems: "center" }, children: /* @__PURE__ */ jsx("span", { style: { fontSize: "12px", color: "var(--text-secondary, #a1a1aa)" }, children: "Failed to load work item details" }) });
   }
   const sc = stateColor(detail.state);
   const stateBadge = {

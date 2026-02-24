@@ -10,6 +10,7 @@ import {
   validateOrgUrl,
   validateProjectName,
   normalizeProjectName,
+  parseRawWorkItem,
 } from "./helpers";
 
 // ---------------------------------------------------------------------------
@@ -396,5 +397,118 @@ describe("normalizeProjectName", () => {
 
   it("returns invalid percent sequences unchanged", () => {
     expect(normalizeProjectName("test%ZZvalue")).toBe("test%ZZvalue");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// parseRawWorkItem — extracts work item fields from az CLI response objects
+// ---------------------------------------------------------------------------
+
+describe("parseRawWorkItem", () => {
+  it("returns null when object has no fields property", () => {
+    expect(parseRawWorkItem({ id: 1 })).toBeNull();
+  });
+
+  it("returns null for empty object", () => {
+    expect(parseRawWorkItem({})).toBeNull();
+  });
+
+  it("parses a full work item response", () => {
+    const raw = {
+      id: 246,
+      fields: {
+        "System.Id": 246,
+        "System.Title": "Fix login bug",
+        "System.State": "Active",
+        "System.WorkItemType": "Bug",
+        "System.AssignedTo": "Jane Doe",
+        "System.ChangedDate": "2026-02-24T10:00:00Z",
+        "System.Tags": "frontend; urgent",
+        "Microsoft.VSTS.Common.Priority": 2,
+        "System.AreaPath": "MyProject\\Frontend",
+        "System.IterationPath": "MyProject\\Sprint 1",
+      },
+    };
+    const result = parseRawWorkItem(raw);
+    expect(result).toEqual({
+      id: 246,
+      title: "Fix login bug",
+      state: "Active",
+      workItemType: "Bug",
+      assignedTo: "Jane Doe",
+      changedDate: "2026-02-24T10:00:00Z",
+      tags: "frontend; urgent",
+      priority: 2,
+      areaPath: "MyProject\\Frontend",
+      iterationPath: "MyProject\\Sprint 1",
+    });
+  });
+
+  it("handles identity object for AssignedTo (displayName)", () => {
+    const raw = {
+      id: 100,
+      fields: {
+        "System.Title": "Task",
+        "System.State": "New",
+        "System.WorkItemType": "Task",
+        "System.AssignedTo": { displayName: "John Smith", uniqueName: "jsmith@example.com" },
+        "System.ChangedDate": "2026-01-01T00:00:00Z",
+      },
+    };
+    const result = parseRawWorkItem(raw);
+    expect(result).not.toBeNull();
+    expect(result!.assignedTo).toBe("John Smith");
+  });
+
+  it("falls back to uniqueName when displayName is missing", () => {
+    const raw = {
+      id: 101,
+      fields: {
+        "System.Title": "Task",
+        "System.State": "New",
+        "System.WorkItemType": "Task",
+        "System.AssignedTo": { uniqueName: "jsmith@example.com" },
+        "System.ChangedDate": "2026-01-01T00:00:00Z",
+      },
+    };
+    const result = parseRawWorkItem(raw);
+    expect(result).not.toBeNull();
+    expect(result!.assignedTo).toBe("jsmith@example.com");
+  });
+
+  it("handles missing optional fields with defaults", () => {
+    const raw = {
+      id: 200,
+      fields: {
+        "System.Title": "Minimal item",
+        "System.State": "New",
+        "System.WorkItemType": "Task",
+        "System.ChangedDate": "2026-01-15T00:00:00Z",
+      },
+    };
+    const result = parseRawWorkItem(raw);
+    expect(result).not.toBeNull();
+    expect(result!.assignedTo).toBe("");
+    expect(result!.tags).toBe("");
+    expect(result!.priority).toBe(0);
+    expect(result!.areaPath).toBe("");
+    expect(result!.iterationPath).toBe("");
+  });
+
+  it("handles response matching az boards query format (System.Id only in fields)", () => {
+    // This is the format returned by az boards query --wiql "SELECT [System.Id] ..."
+    const raw = {
+      id: 246,
+      fields: { "System.Id": 246 },
+      multilineFieldsFormat: {},
+      relations: null,
+      rev: 4,
+      url: "https://freemasoninc.visualstudio.com/_apis/wit/workItems/246",
+    };
+    const result = parseRawWorkItem(raw);
+    expect(result).not.toBeNull();
+    expect(result!.id).toBe(246);
+    expect(result!.title).toBe("");
+    expect(result!.state).toBe("");
   });
 });
