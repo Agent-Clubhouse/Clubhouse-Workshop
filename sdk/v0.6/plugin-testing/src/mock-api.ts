@@ -176,6 +176,8 @@ function createMockAgents(): AgentsAPI {
     dismissCompleted: createMockFn() as unknown as AgentsAPI["dismissCompleted"],
     getDetailedStatus: createMockFn().mockReturnValue(null) as unknown as AgentsAPI["getDetailedStatus"],
     getModelOptions: createMockFn().mockResolvedValue([]) as unknown as AgentsAPI["getModelOptions"],
+    listOrchestrators: createMockFn().mockReturnValue([]) as unknown as AgentsAPI["listOrchestrators"],
+    checkOrchestratorAvailability: createMockFn().mockResolvedValue({ available: true }) as unknown as AgentsAPI["checkOrchestratorAvailability"],
     onStatusChange: createMockFn().mockReturnValue(noop) as unknown as AgentsAPI["onStatusChange"],
     onAnyChange: createMockFn().mockReturnValue(noop) as unknown as AgentsAPI["onAnyChange"],
   };

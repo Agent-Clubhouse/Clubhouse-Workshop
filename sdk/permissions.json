@@ -19,6 +19,7 @@
       "agent-config",
       "agent-config.cross-project",
       "agent-config.permissions",
+      "agents.free-agent-mode",
       "agent-config.mcp",
       "sounds",
       "theme"
@@ -29,6 +30,7 @@
     "process",
     "terminal",
     "agent-config.permissions",
-    "agent-config.mcp"
+    "agent-config.mcp",
+    "agents.free-agent-mode"
   ]
 }

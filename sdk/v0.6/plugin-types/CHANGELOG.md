@@ -1,6 +1,6 @@
 # Changelog — @clubhouse/plugin-types v0.6
 
-## v0.6.0 (2026-02-23)
+## v0.6.0 (2026-02-23, updated 2026-02-24)
 
 ### Added
 
@@ -21,10 +21,17 @@
 - `NavigationAPI.popOutAgent()` — Open an agent in a pop-out window
 - `NavigationAPI.toggleSidebar()` — Toggle the sidebar panel visibility
 - `NavigationAPI.toggleAccessoryPanel()` — Toggle the accessory panel visibility
+- **PluginOrchestratorInfo** — New interface describing orchestrator metadata (id, displayName, shortName, badge, capabilities)
+- `AgentInfo.orchestrator` — Optional field identifying which orchestrator owns the agent
+- `AgentInfo.freeAgentMode` — Optional field indicating if the agent runs with all permissions bypassed
+- `AgentsAPI.listOrchestrators()` — List all available orchestrators
+- `AgentsAPI.checkOrchestratorAvailability()` — Check if a specific orchestrator is available and configured
+- New permission: `agents.free-agent-mode` (elevated, dangerous — spawns agents with all permissions bypassed)
 
 ### Changed
 
-- No breaking changes to existing APIs
+- `AgentsAPI.runQuick()` options expanded with `orchestrator?: string` and `freeAgentMode?: boolean`
+- `AgentsAPI.getModelOptions()` now accepts an optional `orchestrator?: string` second parameter
 
 ### Removed
 
@@ -38,3 +45,5 @@
 - To use the new `AgentConfigAPI`, add the appropriate `agent-config` permission(s) to your manifest and access `api.agentConfig.*` methods
 - To use keyboard bindings, either declare `defaultBinding` in your manifest commands or use `api.commands.registerWithHotkey()` at runtime
 - New navigation methods (`popOutAgent`, `toggleSidebar`, `toggleAccessoryPanel`) require the `navigation` permission (same as before)
+- To target a specific orchestrator when spawning agents, pass `orchestrator` in `runQuick()` options. Use `listOrchestrators()` to discover available orchestrators.
+- The `agents.free-agent-mode` permission is elevated and dangerous — only request it if your plugin genuinely needs to bypass all agent permission checks
