@@ -94,10 +94,23 @@ export function validateOrgUrl(url: string): boolean {
 
 /**
  * Validate that an Azure DevOps project name contains only safe characters.
- * ADO project names may include word characters, spaces, hyphens, and dots.
+ * ADO project names may include word characters, spaces, hyphens, dots, and
+ * parentheses (e.g. "Kaizen (AIPF)").
  */
 export function validateProjectName(name: string): boolean {
-  return name.length > 0 && /^[\w\s.-]+$/.test(name);
+  return name.length > 0 && /^[\w\s.()\-]+$/.test(name);
+}
+
+/**
+ * Normalize a project name by decoding URI-encoded characters (e.g. %20 → space).
+ * Users often paste project names from ADO URLs where spaces are encoded.
+ */
+export function normalizeProjectName(name: string): string {
+  try {
+    return decodeURIComponent(name);
+  } catch {
+    return name;
+  }
 }
 
 /** Strip HTML tags for plain-text display. */
