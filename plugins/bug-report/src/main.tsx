@@ -308,31 +308,68 @@ function Markdown({ source }: { source: string }) {
 // GitHub helpers
 // ---------------------------------------------------------------------------
 
-async function checkGhAuth(api: PluginAPI): Promise<string | null> {
+export async function checkGhAuth(api: PluginAPI): Promise<string | null> {
   // Primary: query the GitHub API directly for the authenticated user.
   // This is more reliable than parsing `gh auth status` output, which
-  // writes to stderr and can cause process.exec to throw in some
-  // environments (e.g. Electron-spawned subprocesses).
+  // varies across gh CLI versions and can differ between stdout/stderr.
   try {
     const r = await api.process.exec("gh", ["api", "user", "-q", ".login"]);
+    api.logging.info(`gh api user: exitCode=${r.exitCode} stdout="${r.stdout.trim()}" stderr="${r.stderr.trim()}"`);
     const login = r.stdout.trim();
     if (login && r.exitCode === 0) return login;
-  } catch { /* fall through to secondary check */ }
+  } catch (err) {
+    api.logging.warn(`gh api user threw: ${err instanceof Error ? err.message : String(err)}`);
+  }
 
   // Fallback: check `gh auth status` in case the API call failed for a
   // non-auth reason (e.g. network). auth status works offline.
   try {
     const r = await api.process.exec("gh", ["auth", "status"]);
     const output = r.stdout + r.stderr;
+    api.logging.info(`gh auth status: exitCode=${r.exitCode} output="${output.slice(0, 200)}"`);
     if (output.includes("Logged in")) {
-      // Authenticated but API call failed — return a placeholder username
-      // so the UI is not blocked.
       const m = output.match(/account\s+(\S+)/);
       return m ? m[1] : "unknown";
     }
-  } catch { /* not authenticated */ }
+  } catch (err) {
+    api.logging.warn(`gh auth status threw: ${err instanceof Error ? err.message : String(err)}`);
+  }
 
+  // Last resort: try listing a single issue from the target repo. If this
+  // succeeds, gh is authenticated even if the above checks failed (this
+  // matches the approach the github-issues plugin uses successfully).
+  try {
+    const r = await api.process.exec("gh", [
+      "issue", "list", "--repo", REPO, "--limit", "1", "--json", "number",
+    ]);
+    api.logging.info(`gh issue list probe: exitCode=${r.exitCode} stdout="${r.stdout.trim().slice(0, 100)}"`);
+    if (r.exitCode === 0 && r.stdout.trim().startsWith("[")) {
+      // gh works — extract username from git config as fallback
+      try {
+        const u = await api.process.exec("gh", ["api", "user", "-q", ".login"]);
+        if (u.exitCode === 0 && u.stdout.trim()) return u.stdout.trim();
+      } catch { /* ignore */ }
+      return "unknown";
+    }
+  } catch (err) {
+    api.logging.warn(`gh issue list probe threw: ${err instanceof Error ? err.message : String(err)}`);
+  }
+
+  api.logging.warn("All gh auth checks failed — treating as unauthenticated");
   return null;
+}
+
+/** Runs the auth check and updates shared state. */
+function runAuthCheck(api: PluginAPI): void {
+  checkGhAuth(api).then(username => {
+    if (username) {
+      reportState.setGhUsername(username);
+      reportState.setGhAuthed(true);
+      reportState.requestRefresh();
+    } else {
+      reportState.setGhAuthed(false);
+    }
+  });
 }
 
 const ISSUE_FIELDS = "number,title,state,url,createdAt,updatedAt,author,labels";
@@ -729,15 +766,7 @@ export function SidebarPanel({ api }: PanelProps) {
   // Check GH auth on mount
   useEffect(() => {
     if (reportState.ghAuthed === null) {
-      checkGhAuth(api).then(username => {
-        if (username) {
-          reportState.setGhUsername(username);
-          reportState.setGhAuthed(true);
-          reportState.requestRefresh();
-        } else {
-          reportState.setGhAuthed(false);
-        }
-      });
+      runAuthCheck(api);
     }
   }, [api]);
 
@@ -802,15 +831,8 @@ export function SidebarPanel({ api }: PanelProps) {
             style={{ ...S.btnSecondary, marginTop: "12px" }}
             onClick={() => {
               reportState.ghAuthed = null;
-              checkGhAuth(api).then(username => {
-                if (username) {
-                  reportState.setGhUsername(username);
-                  reportState.setGhAuthed(true);
-                  reportState.requestRefresh();
-                } else {
-                  reportState.setGhAuthed(false);
-                }
-              });
+              reportState.notify();
+              runAuthCheck(api);
             }}
           >
             Retry
@@ -1197,13 +1219,32 @@ export function MainPanel({ api }: PanelProps) {
 
   useEffect(() => reportState.subscribe(rerender), [rerender]);
 
+  // Ensure auth check runs even if MainPanel mounts before SidebarPanel
+  useEffect(() => {
+    if (reportState.ghAuthed === null) {
+      runAuthCheck(api);
+    }
+  }, [api]);
+
   const handleCreated = useCallback((num: number) => {
     reportState.setCreatingNew(false);
     reportState.setSelectedIssue(num);
     reportState.requestRefresh();
   }, []);
 
-  if (reportState.ghAuthed === false || reportState.ghAuthed === null) {
+  // Auth check in progress
+  if (reportState.ghAuthed === null) {
+    return (
+      <div style={{ ...themeStyle, ...S.main }}>
+        <div style={S.empty}>
+          <div style={S.spinner}>Checking GitHub authentication...</div>
+        </div>
+      </div>
+    );
+  }
+
+  // Auth check failed
+  if (reportState.ghAuthed === false) {
     return (
       <div style={{ ...themeStyle, ...S.main }}>
         <div style={S.empty}>
@@ -1220,6 +1261,16 @@ export function MainPanel({ api }: PanelProps) {
           <div style={{ fontSize: "12px" }}>
             Run <code style={{ background: "var(--bg-secondary, #27272a)", padding: "1px 5px", borderRadius: "3px" }}>gh auth login</code> to get started
           </div>
+          <button
+            style={{ ...S.btnSecondary, marginTop: "12px" }}
+            onClick={() => {
+              reportState.ghAuthed = null;
+              reportState.notify();
+              runAuthCheck(api);
+            }}
+          >
+            Retry
+          </button>
         </div>
       </div>
     );
