@@ -1,0 +1,41 @@
+{
+  "id": "bug-report",
+  "name": "Bug Report",
+  "version": "1.0.0",
+  "description": "File bug reports and feature requests for Clubhouse with structured severity and label support",
+  "author": "Clubhouse Workshop",
+  "official": true,
+  "engine": { "api": 0.5 },
+  "scope": "app",
+  "main": "./dist/main.js",
+  "contributes": {
+    "railItem": {
+      "label": "Bug Report",
+      "icon": "<svg width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='10'/><line x1='12' y1='8' x2='12' y2='12'/><line x1='12' y1='16' x2='12.01' y2='16'/></svg>",
+      "position": "bottom",
+      "layout": "sidebar-content"
+    },
+    "commands": [
+      { "id": "bug-report.refresh", "title": "Refresh Reports" },
+      { "id": "bug-report.create", "title": "File New Report" },
+      { "id": "bug-report.viewInBrowser", "title": "View Report in Browser" }
+    ],
+    "help": {
+      "topics": [
+        {
+          "id": "bug-report",
+          "title": "Bug Report",
+          "content": "## Bug Report\n\nFile bug reports and feature requests directly to the Clubhouse project on GitHub.\n\n### Requirements\n- The **`gh` CLI** must be installed and authenticated (`gh auth login`)\n\n### Filing a report\nClick **+ New Report** in the sidebar to open the report form. Fill in:\n- **Type** — Bug or Enhancement\n- **Severity** — Low, Medium, High, or Critical\n- **Title** — A concise summary of the issue\n- **Description** — Detailed description with steps to reproduce\n\nThe report is created as a GitHub issue on the Clubhouse repository with the selected label applied and severity prefixed to the title (e.g. `[HIGH] Login fails on startup`).\n\n### Browsing reports\n- **My Reports** — Shows issues you have filed, sorted by most recent\n- **All Recent** — Shows all recent issues across all reporters\n\nClick any report to view its full details, comments, and metadata."
+        }
+      ]
+    }
+  },
+  "permissions": [
+    "logging",
+    "storage",
+    "notifications",
+    "commands",
+    "process"
+  ],
+  "allowedCommands": ["gh"]
+}
