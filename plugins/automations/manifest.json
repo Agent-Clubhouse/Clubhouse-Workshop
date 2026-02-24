@@ -4,7 +4,6 @@
   "version": "1.0.0",
   "description": "Schedule recurring quick-agent tasks with cron expressions. Create automations with customizable schedules, model selection, and prompt configuration. Track run history with status indicators and summaries.",
   "author": "Clubhouse Workshop",
-  "official": true,
   "engine": { "api": 0.6 },
   "scope": "project",
   "main": "./dist/main.js",

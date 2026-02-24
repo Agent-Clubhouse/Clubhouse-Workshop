@@ -77,7 +77,7 @@ Generate the plugin files. Create a new directory at the project root with the p
 
 ### manifest.json
 
-Based on their choices. Use the latest API version (from `sdk/versions.json`). **Always include a `contributes.help` section** with at least one topic describing the plugin's purpose, features, and usage. Include commands in `contributes.commands`. Use a simple SVG icon. Do NOT include `"official": true` — that field is reserved for first-party plugins maintained by Clubhouse Workshop.
+Based on their choices. Use the latest API version (from `sdk/versions.json`). **Always include a `contributes.help` section** with at least one topic describing the plugin's purpose, features, and usage. Include commands in `contributes.commands`. Use a simple SVG icon. Do NOT include an `"official"` field — all Workshop plugins are automatically official.
 
 Example help topic structure:
 ```json

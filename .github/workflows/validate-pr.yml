@@ -122,8 +122,8 @@ jobs:
             const permData = JSON.parse(fs.readFileSync('sdk/permissions.json', 'utf8'));
 
             for (const plugin of changed) {
-              // Reserved prefix
-              if (plugin.id.startsWith('example-') && !plugin.official) {
+              // Reserved prefix — example- is reserved for official Workshop examples
+              if (plugin.id.startsWith('example-') && plugin.official === false) {
                 errors.push(plugin.id + ': The example- prefix is reserved for official examples');
               }
 

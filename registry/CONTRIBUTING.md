@@ -95,7 +95,7 @@ Human reviewers will also check:
 
 - Lowercase letters, numbers, and hyphens only: `my-cool-plugin`
 - Must not conflict with existing plugins in the registry
-- Must not use the `example-` prefix (reserved for official examples)
+- Must not use the `example-` prefix (reserved for official Workshop examples)
 - Should be descriptive but concise
 
 ## Updating your plugin

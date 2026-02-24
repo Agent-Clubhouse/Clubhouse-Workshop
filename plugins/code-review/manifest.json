@@ -4,7 +4,6 @@
   "version": "1.0.0",
   "description": "AI-powered code review for your staged changes.",
   "author": "Clubhouse Workshop",
-  "official": true,
   "engine": { "api": 0.6 },
   "scope": "project",
   "main": "./dist/main.js",

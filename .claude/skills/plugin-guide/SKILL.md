@@ -133,11 +133,9 @@ Every plugin needs a `manifest.json` with these required fields. The `engine.api
 }
 ```
 
-## The `official` field
+## Official status
 
-The manifest supports an optional `official?: boolean` field. When `true`, it marks the plugin as maintained by Clubhouse Workshop. The app uses this to display trust indicators in the plugin browser.
-
-Community plugins should **omit this field** — it defaults to `false`/`undefined`. Only first-party plugins shipped in this repo should set `"official": true`.
+All plugins in the Clubhouse Workshop repository are automatically considered official. The `official` field is no longer used in plugin manifests — the release pipeline sets `"official": true` in the registry for all Workshop plugins.
 
 ## Permissions (15 total)
 

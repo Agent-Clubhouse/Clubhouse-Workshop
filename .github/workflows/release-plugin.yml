@@ -136,7 +136,7 @@ jobs:
                 name: manifest.name,
                 description: manifest.description,
                 author: manifest.author,
-                official: manifest.official !== false,
+                official: true,
                 repo: 'https://github.com/${{ github.repository }}',
                 path: 'plugins/' + pluginId,
                 tags: [],
