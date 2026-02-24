@@ -8,7 +8,7 @@
   "scope": "app",
   "main": "./dist/main.js",
   "settingsPanel": "custom",
-  "permissions": ["logging", "storage", "notifications", "agents", "projects", "commands", "theme", "settings", "process"],
+  "permissions": ["logging", "storage", "notifications", "agents", "projects", "commands", "theme", "process"],
   "allowedCommands": ["git", "gh"],
   "contributes": {
     "railItem": {

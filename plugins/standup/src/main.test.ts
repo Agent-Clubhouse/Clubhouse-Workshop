@@ -46,7 +46,7 @@ describe('standup plugin manifest', () => {
 
   it('declares required permissions', () => {
     expect(manifest.permissions).toEqual(
-      expect.arrayContaining(['storage', 'agents', 'commands', 'notifications', 'process', 'settings', 'theme']),
+      expect.arrayContaining(['storage', 'agents', 'commands', 'notifications', 'process', 'theme']),
     );
   });
 
@@ -54,7 +54,7 @@ describe('standup plugin manifest', () => {
     const allowed = new Set([
       'logging', 'storage', 'notifications', 'files', 'git',
       'agents', 'commands', 'process', 'projects', 'navigation', 'widgets',
-      'sounds', 'theme', 'settings',
+      'sounds', 'theme',
     ]);
     for (const perm of manifest.permissions) {
       expect(allowed.has(perm)).toBe(true);
