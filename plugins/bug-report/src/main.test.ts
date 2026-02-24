@@ -200,6 +200,31 @@ describe("fetchIssues", () => {
     expect(result.items[0].number).toBe(1);
   });
 
+  it("passes default repo (Agent-Clubhouse/Clubhouse) to gh CLI", async () => {
+    (api.process.exec as ReturnType<typeof vi.fn>).mockResolvedValue({
+      stdout: "[]",
+      stderr: "",
+      exitCode: 0,
+    });
+    await fetchIssues(api, 1);
+    const args = (api.process.exec as ReturnType<typeof vi.fn>).mock.calls[0][1];
+    expect(args).toContain("--repo");
+    const repoIdx = args.indexOf("--repo");
+    expect(args[repoIdx + 1]).toBe("Agent-Clubhouse/Clubhouse");
+  });
+
+  it("passes custom repo to gh CLI when provided", async () => {
+    (api.process.exec as ReturnType<typeof vi.fn>).mockResolvedValue({
+      stdout: "[]",
+      stderr: "",
+      exitCode: 0,
+    });
+    await fetchIssues(api, 1, undefined, "Agent-Clubhouse/Clubhouse-Workshop");
+    const args = (api.process.exec as ReturnType<typeof vi.fn>).mock.calls[0][1];
+    const repoIdx = args.indexOf("--repo");
+    expect(args[repoIdx + 1]).toBe("Agent-Clubhouse/Clubhouse-Workshop");
+  });
+
   it("returns empty items when gh exits with non-zero code", async () => {
     (api.process.exec as ReturnType<typeof vi.fn>).mockResolvedValue({
       stdout: "",
@@ -266,6 +291,30 @@ describe("fetchIssueDetail", () => {
     const result = await fetchIssueDetail(api, 42);
     expect(result).not.toBeNull();
     expect(result!.number).toBe(42);
+  });
+
+  it("passes default repo to gh CLI", async () => {
+    (api.process.exec as ReturnType<typeof vi.fn>).mockResolvedValue({
+      stdout: JSON.stringify({ number: 1 }),
+      stderr: "",
+      exitCode: 0,
+    });
+    await fetchIssueDetail(api, 1);
+    const args = (api.process.exec as ReturnType<typeof vi.fn>).mock.calls[0][1];
+    const repoIdx = args.indexOf("--repo");
+    expect(args[repoIdx + 1]).toBe("Agent-Clubhouse/Clubhouse");
+  });
+
+  it("passes custom repo to gh CLI when provided", async () => {
+    (api.process.exec as ReturnType<typeof vi.fn>).mockResolvedValue({
+      stdout: JSON.stringify({ number: 1 }),
+      stderr: "",
+      exitCode: 0,
+    });
+    await fetchIssueDetail(api, 1, "Agent-Clubhouse/Clubhouse-Workshop");
+    const args = (api.process.exec as ReturnType<typeof vi.fn>).mock.calls[0][1];
+    const repoIdx = args.indexOf("--repo");
+    expect(args[repoIdx + 1]).toBe("Agent-Clubhouse/Clubhouse-Workshop");
   });
 
   it("returns null when gh exits with non-zero code", async () => {
