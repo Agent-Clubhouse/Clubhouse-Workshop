@@ -190,6 +190,7 @@ function createMockSettings() {
   return {
     get: createMockFn().mockReturnValue(void 0),
     getAll: createMockFn().mockReturnValue({}),
+    set: createMockFn(),
     onChange: createMockFn().mockReturnValue(noop)
   };
 }

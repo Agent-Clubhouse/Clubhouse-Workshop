@@ -230,6 +230,7 @@ function createMockSettings(): SettingsAPI {
   return {
     get: createMockFn().mockReturnValue(undefined) as unknown as SettingsAPI["get"],
     getAll: createMockFn().mockReturnValue({}) as unknown as SettingsAPI["getAll"],
+    set: createMockFn() as unknown as SettingsAPI["set"],
     onChange: createMockFn().mockReturnValue(noop) as unknown as SettingsAPI["onChange"],
   };
 }
