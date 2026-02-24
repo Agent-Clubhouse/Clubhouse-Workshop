@@ -3,9 +3,8 @@
   "updated": "2026-02-23T06:00:00.000Z",
   "supportedApis": {
     "latest": "0.6",
-    "minimum": "0.5",
+    "minimum": "0.6",
     "versions": [
-      "0.5",
       "0.6"
     ]
   },

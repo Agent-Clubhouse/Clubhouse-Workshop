@@ -17,10 +17,10 @@ If a plugin name was provided via `$ARGUMENTS`, use it. Otherwise, list availabl
 
 ```
 Available plugins:
-  example-hello-world  — v0.5
-  code-review          — v0.5
-  standup              — v0.5
-  pomodoro             — v0.5
+  example-hello-world  — v0.6
+  code-review          — v0.6
+  standup              — v0.6
+  pomodoro             — v0.6
 ```
 
 ## Step 2: Determine current and target versions
