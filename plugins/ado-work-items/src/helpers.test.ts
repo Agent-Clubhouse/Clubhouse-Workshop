@@ -11,6 +11,8 @@ import {
   validateProjectName,
   normalizeProjectName,
   parseRawWorkItem,
+  baseArgs,
+  orgArgs,
 } from "./helpers";
 
 // ---------------------------------------------------------------------------
@@ -510,5 +512,61 @@ describe("parseRawWorkItem", () => {
     expect(result!.id).toBe(246);
     expect(result!.title).toBe("");
     expect(result!.state).toBe("");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// baseArgs — builds --org + --project for commands that accept both
+// ---------------------------------------------------------------------------
+
+describe("baseArgs", () => {
+  it("returns --org and --project when both are set", () => {
+    expect(baseArgs({ organization: "https://dev.azure.com/myorg", project: "MyProject" }))
+      .toEqual(["--org", "https://dev.azure.com/myorg", "--project", "MyProject"]);
+  });
+
+  it("passes project names with spaces and parentheses as a single arg", () => {
+    const args = baseArgs({ organization: "https://dev.azure.com/myorg", project: "Kaizen (AIPF)" });
+    expect(args).toEqual(["--org", "https://dev.azure.com/myorg", "--project", "Kaizen (AIPF)"]);
+    // The project name must be a single string element, not split
+    expect(args[3]).toBe("Kaizen (AIPF)");
+  });
+
+  it("omits --org when organization is empty", () => {
+    expect(baseArgs({ organization: "", project: "MyProject" }))
+      .toEqual(["--project", "MyProject"]);
+  });
+
+  it("omits --project when project is empty", () => {
+    expect(baseArgs({ organization: "https://dev.azure.com/myorg", project: "" }))
+      .toEqual(["--org", "https://dev.azure.com/myorg"]);
+  });
+
+  it("returns empty array when both are empty", () => {
+    expect(baseArgs({ organization: "", project: "" })).toEqual([]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// orgArgs — builds only --org for commands that do NOT accept --project
+// (e.g. `az boards work-item show`)
+// ---------------------------------------------------------------------------
+
+describe("orgArgs", () => {
+  it("returns only --org, never --project", () => {
+    const config = { organization: "https://dev.azure.com/myorg", project: "Kaizen (AIPF)" };
+    const args = orgArgs(config);
+    expect(args).toEqual(["--org", "https://dev.azure.com/myorg"]);
+    expect(args).not.toContain("--project");
+  });
+
+  it("returns empty array when organization is empty", () => {
+    expect(orgArgs({ organization: "" })).toEqual([]);
+  });
+
+  it("never includes --project even when project is provided on the config object", () => {
+    // orgArgs only reads organization; project is ignored
+    const args = orgArgs({ organization: "https://dev.azure.com/myorg" } as { organization: string; project: string });
+    expect(args.join(" ")).not.toContain("--project");
   });
 });
