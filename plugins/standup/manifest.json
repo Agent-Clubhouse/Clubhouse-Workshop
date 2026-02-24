@@ -25,8 +25,23 @@
       "topics": [
         {
           "id": "overview",
-          "title": "Standup",
-          "content": "# Standup Plugin\n\nGenerates a daily standup summary from your recent git activity across all open projects.\n\n## Usage\n\nClick the Standup item in the sidebar rail to view today's standup. Click \"Generate\" to create a fresh summary based on your recent commits.\n\nStandup history is stored globally so you can review past summaries."
+          "title": "Overview",
+          "content": "## Standup\n\nAI-generated daily standup summaries from your recent git activity across all open projects. Quickly see what you accomplished yesterday, what's planned for today, and any blockers."
+        },
+        {
+          "id": "features",
+          "title": "Key Features",
+          "content": "## Key Features\n\n**Generate Standup** — Click the Standup icon in the sidebar rail, then click **Generate**. An AI agent analyzes recent commits across all open projects and produces a summary formatted as Yesterday / Today / Blockers.\n\n**History** — Past standups are stored globally (up to 30 entries) so you can review previous summaries by date.\n\n**Multi-Project** — The standup covers all open projects, grouping accomplishments by project name."
+        },
+        {
+          "id": "commands",
+          "title": "Commands",
+          "content": "## Commands\n\nAvailable from the command palette:\n\n| Command | Description |\n|---------|-------------|\n| **Generate Standup** | Creates a fresh standup summary from recent git activity |"
+        },
+        {
+          "id": "permissions",
+          "title": "Permissions",
+          "content": "## Permissions\n\n| Permission | Why it's needed |\n|------------|----------------|\n| **logging** | Log diagnostic information for troubleshooting |\n| **storage** | Persist standup history globally |\n| **notifications** | Show alerts when generation completes |\n| **agents** | Spawn a quick agent to generate the standup |\n| **projects** | List all open projects to gather activity |\n| **git** | Read recent commit history from each project |\n| **commands** | Register the Generate Standup command |\n| **theme** | Adapt colors and styles to the current theme |"
         }
       ]
     }

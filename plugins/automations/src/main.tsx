@@ -5,6 +5,20 @@ import { matchesCron, describeSchedule, validateCronExpression, PRESETS } from '
 import * as S from './styles';
 import { useTheme } from './use-theme';
 
+// ── Shared refresh signal ───────────────────────────────────────────────
+const refreshSignal = {
+  count: 0,
+  listeners: new Set<() => void>(),
+  trigger(): void {
+    this.count++;
+    for (const fn of this.listeners) fn();
+  },
+  subscribe(fn: () => void): () => void {
+    this.listeners.add(fn);
+    return () => { this.listeners.delete(fn); };
+  },
+};
+
 // ── Storage keys ────────────────────────────────────────────────────────
 const AUTOMATIONS_KEY = 'automations';
 const runsKey = (automationId: string) => `runs:${automationId}`;
@@ -124,11 +138,16 @@ export function activate(ctx: PluginContext, api: PluginAPI): void {
 
   ctx.subscriptions.push({ dispose: () => clearInterval(tickInterval) });
 
-  // 3. Register create command
+  // 3. Register commands
   const cmdSub = api.commands.register('create', () => {
     // Command fires from header — the MainPanel handles creation via storage
   });
   ctx.subscriptions.push(cmdSub);
+
+  const refreshSub = api.commands.register('refresh', () => {
+    refreshSignal.trigger();
+  });
+  ctx.subscriptions.push(refreshSub);
 }
 
 export function deactivate(): void {
@@ -193,7 +212,8 @@ export function MainPanel({ api }: { api: PluginAPI }) {
   useEffect(() => {
     loadAutomations();
     const iv = setInterval(loadAutomations, 10_000);
-    return () => clearInterval(iv);
+    const unsub = refreshSignal.subscribe(loadAutomations);
+    return () => { clearInterval(iv); unsub(); };
   }, [loadAutomations]);
 
   // ── Load model options ──────────────────────────────────────────────

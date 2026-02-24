@@ -23,8 +23,23 @@
       "topics": [
         {
           "id": "overview",
-          "title": "Pomodoro",
-          "content": "# Pomodoro Plugin\n\nA simple timer that follows the Pomodoro technique: 25 minutes of focused work, then a 5-minute break.\n\n## Usage\n\nClick the Pomodoro icon in the sidebar rail, then click Start. A timer widget appears in the status bar. When the timer ends, you'll get a notification. Completed sessions are tracked across restarts."
+          "title": "Overview",
+          "content": "## Pomodoro\n\nA simple timer following the Pomodoro technique: 25 minutes of focused work, then a 5-minute break. Helps maintain productivity by breaking work into manageable intervals."
+        },
+        {
+          "id": "features",
+          "title": "Key Features",
+          "content": "## Key Features\n\n**Timer** — Click the Pomodoro icon in the sidebar rail, then click Start. A timer widget appears in the status bar showing remaining time.\n\n**Work/Break Cycle** — 25-minute work sessions followed by 5-minute breaks. A notification fires when each interval ends.\n\n**Session Tracking** — Completed work sessions are counted per day and tracked for the last 30 days.\n\n**Persistent State** — Timer state is saved so it resumes correctly if the app is restarted mid-session."
+        },
+        {
+          "id": "commands",
+          "title": "Commands",
+          "content": "## Commands\n\nAvailable from the command palette:\n\n| Command | Description |\n|---------|-------------|\n| **Start Pomodoro** | Starts a 25-minute work timer |\n| **Stop Pomodoro** | Stops the current timer |"
+        },
+        {
+          "id": "permissions",
+          "title": "Permissions",
+          "content": "## Permissions\n\n| Permission | Why it's needed |\n|------------|----------------|\n| **logging** | Log timer events for debugging |\n| **storage** | Persist timer state and session history |\n| **notifications** | Alert when work/break intervals end |\n| **commands** | Register Start and Stop commands |\n| **widgets** | Display the timer countdown in the status bar |\n| **theme** | Adapt colors and styles to the current theme |"
         }
       ]
     }

@@ -51,8 +51,23 @@
       "topics": [
         {
           "id": "overview",
-          "title": "Code Review",
-          "content": "# Code Review Plugin\n\nAI-powered code review for your staged changes or branch diff.\n\n## Usage\n\n1. Stage your changes with `git add`\n2. Open the **Review** tab\n3. Click **Review Staged Changes**\n4. The plugin spawns an AI agent that analyzes your diff and provides feedback\n\nYou can also review all changes on your branch relative to the default branch (auto-detected, or configure via settings).\n\n## Review history\n\nPast reviews are stored in project-local storage and displayed in the Review tab."
+          "title": "Overview",
+          "content": "## Code Review\n\nAI-powered code review for staged changes or branch diffs. An agent analyzes your code and provides actionable feedback on quality, bugs, and style.\n\nReviews are stored in project-local storage so you can revisit past feedback."
+        },
+        {
+          "id": "features",
+          "title": "Key Features",
+          "content": "## Key Features\n\n**Review Staged Changes** — Stage your changes with `git add`, then click **Review Staged Changes**. An AI agent analyzes the diff and provides feedback.\n\n**Review Branch Changes** — Compare all changes on your current branch against the default branch (auto-detected or configured in settings).\n\n**Review History** — Past reviews are saved (up to 20) and displayed with timestamps and summaries. Click any review to see the full output.\n\n**Settings** — Choose the review model (Auto/Fast/Thorough) and override the default branch for comparisons."
+        },
+        {
+          "id": "commands",
+          "title": "Commands",
+          "content": "## Commands\n\nAvailable from the command palette:\n\n| Command | Description |\n|---------|-------------|\n| **Review Staged Changes** | Runs a code review on your currently staged git changes |\n| **Review Branch Changes** | Reviews all changes on the current branch vs the default branch |"
+        },
+        {
+          "id": "permissions",
+          "title": "Permissions",
+          "content": "## Permissions\n\n| Permission | Why it's needed |\n|------------|----------------|\n| **logging** | Log diagnostic information for troubleshooting |\n| **storage** | Persist review history in project-local storage |\n| **notifications** | Show alerts when reviews complete |\n| **files** | Read file contents for review context |\n| **git** | Access git diffs and branch information |\n| **agents** | Spawn quick agents to perform the review |\n| **commands** | Register command palette entries |\n| **process** | Execute `git` commands for diff and branch detection |\n| **theme** | Adapt colors and styles to the current theme |"
         }
       ]
     }

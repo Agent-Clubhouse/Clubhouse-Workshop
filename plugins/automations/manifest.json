@@ -24,19 +24,30 @@
       "layout": "full"
     },
     "commands": [
-      { "id": "create", "title": "Create Automation" }
+      { "id": "create", "title": "Create Automation" },
+      { "id": "refresh", "title": "Refresh Automations" }
     ],
     "help": {
       "topics": [
         {
-          "id": "automations",
-          "title": "Automations",
-          "content": "## Automations\n\nSchedule recurring quick-agent tasks using cron expressions.\n\n### Creating an automation\nUse the **Create Automation** command or click the **+** button. Provide a name, prompt, and cron schedule.\n\n### Managing automations\nThe list view shows all automations for the current project. Click an automation to edit its settings.\n\n### Toggling\nEnable or disable an automation with the toggle switch. Disabled automations keep their schedule but will not run.\n\n### Run history\nEach automation tracks its recent runs with status (success/failure) and timestamps."
+          "id": "overview",
+          "title": "Overview",
+          "content": "## Automations\n\nSchedule recurring AI agent tasks using cron expressions. Automations run quick agents on a schedule, making it easy to set up regular code reviews, reports, cleanups, or any repeatable task.\n\nSchedules are evaluated locally — automations only run when Clubhouse is open and the project is active."
         },
         {
-          "id": "cron-schedules",
-          "title": "Cron Schedules",
-          "content": "## Cron Schedules\n\nAutomations use standard 5-field cron expressions: `minute hour day-of-month month day-of-week`.\n\n### Presets\n| Preset | Expression | Description |\n|--------|-----------|-------------|\n| Every 15 minutes | `*/15 * * * *` | Runs at :00, :15, :30, :45 |\n| Hourly | `0 * * * *` | Runs at the top of every hour |\n| Daily at midnight | `0 0 * * *` | Runs once per day at 00:00 |\n| Weekly on Monday | `0 0 * * 1` | Runs at midnight every Monday |\n| Monthly | `0 0 1 * *` | Runs at midnight on the 1st |\n\n### Syntax reference\n- `*` — every value\n- `*/N` — every N units\n- `N` — specific value\n- `N,M` — list of values\n- `N-M` — range of values\n\n### Day-of-week values\n`0` = Sunday, `1` = Monday, `2` = Tuesday, `3` = Wednesday, `4` = Thursday, `5` = Friday, `6` = Saturday.\n\n### How scheduling works\nSchedules are evaluated locally on your machine. The automation will only run when Clubhouse is open and the project is active."
+          "id": "features",
+          "title": "Key Features",
+          "content": "## Key Features\n\n**Create Automations** — Click **+ Add** or use the command palette. Set a name, cron schedule, model, and prompt.\n\n**Cron Scheduling** — Use preset schedules (every 15 min, hourly, daily, weekly, monthly) or write custom 5-field cron expressions (`minute hour day-of-month month day-of-week`).\n\n**Model Selection** — Choose which AI model runs the automation.\n\n**Enable/Disable** — Toggle automations on or off without deleting them.\n\n**Run History** — View recent runs with status (running/completed/failed), timestamps, and expandable summaries. Stop running agents or delete old run records."
+        },
+        {
+          "id": "commands",
+          "title": "Commands",
+          "content": "## Commands\n\nAvailable from the command palette:\n\n| Command | Description |\n|---------|-------------|\n| **Create Automation** | Opens the creation form for a new automation |\n| **Refresh Automations** | Reloads the automation list |"
+        },
+        {
+          "id": "permissions",
+          "title": "Permissions",
+          "content": "## Permissions\n\n| Permission | Why it's needed |\n|------------|----------------|\n| **storage** | Persist automations, schedules, and run history |\n| **agents** | Spawn quick agents and monitor their status |\n| **commands** | Register command palette entries |\n| **notifications** | Show alerts when automations complete or fail |\n| **navigation** | Focus running agent panels |\n| **widgets** | Render completed agent summaries |\n| **theme** | Adapt colors and styles to the current theme |"
         }
       ]
     }

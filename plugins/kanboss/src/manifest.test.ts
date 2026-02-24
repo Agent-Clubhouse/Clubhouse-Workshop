@@ -42,7 +42,9 @@ describe('KanBoss manifest', () => {
   it('contributes help topics', () => {
     expect(manifest.contributes.help.topics.length).toBeGreaterThanOrEqual(1);
     const ids = manifest.contributes.help.topics.map((t: { id: string }) => t.id);
-    expect(ids).toContain('kanboss');
-    expect(ids).toContain('kanboss-automation');
+    expect(ids).toContain('overview');
+    expect(ids).toContain('features');
+    expect(ids).toContain('commands');
+    expect(ids).toContain('permissions');
   });
 });

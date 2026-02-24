@@ -30,14 +30,24 @@
     "help": {
       "topics": [
         {
-          "id": "kanboss",
-          "title": "KanBoss",
-          "content": "## KanBoss\n\nProject-scoped Kanban boards with AI-powered automation.\n\n### Creating a board\nClick **+ New** in the sidebar to create a board. Each board starts with three states (Todo, In Progress, Done) and a Default swimlane.\n\n### Cards\nCards live at the intersection of a state (column) and swimlane (row). Click **+ Add** in any cell to create a card. Cards support labels for categorization and five priority levels.\n\n### Labels\nCreate colored labels to categorize cards (bug, feature, chore, etc.). Labels are defined per-board in board settings.\n\n### WIP Limits\nSet a maximum number of cards per column. When a column is at or over its limit, it's highlighted to help prevent bottlenecks.\n\n### Automation\nMark a state as **Automatic** and provide execution and evaluation prompts. When a card enters that state in a swimlane with an assigned durable agent, a quick agent is spawned to complete the task. A separate evaluation agent then checks the outcome using the evaluation prompt.\n\n### Zoom\nUse the zoom controls in the toolbar to scale the board view between 50% and 200%."
+          "id": "overview",
+          "title": "Overview",
+          "content": "## KanBoss\n\nProject-scoped Kanban boards with AI-powered automation. Create boards with customizable states and swimlanes, assign AI agents to automate work, and track card progress with labels, priorities, and WIP limits."
         },
         {
-          "id": "kanboss-automation",
-          "title": "KanBoss Automation",
-          "content": "## KanBoss Automation\n\nAutomation connects the Kanban workflow to AI agents.\n\n### Setup\n1. Open board settings (gear icon)\n2. Assign a durable agent as **manager** for a swimlane\n3. Mark a state as **Automatic** and write an execution prompt\n4. Optionally write a separate **evaluation prompt** for that state\n5. Set **Max Retries** (default: 3)\n\n### Flow\n1. Card enters an automatic state in a managed swimlane\n2. A quick agent executes the execution prompt\n3. An evaluation agent checks the outcome using the evaluation prompt\n4. On success: card advances to the next state\n5. On failure: card retries (up to max retries)\n6. If retries exhausted: card is marked **stuck**\n\n### Per-State Evaluation\nEach automatic state can have its own evaluation prompt, separate from the execution prompt. This lets you tailor the success criteria for each stage of your pipeline."
+          "id": "features",
+          "title": "Key Features",
+          "content": "## Key Features\n\n**Boards** — Click **+ New** to create a board. Each board starts with three states (Todo, In Progress, Done) and a Default swimlane.\n\n**Cards** — Cards live at the intersection of a state (column) and swimlane (row). Click **+ Add** in any cell. Cards support colored labels and five priority levels.\n\n**WIP Limits** — Set a maximum card count per column. Over-limit columns are highlighted to prevent bottlenecks.\n\n**Automation** — Mark a state as **Automatic** with execution and evaluation prompts. Assign a durable agent to a swimlane. When a card enters an automatic state, a quick agent executes the task and a separate agent evaluates the result. On success, the card advances; on failure, it retries (up to max retries) or is marked stuck.\n\n**Per-State Evaluation** — Each automatic state can have its own evaluation prompt, letting you tailor success criteria per pipeline stage.\n\n**Zoom** — Scale the board view between 50% and 200%."
+        },
+        {
+          "id": "commands",
+          "title": "Commands",
+          "content": "## Commands\n\nAvailable from the command palette:\n\n| Command | Description |\n|---------|-------------|\n| **Refresh Boards** | Reloads the board list and card data |\n| **Create New Board** | Opens the board creation dialog |"
+        },
+        {
+          "id": "permissions",
+          "title": "Permissions",
+          "content": "## Permissions\n\n| Permission | Why it's needed |\n|------------|----------------|\n| **logging** | Log diagnostic information for troubleshooting |\n| **storage** | Persist boards, cards, labels, and automation state |\n| **agents** | Spawn quick agents for automation and manage durable agents |\n| **commands** | Register command palette entries |\n| **notifications** | Show alerts for automation results and card state changes |\n| **navigation** | Focus agent panels during automation runs |\n| **widgets** | Render completed agent summaries in run history |\n| **theme** | Adapt colors and styles to the current theme |"
         }
       ]
     }

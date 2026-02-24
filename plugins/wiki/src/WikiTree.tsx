@@ -404,8 +404,9 @@ export function WikiTree({ api }: { api: PluginAPI }) {
     loadTree();
   }, [loadTree]);
 
-  // Subscribe to wikiState refresh + selection signals
+  // Subscribe to wikiState refresh + selection + newPage signals
   const lastRefreshRef = useRef(wikiState.refreshCount);
+  const lastNewPageRef = useRef(wikiState.newPageRequested);
   useEffect(() => {
     return wikiState.subscribe(() => {
       setSelectedPath(wikiState.selectedPath);
@@ -415,8 +416,23 @@ export function WikiTree({ api }: { api: PluginAPI }) {
         lastRefreshRef.current = wikiState.refreshCount;
         loadTree();
       }
+
+      if (wikiState.newPageRequested !== lastNewPageRef.current) {
+        lastNewPageRef.current = wikiState.newPageRequested;
+        // Create new page at wiki root
+        const scoped = wikiFilesRef.current || getScopedFiles();
+        if (!scoped) return;
+        api.ui.showInput('Page name (e.g. my-page.md)').then(async (name) => {
+          if (!name) return;
+          const fileName = name.endsWith('.md') ? name : `${name}.md`;
+          await scoped.writeFile(fileName, '');
+          wikiState.setViewMode('edit');
+          wikiState.setSelectedPath(fileName);
+          loadTree();
+        });
+      }
     });
-  }, [loadTree]);
+  }, [loadTree, api, getScopedFiles]);
 
   // Re-obtain scoped API on wikiPath setting change
   useEffect(() => {
