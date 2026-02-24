@@ -61,11 +61,8 @@ export function BoardView({ api }: { api: PluginAPI }) {
   const [filter, setFilter] = useState<FilterState>(kanBossState.filter);
 
   // ── Load board + cards (stable — uses refs, no re-subscribe cascade) ─
-  const selectedBoardIdRef = useRef(selectedBoardId);
-  selectedBoardIdRef.current = selectedBoardId;
-
   const loadBoard = useCallback(async () => {
-    const boardId = selectedBoardIdRef.current;
+    const boardId = kanBossState.selectedBoardId;
     if (!boardId) {
       setBoard(null);
       setCards([]);
