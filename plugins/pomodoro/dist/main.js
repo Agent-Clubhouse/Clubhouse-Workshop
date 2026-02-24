@@ -82,9 +82,11 @@ function useTheme(themeApi) {
 // src/main.tsx
 import { Fragment, jsx, jsxs } from "react/jsx-runtime";
 var React = globalThis.React;
-var { useState, useEffect, useCallback, useRef } = React;
-var WORK_DURATION = 25 * 60;
-var BREAK_DURATION = 5 * 60;
+var { useState, useEffect, useCallback, useRef, useMemo } = React;
+var DEFAULT_WORK = 25;
+var DEFAULT_SHORT_BREAK = 5;
+var DEFAULT_LONG_BREAK = 15;
+var DEFAULT_CYCLE = 4;
 var SESSIONS_KEY = "pomodoroSessions";
 var TIMER_STATE_KEY = "pomodoroTimerState";
 function formatTime(seconds) {
@@ -99,6 +101,138 @@ function isTimerState(val) {
   if (typeof val !== "object" || val === null) return false;
   const obj = val;
   return (obj.phase === "work" || obj.phase === "break") && typeof obj.startedAt === "number" && typeof obj.durationMs === "number";
+}
+function readDuration(api, key, fallback, min = 1, max = 120) {
+  const raw = api.settings.get(key);
+  if (typeof raw !== "number" || !Number.isFinite(raw)) return fallback;
+  return Math.max(min, Math.min(max, Math.round(raw)));
+}
+function getDurations(api) {
+  return {
+    work: readDuration(api, "workDuration", DEFAULT_WORK) * 60,
+    shortBreak: readDuration(api, "shortBreakDuration", DEFAULT_SHORT_BREAK) * 60,
+    longBreak: readDuration(api, "longBreakDuration", DEFAULT_LONG_BREAK) * 60,
+    cycle: Math.max(1, Math.min(20, Math.round(
+      api.settings.get("sessionsBeforeLongBreak") ?? DEFAULT_CYCLE
+    )))
+  };
+}
+var RING_SIZE = 180;
+var RING_STROKE = 8;
+var RING_RADIUS = (RING_SIZE - RING_STROKE) / 2;
+var RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
+function ProgressRing({
+  progress,
+  phase,
+  children
+}) {
+  const offset = RING_CIRCUMFERENCE * (1 - Math.max(0, Math.min(1, progress)));
+  const trackColor = "var(--border-primary, #3f3f46)";
+  const activeColor = phase === "work" ? "var(--text-error, #e74c3c)" : phase === "break" ? "var(--text-success, #2ecc71)" : "var(--text-tertiary, #71717a)";
+  return /* @__PURE__ */ jsxs("div", { style: { position: "relative", width: RING_SIZE, height: RING_SIZE, margin: "0 auto" }, children: [
+    /* @__PURE__ */ jsxs(
+      "svg",
+      {
+        width: RING_SIZE,
+        height: RING_SIZE,
+        viewBox: `0 0 ${RING_SIZE} ${RING_SIZE}`,
+        style: { transform: "rotate(-90deg)" },
+        children: [
+          /* @__PURE__ */ jsx(
+            "circle",
+            {
+              cx: RING_SIZE / 2,
+              cy: RING_SIZE / 2,
+              r: RING_RADIUS,
+              fill: "none",
+              stroke: trackColor,
+              strokeWidth: RING_STROKE
+            }
+          ),
+          /* @__PURE__ */ jsx(
+            "circle",
+            {
+              cx: RING_SIZE / 2,
+              cy: RING_SIZE / 2,
+              r: RING_RADIUS,
+              fill: "none",
+              stroke: activeColor,
+              strokeWidth: RING_STROKE,
+              strokeLinecap: "round",
+              strokeDasharray: RING_CIRCUMFERENCE,
+              strokeDashoffset: offset,
+              style: { transition: "stroke-dashoffset 0.3s ease, stroke 0.3s ease" }
+            }
+          )
+        ]
+      }
+    ),
+    /* @__PURE__ */ jsx(
+      "div",
+      {
+        style: {
+          position: "absolute",
+          top: 0,
+          left: 0,
+          width: "100%",
+          height: "100%",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center"
+        },
+        children
+      }
+    )
+  ] });
+}
+function SessionDots({
+  count,
+  cycle
+}) {
+  if (count === 0) return null;
+  const dots = [];
+  const total = Math.min(count, 20);
+  for (let i = 0; i < total; i++) {
+    const isLongBreakMarker = (i + 1) % cycle === 0;
+    dots.push(
+      /* @__PURE__ */ jsx(
+        "span",
+        {
+          title: `Session ${i + 1}${isLongBreakMarker ? " (long break)" : ""}`,
+          style: {
+            display: "inline-block",
+            width: isLongBreakMarker ? 10 : 8,
+            height: isLongBreakMarker ? 10 : 8,
+            borderRadius: "50%",
+            background: "var(--text-error, #e74c3c)",
+            opacity: isLongBreakMarker ? 1 : 0.7,
+            border: isLongBreakMarker ? "1px solid var(--text-error, #e74c3c)" : "none"
+          }
+        },
+        i
+      )
+    );
+  }
+  return /* @__PURE__ */ jsxs(
+    "div",
+    {
+      style: {
+        display: "flex",
+        justifyContent: "center",
+        gap: 6,
+        flexWrap: "wrap",
+        marginTop: 16
+      },
+      children: [
+        dots,
+        count > 20 && /* @__PURE__ */ jsxs("span", { style: { fontSize: 11, color: "var(--text-tertiary, #71717a)", alignSelf: "center" }, children: [
+          "+",
+          count - 20
+        ] })
+      ]
+    }
+  );
 }
 function activate(ctx, api) {
   api.logging.info("Pomodoro plugin activated");
@@ -115,12 +249,103 @@ function activate(ctx, api) {
 }
 function deactivate() {
 }
+var S = {
+  container: {
+    padding: "32px 24px",
+    fontFamily: "var(--font-family, system-ui, -apple-system, sans-serif)",
+    textAlign: "center",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    minHeight: "100%"
+  },
+  phaseLabel: {
+    fontSize: 13,
+    fontWeight: 600,
+    textTransform: "uppercase",
+    letterSpacing: 2,
+    marginBottom: 20
+  },
+  timerText: {
+    fontSize: 42,
+    fontWeight: 700,
+    fontVariantNumeric: "tabular-nums",
+    lineHeight: 1,
+    color: "var(--text-primary, #e4e4e7)"
+  },
+  timerSubtext: {
+    fontSize: 11,
+    marginTop: 4,
+    color: "var(--text-tertiary, #71717a)"
+  },
+  buttonRow: {
+    display: "flex",
+    justifyContent: "center",
+    gap: 10,
+    marginTop: 24
+  },
+  btn: (variant) => {
+    const base = {
+      padding: "8px 20px",
+      fontSize: 13,
+      fontWeight: 600,
+      border: "none",
+      borderRadius: 8,
+      cursor: "pointer",
+      fontFamily: "inherit",
+      transition: "opacity 0.15s ease"
+    };
+    switch (variant) {
+      case "primary":
+        return { ...base, background: "var(--text-error, #e74c3c)", color: "#fff" };
+      case "secondary":
+        return {
+          ...base,
+          background: "var(--bg-accent, rgba(139,92,246,0.15))",
+          color: "var(--text-primary, #e4e4e7)",
+          border: "1px solid var(--border-primary, #3f3f46)"
+        };
+      case "danger":
+        return {
+          ...base,
+          background: "transparent",
+          color: "var(--text-secondary, #a1a1aa)",
+          border: "1px solid var(--border-primary, #3f3f46)"
+        };
+    }
+  },
+  sessions: {
+    marginTop: 24,
+    fontSize: 13,
+    color: "var(--text-secondary, #a1a1aa)"
+  },
+  longBreakHint: {
+    marginTop: 8,
+    fontSize: 11,
+    color: "var(--text-success, #2ecc71)",
+    fontWeight: 500
+  }
+};
 function MainPanel({ api }) {
   const { style: themeStyle } = useTheme(api.theme);
   const [phase, setPhase] = useState("idle");
-  const [remaining, setRemaining] = useState(WORK_DURATION);
+  const [remaining, setRemaining] = useState(0);
+  const [totalDuration, setTotalDuration] = useState(0);
   const [todaySessions, setTodaySessions] = useState(0);
+  const [durations, setDurations] = useState(() => getDurations(api));
   const intervalRef = useRef(null);
+  useEffect(() => {
+    if (phase === "idle") {
+      setRemaining(durations.work);
+      setTotalDuration(durations.work);
+    }
+  }, [durations.work, phase]);
+  useEffect(() => {
+    const unsub = api.settings.onChange(() => {
+      setDurations(getDurations(api));
+    });
+    return () => unsub.dispose();
+  }, [api]);
   const recordSession = useCallback(async () => {
     const raw = await api.storage.global.read(SESSIONS_KEY);
     let records = [];
@@ -143,44 +368,59 @@ function MainPanel({ api }) {
     if (records.length > 30) records.length = 30;
     await api.storage.global.write(SESSIONS_KEY, records);
   }, [api]);
-  const runInterval = useCallback((targetPhase, startTime, durationSec) => {
-    if (intervalRef.current) clearInterval(intervalRef.current);
-    setPhase(targetPhase);
-    const tick = () => {
-      const elapsed = Math.floor((Date.now() - startTime) / 1e3);
-      const left = durationSec - elapsed;
-      if (left <= 0) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-        api.storage.global.delete(TIMER_STATE_KEY);
-        if (targetPhase === "work") {
-          recordSession();
-          api.ui.showNotice("Pomodoro complete! Time for a break.");
-          setPhase("idle");
-          setRemaining(BREAK_DURATION);
+  const runInterval = useCallback(
+    (targetPhase, startTime, durationSec) => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+      setPhase(targetPhase);
+      setTotalDuration(durationSec);
+      const tick = () => {
+        const elapsed = Math.floor((Date.now() - startTime) / 1e3);
+        const left = durationSec - elapsed;
+        if (left <= 0) {
+          clearInterval(intervalRef.current);
+          intervalRef.current = null;
+          api.storage.global.delete(TIMER_STATE_KEY);
+          if (targetPhase === "work") {
+            recordSession();
+            api.ui.showNotice("Pomodoro complete! Time for a break.");
+            setPhase("idle");
+            setRemaining(durations.shortBreak);
+            setTotalDuration(durations.shortBreak);
+          } else {
+            api.ui.showNotice("Break over! Ready for another round?");
+            setPhase("idle");
+            setRemaining(durations.work);
+            setTotalDuration(durations.work);
+          }
         } else {
-          api.ui.showNotice("Break over! Ready for another round?");
-          setPhase("idle");
-          setRemaining(WORK_DURATION);
+          setRemaining(left);
         }
+      };
+      tick();
+      intervalRef.current = setInterval(tick, 1e3);
+    },
+    [api, recordSession, durations]
+  );
+  const startTimer = useCallback(
+    (targetPhase, longBreak = false) => {
+      let duration;
+      if (targetPhase === "work") {
+        duration = durations.work;
       } else {
-        setRemaining(left);
+        duration = longBreak ? durations.longBreak : durations.shortBreak;
       }
-    };
-    tick();
-    intervalRef.current = setInterval(tick, 1e3);
-  }, [api, recordSession]);
-  const startTimer = useCallback((targetPhase) => {
-    const duration = targetPhase === "work" ? WORK_DURATION : BREAK_DURATION;
-    const startTime = Date.now();
-    api.storage.global.write(TIMER_STATE_KEY, {
-      phase: targetPhase,
-      startedAt: startTime,
-      durationMs: duration * 1e3
-    });
-    setRemaining(duration);
-    runInterval(targetPhase, startTime, duration);
-  }, [api, runInterval]);
+      const startTime = Date.now();
+      api.storage.global.write(TIMER_STATE_KEY, {
+        phase: targetPhase,
+        startedAt: startTime,
+        durationMs: duration * 1e3
+      });
+      setRemaining(duration);
+      setTotalDuration(duration);
+      runInterval(targetPhase, startTime, duration);
+    },
+    [api, runInterval, durations]
+  );
   const stop = useCallback(() => {
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
@@ -188,8 +428,9 @@ function MainPanel({ api }) {
     }
     api.storage.global.delete(TIMER_STATE_KEY);
     setPhase("idle");
-    setRemaining(WORK_DURATION);
-  }, [api]);
+    setRemaining(durations.work);
+    setTotalDuration(durations.work);
+  }, [api, durations]);
   useEffect(() => {
     api.storage.global.read(SESSIONS_KEY).then((raw) => {
       let records = [];
@@ -227,32 +468,70 @@ function MainPanel({ api }) {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
   }, [api, runInterval, recordSession]);
-  const styles = {
-    container: { padding: 24, fontFamily: "var(--font-family, sans-serif)", textAlign: "center" },
-    timer: { fontSize: 64, fontWeight: 700, fontVariantNumeric: "tabular-nums", margin: "24px 0" },
-    phaseLabel: { fontSize: 14, textTransform: "uppercase", letterSpacing: 2, color: "var(--text-secondary, #888)" },
-    sessions: { marginTop: 32, fontSize: 14, color: "var(--text-secondary, #888)" },
-    buttonRow: { display: "flex", justifyContent: "center", gap: 12, marginTop: 16 }
-  };
-  return /* @__PURE__ */ jsxs("div", { style: { ...themeStyle, ...styles.container }, children: [
-    /* @__PURE__ */ jsx("h2", { style: { marginTop: 0 }, children: "Pomodoro" }),
-    /* @__PURE__ */ jsx("div", { style: styles.phaseLabel, children: phase === "idle" ? "Ready" : phase === "work" ? "Focus" : "Break" }),
-    /* @__PURE__ */ jsx("div", { style: styles.timer, children: formatTime(remaining) }),
-    /* @__PURE__ */ jsxs("div", { style: styles.buttonRow, children: [
-      phase === "idle" && /* @__PURE__ */ jsxs(Fragment, { children: [
-        /* @__PURE__ */ jsx("button", { onClick: () => startTimer("work"), style: { cursor: "pointer" }, children: "Start Work (25m)" }),
-        /* @__PURE__ */ jsx("button", { onClick: () => startTimer("break"), style: { cursor: "pointer" }, children: "Start Break (5m)" })
-      ] }),
-      phase !== "idle" && /* @__PURE__ */ jsx("button", { onClick: stop, style: { cursor: "pointer" }, children: "Stop" })
+  const progress = totalDuration > 0 ? remaining / totalDuration : 1;
+  const isLongBreakDue = todaySessions > 0 && todaySessions % durations.cycle === 0;
+  const phaseColor = useMemo(() => {
+    if (phase === "work") return "var(--text-error, #e74c3c)";
+    if (phase === "break") return "var(--text-success, #2ecc71)";
+    return "var(--text-secondary, #a1a1aa)";
+  }, [phase]);
+  const phaseLabel = phase === "idle" ? "Ready" : phase === "work" ? "Focus" : "Break";
+  const durationLabel = phase === "idle" ? `${Math.round(durations.work / 60)}m work` : null;
+  return /* @__PURE__ */ jsxs("div", { style: { ...themeStyle, ...S.container }, children: [
+    /* @__PURE__ */ jsx("div", { style: { ...S.phaseLabel, color: phaseColor }, children: phaseLabel }),
+    /* @__PURE__ */ jsxs(ProgressRing, { progress, phase, children: [
+      /* @__PURE__ */ jsx("div", { style: S.timerText, children: formatTime(remaining) }),
+      durationLabel && /* @__PURE__ */ jsx("div", { style: S.timerSubtext, children: durationLabel })
     ] }),
-    /* @__PURE__ */ jsxs("div", { style: styles.sessions, children: [
-      "Sessions today: ",
-      /* @__PURE__ */ jsx("strong", { children: todaySessions })
-    ] })
+    /* @__PURE__ */ jsxs("div", { style: S.buttonRow, children: [
+      phase === "idle" && /* @__PURE__ */ jsxs(Fragment, { children: [
+        /* @__PURE__ */ jsx(
+          "button",
+          {
+            onClick: () => startTimer("work"),
+            style: S.btn("primary"),
+            children: "Start Work"
+          }
+        ),
+        isLongBreakDue ? /* @__PURE__ */ jsxs(
+          "button",
+          {
+            onClick: () => startTimer("break", true),
+            style: S.btn("secondary"),
+            children: [
+              "Long Break (",
+              Math.round(durations.longBreak / 60),
+              "m)"
+            ]
+          }
+        ) : /* @__PURE__ */ jsxs(
+          "button",
+          {
+            onClick: () => startTimer("break"),
+            style: S.btn("secondary"),
+            children: [
+              "Short Break (",
+              Math.round(durations.shortBreak / 60),
+              "m)"
+            ]
+          }
+        )
+      ] }),
+      phase !== "idle" && /* @__PURE__ */ jsx("button", { onClick: stop, style: S.btn("danger"), children: "Stop" })
+    ] }),
+    phase === "idle" && isLongBreakDue && /* @__PURE__ */ jsxs("div", { style: S.longBreakHint, children: [
+      durations.cycle,
+      " sessions done \u2014 take a long break!"
+    ] }),
+    /* @__PURE__ */ jsx(SessionDots, { count: todaySessions, cycle: durations.cycle }),
+    /* @__PURE__ */ jsx("div", { style: S.sessions, children: todaySessions === 0 ? "No sessions yet today" : `${todaySessions} session${todaySessions === 1 ? "" : "s"} today` })
   ] });
 }
 export {
   MainPanel,
   activate,
-  deactivate
+  deactivate,
+  formatTime,
+  isTimerState,
+  todayKey
 };
