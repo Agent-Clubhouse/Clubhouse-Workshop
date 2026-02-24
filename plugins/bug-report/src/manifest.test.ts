@@ -43,8 +43,11 @@ describe("bug-report manifest", () => {
     expect(manifest.contributes.railItem.position).toBe("bottom");
   });
 
-  it("has icon SVG", () => {
+  it("has bug icon SVG", () => {
     expect(manifest.contributes.railItem.icon).toContain("<svg");
+    // Bug icon should have the antenna paths (not the old info circle)
+    expect(manifest.contributes.railItem.icon).toContain("M8 2l1.88 1.88");
+    expect(manifest.contributes.railItem.icon).not.toContain("<circle");
   });
 
   it("contributes commands", () => {

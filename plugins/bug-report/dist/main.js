@@ -464,16 +464,21 @@ function Markdown({ source }) {
 }
 async function checkGhAuth(api) {
   try {
+    const r = await api.process.exec("gh", ["api", "user", "-q", ".login"]);
+    const login = r.stdout.trim();
+    if (login && r.exitCode === 0) return login;
+  } catch {
+  }
+  try {
     const r = await api.process.exec("gh", ["auth", "status"]);
     const output = r.stdout + r.stderr;
     if (output.includes("Logged in")) {
-      const userResult = await api.process.exec("gh", ["api", "user", "-q", ".login"]);
-      return userResult.stdout.trim() || null;
+      const m = output.match(/account\s+(\S+)/);
+      return m ? m[1] : "unknown";
     }
-    return null;
   } catch {
-    return null;
   }
+  return null;
 }
 var ISSUE_FIELDS = "number,title,state,url,createdAt,updatedAt,author,labels";
 var PER_PAGE = 30;
@@ -888,7 +893,19 @@ function SidebarPanel({ api }) {
     return /* @__PURE__ */ jsxs("div", { style: { ...themeStyle, ...S.sidebar }, children: [
       /* @__PURE__ */ jsx("div", { style: S.header, children: /* @__PURE__ */ jsx("span", { style: S.headerTitle, children: "Bug Report" }) }),
       /* @__PURE__ */ jsxs("div", { style: S.errorBox, children: [
-        /* @__PURE__ */ jsx("div", { style: { marginBottom: "12px" }, children: /* @__PURE__ */ jsx("svg", { width: "32", height: "32", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5", children: /* @__PURE__ */ jsx("path", { d: "M12 9v3m0 3h.01M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" }) }) }),
+        /* @__PURE__ */ jsx("div", { style: { marginBottom: "12px" }, children: /* @__PURE__ */ jsxs("svg", { width: "32", height: "32", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5", strokeLinecap: "round", strokeLinejoin: "round", children: [
+          /* @__PURE__ */ jsx("path", { d: "M8 2l1.88 1.88" }),
+          /* @__PURE__ */ jsx("path", { d: "M14.12 3.88 16 2" }),
+          /* @__PURE__ */ jsx("path", { d: "M9 7.13v-1a3.003 3.003 0 1 1 6 0v1" }),
+          /* @__PURE__ */ jsx("path", { d: "M12 20c-3.3 0-6-2.7-6-6v-3a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v3c0 3.3-2.7 6-6 6" }),
+          /* @__PURE__ */ jsx("path", { d: "M12 20v-9" }),
+          /* @__PURE__ */ jsx("path", { d: "M6.53 9C4.6 8.8 3 7.1 3 5" }),
+          /* @__PURE__ */ jsx("path", { d: "M6 13H2" }),
+          /* @__PURE__ */ jsx("path", { d: "M3 21c0-2.1 1.7-3.9 3.8-4" }),
+          /* @__PURE__ */ jsx("path", { d: "M20.97 5c0 2.1-1.6 3.8-3.5 4" }),
+          /* @__PURE__ */ jsx("path", { d: "M22 13h-4" }),
+          /* @__PURE__ */ jsx("path", { d: "M17.2 17c2.1.1 3.8 1.9 3.8 4" })
+        ] }) }),
         /* @__PURE__ */ jsx("div", { style: { fontSize: "13px", fontWeight: 500 }, children: "GitHub CLI not authenticated" }),
         /* @__PURE__ */ jsxs("div", { style: { fontSize: "12px", marginTop: "4px" }, children: [
           "Run ",
@@ -1220,10 +1237,18 @@ function MainPanel({ api }) {
   }, []);
   if (reportState.ghAuthed === false || reportState.ghAuthed === null) {
     return /* @__PURE__ */ jsx("div", { style: { ...themeStyle, ...S.main }, children: /* @__PURE__ */ jsxs("div", { style: S.empty, children: [
-      /* @__PURE__ */ jsxs("svg", { width: "48", height: "48", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5", children: [
-        /* @__PURE__ */ jsx("circle", { cx: "12", cy: "12", r: "10" }),
-        /* @__PURE__ */ jsx("line", { x1: "12", y1: "8", x2: "12", y2: "12" }),
-        /* @__PURE__ */ jsx("line", { x1: "12", y1: "16", x2: "12.01", y2: "16" })
+      /* @__PURE__ */ jsxs("svg", { width: "48", height: "48", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5", strokeLinecap: "round", strokeLinejoin: "round", children: [
+        /* @__PURE__ */ jsx("path", { d: "M8 2l1.88 1.88" }),
+        /* @__PURE__ */ jsx("path", { d: "M14.12 3.88 16 2" }),
+        /* @__PURE__ */ jsx("path", { d: "M9 7.13v-1a3.003 3.003 0 1 1 6 0v1" }),
+        /* @__PURE__ */ jsx("path", { d: "M12 20c-3.3 0-6-2.7-6-6v-3a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v3c0 3.3-2.7 6-6 6" }),
+        /* @__PURE__ */ jsx("path", { d: "M12 20v-9" }),
+        /* @__PURE__ */ jsx("path", { d: "M6.53 9C4.6 8.8 3 7.1 3 5" }),
+        /* @__PURE__ */ jsx("path", { d: "M6 13H2" }),
+        /* @__PURE__ */ jsx("path", { d: "M3 21c0-2.1 1.7-3.9 3.8-4" }),
+        /* @__PURE__ */ jsx("path", { d: "M20.97 5c0 2.1-1.6 3.8-3.5 4" }),
+        /* @__PURE__ */ jsx("path", { d: "M22 13h-4" }),
+        /* @__PURE__ */ jsx("path", { d: "M17.2 17c2.1.1 3.8 1.9 3.8 4" })
       ] }),
       /* @__PURE__ */ jsx("div", { style: { fontSize: "14px" }, children: "Authenticate with GitHub to file bug reports" }),
       /* @__PURE__ */ jsxs("div", { style: { fontSize: "12px" }, children: [
