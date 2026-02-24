@@ -20,6 +20,7 @@ import {
 import type { Severity, ReportType, IssueListItem } from "./helpers";
 import { createBugReportState } from "./state";
 import type { ViewMode } from "./state";
+import { useTheme } from "./use-theme";
 
 const React = globalThis.React;
 const { useState, useEffect, useCallback, useRef, useMemo } = React;
@@ -706,6 +707,7 @@ const S = {
 // ---------------------------------------------------------------------------
 
 export function SidebarPanel({ api }: PanelProps) {
+  const { style: themeStyle } = useTheme(api.theme);
   const [, setTick] = useState(0);
   const rerender = useCallback(() => setTick(t => t + 1), []);
 
@@ -763,7 +765,7 @@ export function SidebarPanel({ api }: PanelProps) {
   // Not authed
   if (reportState.ghAuthed === false) {
     return (
-      <div style={S.sidebar}>
+      <div style={{ ...themeStyle, ...S.sidebar }}>
         <div style={S.header}>
           <span style={S.headerTitle}>Bug Report</span>
         </div>
@@ -802,7 +804,7 @@ export function SidebarPanel({ api }: PanelProps) {
   // Loading initial auth check
   if (reportState.ghAuthed === null) {
     return (
-      <div style={S.sidebar}>
+      <div style={{ ...themeStyle, ...S.sidebar }}>
         <div style={S.header}>
           <span style={S.headerTitle}>Bug Report</span>
         </div>
@@ -817,7 +819,7 @@ export function SidebarPanel({ api }: PanelProps) {
   const filtered = filterIssues(displayIssues, reportState.searchQuery);
 
   return (
-    <div style={S.sidebar}>
+    <div style={{ ...themeStyle, ...S.sidebar }}>
       <div style={S.header}>
         <span style={S.headerTitle}>Bug Report</span>
         <button style={S.newBtn} onClick={() => reportState.setCreatingNew(true)}>
@@ -1170,6 +1172,7 @@ function IssueDetailView({ api, issueNumber }: { api: PluginAPI; issueNumber: nu
 // ---------------------------------------------------------------------------
 
 export function MainPanel({ api }: PanelProps) {
+  const { style: themeStyle } = useTheme(api.theme);
   const [, setTick] = useState(0);
   const rerender = useCallback(() => setTick(t => t + 1), []);
 
@@ -1183,7 +1186,7 @@ export function MainPanel({ api }: PanelProps) {
 
   if (reportState.ghAuthed === false || reportState.ghAuthed === null) {
     return (
-      <div style={S.main}>
+      <div style={{ ...themeStyle, ...S.main }}>
         <div style={S.empty}>
           <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
             <circle cx="12" cy="12" r="10" />
@@ -1201,7 +1204,7 @@ export function MainPanel({ api }: PanelProps) {
 
   if (reportState.creatingNew) {
     return (
-      <div style={S.main}>
+      <div style={{ ...themeStyle, ...S.main }}>
         <ReportForm api={api} onCreated={handleCreated} />
       </div>
     );
@@ -1209,14 +1212,14 @@ export function MainPanel({ api }: PanelProps) {
 
   if (reportState.selectedIssueNumber) {
     return (
-      <div style={S.main}>
+      <div style={{ ...themeStyle, ...S.main }}>
         <IssueDetailView api={api} issueNumber={reportState.selectedIssueNumber} />
       </div>
     );
   }
 
   return (
-    <div style={S.main}>
+    <div style={{ ...themeStyle, ...S.main }}>
       <div style={S.empty}>
         <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
           <circle cx="12" cy="12" r="10" />
