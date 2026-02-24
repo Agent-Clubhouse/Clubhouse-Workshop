@@ -22,6 +22,17 @@ describe("createBugReportState", () => {
     expect(state.issues).toEqual([]);
     expect(state.myIssues).toEqual([]);
   });
+
+  it("initialises repoTarget as app", () => {
+    const state = createBugReportState();
+    expect(state.repoTarget).toBe("app");
+  });
+
+  it("initialises repoCache with empty entries for both targets", () => {
+    const state = createBugReportState();
+    expect(state.repoCache.app).toEqual({ issues: [], myIssues: [], page: 1, hasMore: false });
+    expect(state.repoCache.plugins).toEqual({ issues: [], myIssues: [], page: 1, hasMore: false });
+  });
 });
 
 describe("setGhUsername", () => {
@@ -175,6 +186,95 @@ describe("subscribe / unsubscribe", () => {
   });
 });
 
+describe("setRepoTarget", () => {
+  const issue = {
+    number: 1,
+    title: "Test",
+    state: "open",
+    url: "",
+    createdAt: "",
+    updatedAt: "",
+    author: { login: "user" },
+    labels: [],
+  };
+
+  it("switches repoTarget", () => {
+    const state = createBugReportState();
+    state.setRepoTarget("plugins");
+    expect(state.repoTarget).toBe("plugins");
+  });
+
+  it("is a no-op when switching to the same target", () => {
+    const state = createBugReportState();
+    const listener = vi.fn();
+    state.subscribe(listener);
+    state.setRepoTarget("app");
+    expect(listener).not.toHaveBeenCalled();
+  });
+
+  it("preserves current issues in cache when switching", () => {
+    const state = createBugReportState();
+    state.setIssues([issue]);
+    state.setMyIssues([{ ...issue, number: 2 }]);
+    state.page = 3;
+    state.hasMore = true;
+
+    state.setRepoTarget("plugins");
+
+    // App cache should have the issues we set
+    expect(state.repoCache.app.issues).toHaveLength(1);
+    expect(state.repoCache.app.myIssues).toHaveLength(1);
+    expect(state.repoCache.app.page).toBe(3);
+    expect(state.repoCache.app.hasMore).toBe(true);
+  });
+
+  it("restores cached issues when switching back", () => {
+    const state = createBugReportState();
+    state.setIssues([issue]);
+
+    // Switch to plugins (empty cache)
+    state.setRepoTarget("plugins");
+    expect(state.issues).toEqual([]);
+
+    // Populate plugins with a different issue
+    const pluginIssue = { ...issue, number: 99, title: "Plugin Bug" };
+    state.setIssues([pluginIssue]);
+
+    // Switch back to app — should restore the app issues
+    state.setRepoTarget("app");
+    expect(state.issues).toHaveLength(1);
+    expect(state.issues[0].number).toBe(1);
+  });
+
+  it("clears selection when switching", () => {
+    const state = createBugReportState();
+    state.setSelectedIssue(42);
+    state.setRepoTarget("plugins");
+    expect(state.selectedIssueNumber).toBeNull();
+    expect(state.creatingNew).toBe(false);
+  });
+
+  it("triggers refresh when cache is empty", () => {
+    const state = createBugReportState();
+    state.setRepoTarget("plugins");
+    expect(state.needsRefresh).toBe(true);
+  });
+
+  it("does not trigger refresh when cache has data", () => {
+    const state = createBugReportState();
+    // Pre-populate plugins cache
+    state.setRepoTarget("plugins");
+    state.setIssues([issue]);
+    state.needsRefresh = false;
+
+    // Switch to app and back
+    state.setRepoTarget("app");
+    state.needsRefresh = false;
+    state.setRepoTarget("plugins");
+    expect(state.needsRefresh).toBe(false);
+  });
+});
+
 describe("reset", () => {
   it("clears all state", () => {
     const state = createBugReportState();
@@ -204,6 +304,9 @@ describe("reset", () => {
     expect(state.needsRefresh).toBe(false);
     expect(state.viewMode).toBe("my-reports");
     expect(state.searchQuery).toBe("");
+    expect(state.repoTarget).toBe("app");
+    expect(state.repoCache.app).toEqual({ issues: [], myIssues: [], page: 1, hasMore: false });
+    expect(state.repoCache.plugins).toEqual({ issues: [], myIssues: [], page: 1, hasMore: false });
   });
 
   it("clears listeners", () => {

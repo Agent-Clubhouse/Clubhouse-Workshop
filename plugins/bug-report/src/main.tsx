@@ -16,8 +16,9 @@ import {
   SEVERITIES,
   REPORT_TYPES,
   REPO,
+  REPOS,
 } from "./helpers";
-import type { Severity, ReportType, IssueListItem } from "./helpers";
+import type { Severity, ReportType, RepoTarget, IssueListItem } from "./helpers";
 import { createBugReportState } from "./state";
 import type { ViewMode } from "./state";
 import { useTheme } from "./use-theme";
@@ -379,10 +380,11 @@ export async function fetchIssues(
   api: PluginAPI,
   page: number,
   author?: string,
+  repo: string = REPO,
 ): Promise<{ items: IssueListItem[]; hasMore: boolean }> {
   const args = [
     "issue", "list",
-    "--repo", REPO,
+    "--repo", repo,
     "--json", ISSUE_FIELDS,
     "--limit", String(PER_PAGE + 1),
     "--state", "all",
@@ -420,10 +422,10 @@ export async function fetchIssues(
   return { items, hasMore };
 }
 
-export async function fetchIssueDetail(api: PluginAPI, num: number): Promise<IssueDetail | null> {
+export async function fetchIssueDetail(api: PluginAPI, num: number, repo: string = REPO): Promise<IssueDetail | null> {
   const r = await api.process.exec("gh", [
     "issue", "view", String(num),
-    "--repo", REPO,
+    "--repo", repo,
     "--json", "number,title,state,url,createdAt,updatedAt,author,labels,body,comments,assignees",
   ]);
   if (r.exitCode !== 0 || !r.stdout.trim()) {
@@ -444,11 +446,13 @@ async function createIssue(
   body: string,
   label: ReportType,
   severity: Severity,
+  repo: string = REPO,
+  pluginName?: string,
 ): Promise<number> {
-  const fullTitle = formatTitle(severity, title);
+  const fullTitle = formatTitle(severity, title, pluginName);
   const r = await api.process.exec("gh", [
     "issue", "create",
-    "--repo", REPO,
+    "--repo", repo,
     "--title", fullTitle,
     "--body", body,
     "--label", label,
@@ -464,10 +468,10 @@ async function createIssue(
   throw new Error("Failed to parse created issue number");
 }
 
-async function addComment(api: PluginAPI, num: number, body: string): Promise<void> {
+async function addComment(api: PluginAPI, num: number, body: string, repo: string = REPO): Promise<void> {
   const r = await api.process.exec("gh", [
     "issue", "comment", String(num),
-    "--repo", REPO,
+    "--repo", repo,
     "--body", body,
   ]);
   if (r.exitCode !== 0) {
@@ -550,6 +554,60 @@ const S = {
     color: "var(--text-primary, #e4e4e7)",
     cursor: "pointer",
     fontFamily: "inherit",
+  },
+  repoToggle: {
+    display: "flex",
+    padding: "8px 14px 0",
+    gap: "0px",
+  },
+  repoToggleBtn: (active: boolean) => ({
+    flex: 1,
+    padding: "5px 10px",
+    fontSize: "11px",
+    fontWeight: active ? 600 : 400,
+    cursor: "pointer",
+    background: active ? "var(--bg-accent, rgba(139,92,246,0.15))" : "transparent",
+    color: active ? "var(--text-primary, #e4e4e7)" : "var(--text-tertiary, #71717a)",
+    border: "1px solid var(--border-primary, #3f3f46)",
+    borderRight: "none",
+    fontFamily: "inherit",
+    "&:first-child": { borderRadius: "6px 0 0 6px" },
+    "&:last-child": { borderRadius: "0 6px 6px 0", borderRight: "1px solid var(--border-primary, #3f3f46)" },
+  }),
+  repoToggleBtnFirst: (active: boolean) => ({
+    flex: 1,
+    padding: "5px 10px",
+    fontSize: "11px",
+    fontWeight: active ? 600 : 400,
+    cursor: "pointer",
+    background: active ? "var(--bg-accent, rgba(139,92,246,0.15))" : "transparent",
+    color: active ? "var(--text-primary, #e4e4e7)" : "var(--text-tertiary, #71717a)",
+    border: "1px solid var(--border-primary, #3f3f46)",
+    borderRadius: "6px 0 0 6px",
+    fontFamily: "inherit",
+  }),
+  repoToggleBtnLast: (active: boolean) => ({
+    flex: 1,
+    padding: "5px 10px",
+    fontSize: "11px",
+    fontWeight: active ? 600 : 400,
+    cursor: "pointer",
+    background: active ? "var(--bg-accent, rgba(139,92,246,0.15))" : "transparent",
+    color: active ? "var(--text-primary, #e4e4e7)" : "var(--text-tertiary, #71717a)",
+    border: "1px solid var(--border-primary, #3f3f46)",
+    borderRadius: "0 6px 6px 0",
+    fontFamily: "inherit",
+  }),
+  pluginBadge: {
+    display: "inline-block",
+    padding: "0 5px",
+    borderRadius: "4px",
+    fontSize: "10px",
+    lineHeight: "16px",
+    background: "var(--bg-accent, rgba(139,92,246,0.15))",
+    color: "var(--text-accent, #a78bfa)",
+    border: "1px solid rgba(139,92,246,0.3)",
+    marginRight: "4px",
   },
   tabs: {
     display: "flex",
@@ -804,13 +862,14 @@ export function SidebarPanel({ api }: PanelProps) {
 
     const load = async () => {
       reportState.setLoading(true);
+      const repo = REPOS[reportState.repoTarget];
       try {
         // Fetch both my issues and all issues in parallel
         const [myResult, allResult] = await Promise.all([
           reportState.ghUsername
-            ? fetchIssues(api, 1, reportState.ghUsername)
+            ? fetchIssues(api, 1, reportState.ghUsername, repo)
             : Promise.resolve({ items: [], hasMore: false }),
-          fetchIssues(api, reportState.page),
+          fetchIssues(api, reportState.page, undefined, repo),
         ]);
 
         if (reportState.page === 1) {
@@ -895,6 +954,22 @@ export function SidebarPanel({ api }: PanelProps) {
         </button>
       </div>
 
+      {/* Repo toggle */}
+      <div style={S.repoToggle}>
+        <button
+          style={S.repoToggleBtnFirst(reportState.repoTarget === "app")}
+          onClick={() => reportState.setRepoTarget("app")}
+        >
+          App
+        </button>
+        <button
+          style={S.repoToggleBtnLast(reportState.repoTarget === "plugins")}
+          onClick={() => reportState.setRepoTarget("plugins")}
+        >
+          Plugins
+        </button>
+      </div>
+
       {/* View mode tabs */}
       <div style={S.tabs}>
         <button
@@ -938,7 +1013,7 @@ export function SidebarPanel({ api }: PanelProps) {
         ) : (
           <>
             {filtered.map(issue => {
-              const { severity } = parseSeverityFromTitle(issue.title);
+              const { severity, pluginName } = parseSeverityFromTitle(issue.title);
               return (
                 <div
                   key={issue.number}
@@ -948,6 +1023,9 @@ export function SidebarPanel({ api }: PanelProps) {
                   <div style={S.issueTitle}>
                     {severity && (
                       <span style={{ ...S.severityBadge(severity), marginRight: "6px" }}>{severity}</span>
+                    )}
+                    {pluginName && (
+                      <span style={S.pluginBadge}>{pluginName}</span>
                     )}
                     {parseSeverityFromTitle(issue.title).cleanTitle}
                   </div>
@@ -993,14 +1071,18 @@ function ReportForm({ api, onCreated }: { api: PluginAPI; onCreated: (num: numbe
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [fileAgainst, setFileAgainst] = useState<RepoTarget>(reportState.repoTarget);
+  const [pluginName, setPluginName] = useState("");
 
-  const canSubmit = title.trim().length > 0 && !submitting;
+  const canSubmit = title.trim().length > 0 && !submitting && (fileAgainst !== "plugins" || pluginName.trim().length > 0);
 
   const handleSubmit = useCallback(async () => {
     if (!canSubmit) return;
     setSubmitting(true);
     try {
-      const num = await createIssue(api, title.trim(), description.trim(), reportType, severity);
+      const repo = REPOS[fileAgainst];
+      const pName = fileAgainst === "plugins" ? pluginName.trim() : undefined;
+      const num = await createIssue(api, title.trim(), description.trim(), reportType, severity, repo, pName);
       api.ui.showNotice(`Report #${num} filed successfully`);
       onCreated(num);
     } catch (err: unknown) {
@@ -1009,11 +1091,43 @@ function ReportForm({ api, onCreated }: { api: PluginAPI; onCreated: (num: numbe
     } finally {
       setSubmitting(false);
     }
-  }, [api, title, description, reportType, severity, canSubmit, onCreated]);
+  }, [api, title, description, reportType, severity, canSubmit, onCreated, fileAgainst, pluginName]);
 
   return (
     <div>
       <h2 style={{ marginTop: 0, marginBottom: "16px", fontSize: "18px" }}>File a Report</h2>
+
+      {/* File against toggle */}
+      <div style={S.formGroup}>
+        <label style={S.formLabel}>File against</label>
+        <div style={{ display: "flex", gap: "0px" }}>
+          <button
+            style={S.repoToggleBtnFirst(fileAgainst === "app")}
+            onClick={() => setFileAgainst("app")}
+          >
+            App
+          </button>
+          <button
+            style={S.repoToggleBtnLast(fileAgainst === "plugins")}
+            onClick={() => setFileAgainst("plugins")}
+          >
+            Plugins
+          </button>
+        </div>
+      </div>
+
+      {/* Plugin name (only when filing against plugins repo) */}
+      {fileAgainst === "plugins" && (
+        <div style={S.formGroup}>
+          <label style={S.formLabel}>Plugin name</label>
+          <input
+            style={S.input}
+            placeholder="e.g. Pomodoro, Standup, Git Helper..."
+            value={pluginName}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPluginName((e.target as HTMLInputElement).value)}
+          />
+        </div>
+      )}
 
       {/* Type selector */}
       <div style={S.formGroup}>
@@ -1058,7 +1172,7 @@ function ReportForm({ api, onCreated }: { api: PluginAPI; onCreated: (num: numbe
         />
         {title.trim() && (
           <div style={{ fontSize: "11px", color: "var(--text-tertiary, #71717a)", marginTop: "4px" }}>
-            Will be filed as: <strong>{formatTitle(severity, title.trim())}</strong>
+            Will be filed as: <strong>{formatTitle(severity, title.trim(), fileAgainst === "plugins" ? pluginName.trim() || undefined : undefined)}</strong>
           </div>
         )}
       </div>
@@ -1107,26 +1221,28 @@ function IssueDetailView({ api, issueNumber }: { api: PluginAPI; issueNumber: nu
   const [newComment, setNewComment] = useState("");
   const [commenting, setCommenting] = useState(false);
 
+  const repo = REPOS[reportState.repoTarget];
+
   useEffect(() => {
     setLoading(true);
     setError(null);
     setDetail(null);
-    fetchIssueDetail(api, issueNumber)
+    fetchIssueDetail(api, issueNumber, repo)
       .then(d => { setDetail(d); setLoading(false); })
       .catch(err => {
         setError(err instanceof Error ? err.message : String(err));
         setLoading(false);
       });
-  }, [api, issueNumber]);
+  }, [api, issueNumber, repo]);
 
   const handleAddComment = useCallback(async () => {
     if (!newComment.trim() || commenting) return;
     setCommenting(true);
     try {
-      await addComment(api, issueNumber, newComment.trim());
+      await addComment(api, issueNumber, newComment.trim(), repo);
       setNewComment("");
       // Refresh the detail
-      const updated = await fetchIssueDetail(api, issueNumber);
+      const updated = await fetchIssueDetail(api, issueNumber, repo);
       setDetail(updated);
       api.ui.showNotice("Comment added");
     } catch (err: unknown) {
@@ -1135,7 +1251,7 @@ function IssueDetailView({ api, issueNumber }: { api: PluginAPI; issueNumber: nu
     } finally {
       setCommenting(false);
     }
-  }, [api, issueNumber, newComment, commenting]);
+  }, [api, issueNumber, newComment, commenting, repo]);
 
   if (loading) {
     return <div style={S.spinner}>Loading report details...</div>;
@@ -1152,7 +1268,7 @@ function IssueDetailView({ api, issueNumber }: { api: PluginAPI; issueNumber: nu
 
   if (!detail) return null;
 
-  const { severity, cleanTitle } = parseSeverityFromTitle(detail.title);
+  const { severity, pluginName, cleanTitle } = parseSeverityFromTitle(detail.title);
 
   return (
     <div>
@@ -1162,6 +1278,7 @@ function IssueDetailView({ api, issueNumber }: { api: PluginAPI; issueNumber: nu
           <span style={{ fontSize: "14px", color: "var(--text-tertiary, #71717a)" }}>#{detail.number}</span>
           <span style={S.stateBadge(detail.state)}>{detail.state}</span>
           {severity && <span style={S.severityBadge(severity)}>{severity}</span>}
+          {pluginName && <span style={S.pluginBadge}>{pluginName}</span>}
         </div>
         <h2 style={{ marginTop: 0, marginBottom: "8px", fontSize: "18px" }}>{cleanTitle}</h2>
         <div style={{ fontSize: "12px", color: "var(--text-tertiary, #71717a)", display: "flex", gap: "12px", flexWrap: "wrap", alignItems: "center" }}>

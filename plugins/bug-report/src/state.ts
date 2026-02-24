@@ -1,10 +1,18 @@
 // Bug report state factory — extracted for testability.
 
-import type { IssueListItem } from "./helpers";
+import type { IssueListItem, RepoTarget } from "./helpers";
 
 export type { IssueListItem } from "./helpers";
+export type { RepoTarget } from "./helpers";
 
 export type ViewMode = "my-reports" | "all-recent";
+
+export interface RepoCacheEntry {
+  issues: IssueListItem[];
+  myIssues: IssueListItem[];
+  page: number;
+  hasMore: boolean;
+}
 
 export interface BugReportState {
   ghUsername: string | null;
@@ -19,6 +27,8 @@ export interface BugReportState {
   needsRefresh: boolean;
   viewMode: ViewMode;
   searchQuery: string;
+  repoTarget: RepoTarget;
+  repoCache: Record<RepoTarget, RepoCacheEntry>;
   listeners: Set<() => void>;
 
   setGhUsername(username: string): void;
@@ -31,10 +41,15 @@ export interface BugReportState {
   setLoading(loading: boolean): void;
   setViewMode(mode: ViewMode): void;
   setSearchQuery(query: string): void;
+  setRepoTarget(target: RepoTarget): void;
   requestRefresh(): void;
   subscribe(fn: () => void): () => void;
   notify(): void;
   reset(): void;
+}
+
+function emptyCache(): RepoCacheEntry {
+  return { issues: [], myIssues: [], page: 1, hasMore: false };
 }
 
 export function createBugReportState(): BugReportState {
@@ -51,6 +66,8 @@ export function createBugReportState(): BugReportState {
     needsRefresh: false,
     viewMode: "my-reports",
     searchQuery: "",
+    repoTarget: "app",
+    repoCache: { app: emptyCache(), plugins: emptyCache() },
     listeners: new Set(),
 
     setGhUsername(username: string): void {
@@ -77,16 +94,19 @@ export function createBugReportState(): BugReportState {
 
     setIssues(issues: IssueListItem[]): void {
       state.issues = issues;
+      state.repoCache[state.repoTarget].issues = issues;
       state.notify();
     },
 
     setMyIssues(issues: IssueListItem[]): void {
       state.myIssues = issues;
+      state.repoCache[state.repoTarget].myIssues = issues;
       state.notify();
     },
 
     appendIssues(issues: IssueListItem[]): void {
       state.issues = [...state.issues, ...issues];
+      state.repoCache[state.repoTarget].issues = state.issues;
       state.notify();
     },
 
@@ -104,6 +124,34 @@ export function createBugReportState(): BugReportState {
     setSearchQuery(query: string): void {
       state.searchQuery = query;
       state.notify();
+    },
+
+    setRepoTarget(target: RepoTarget): void {
+      if (target === state.repoTarget) return;
+      // Save current state to cache
+      state.repoCache[state.repoTarget] = {
+        issues: state.issues,
+        myIssues: state.myIssues,
+        page: state.page,
+        hasMore: state.hasMore,
+      };
+      // Switch target
+      state.repoTarget = target;
+      // Restore from cache
+      const cached = state.repoCache[target];
+      state.issues = cached.issues;
+      state.myIssues = cached.myIssues;
+      state.page = cached.page;
+      state.hasMore = cached.hasMore;
+      // Clear selection
+      state.selectedIssueNumber = null;
+      state.creatingNew = false;
+      // Trigger refresh if cache is empty
+      if (cached.issues.length === 0 && cached.myIssues.length === 0) {
+        state.requestRefresh();
+      } else {
+        state.notify();
+      }
     },
 
     requestRefresh(): void {
@@ -135,6 +183,8 @@ export function createBugReportState(): BugReportState {
       state.needsRefresh = false;
       state.viewMode = "my-reports";
       state.searchQuery = "";
+      state.repoTarget = "app";
+      state.repoCache = { app: emptyCache(), plugins: emptyCache() };
       state.listeners.clear();
     },
   };

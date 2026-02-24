@@ -1,7 +1,11 @@
 // src/helpers.ts
 var SEVERITIES = ["LOW", "MEDIUM", "HIGH", "CRITICAL"];
 var REPORT_TYPES = ["bug", "enhancement"];
-var REPO = "Agent-Clubhouse/Clubhouse";
+var REPOS = {
+  app: "Agent-Clubhouse/Clubhouse",
+  plugins: "Agent-Clubhouse/Clubhouse-Workshop"
+};
+var REPO = REPOS.app;
 function severityColor(severity) {
   switch (severity) {
     case "CRITICAL":
@@ -22,15 +26,22 @@ function typeColor(type) {
       return "var(--text-info, #a2eeef)";
   }
 }
-function formatTitle(severity, title) {
+function formatTitle(severity, title, pluginName) {
+  if (pluginName) {
+    return `[${severity}][${pluginName}] ${title}`;
+  }
   return `[${severity}] ${title}`;
 }
 function parseSeverityFromTitle(title) {
+  const matchWithPlugin = title.match(/^\[(LOW|MEDIUM|HIGH|CRITICAL)\]\[([^\]]+)\]\s*(.*)/);
+  if (matchWithPlugin) {
+    return { severity: matchWithPlugin[1], pluginName: matchWithPlugin[2], cleanTitle: matchWithPlugin[3] };
+  }
   const match = title.match(/^\[(LOW|MEDIUM|HIGH|CRITICAL)\]\s*(.*)/);
   if (match) {
-    return { severity: match[1], cleanTitle: match[2] };
+    return { severity: match[1], pluginName: null, cleanTitle: match[2] };
   }
-  return { severity: null, cleanTitle: title };
+  return { severity: null, pluginName: null, cleanTitle: title };
 }
 function relativeTime(dateStr) {
   const now = Date.now();
@@ -67,6 +78,9 @@ function isSafeUrl(url) {
 }
 
 // src/state.ts
+function emptyCache() {
+  return { issues: [], myIssues: [], page: 1, hasMore: false };
+}
 function createBugReportState() {
   const state = {
     ghUsername: null,
@@ -81,6 +95,8 @@ function createBugReportState() {
     needsRefresh: false,
     viewMode: "my-reports",
     searchQuery: "",
+    repoTarget: "app",
+    repoCache: { app: emptyCache(), plugins: emptyCache() },
     listeners: /* @__PURE__ */ new Set(),
     setGhUsername(username) {
       state.ghUsername = username;
@@ -102,14 +118,17 @@ function createBugReportState() {
     },
     setIssues(issues) {
       state.issues = issues;
+      state.repoCache[state.repoTarget].issues = issues;
       state.notify();
     },
     setMyIssues(issues) {
       state.myIssues = issues;
+      state.repoCache[state.repoTarget].myIssues = issues;
       state.notify();
     },
     appendIssues(issues) {
       state.issues = [...state.issues, ...issues];
+      state.repoCache[state.repoTarget].issues = state.issues;
       state.notify();
     },
     setLoading(loading) {
@@ -124,6 +143,28 @@ function createBugReportState() {
     setSearchQuery(query) {
       state.searchQuery = query;
       state.notify();
+    },
+    setRepoTarget(target) {
+      if (target === state.repoTarget) return;
+      state.repoCache[state.repoTarget] = {
+        issues: state.issues,
+        myIssues: state.myIssues,
+        page: state.page,
+        hasMore: state.hasMore
+      };
+      state.repoTarget = target;
+      const cached = state.repoCache[target];
+      state.issues = cached.issues;
+      state.myIssues = cached.myIssues;
+      state.page = cached.page;
+      state.hasMore = cached.hasMore;
+      state.selectedIssueNumber = null;
+      state.creatingNew = false;
+      if (cached.issues.length === 0 && cached.myIssues.length === 0) {
+        state.requestRefresh();
+      } else {
+        state.notify();
+      }
     },
     requestRefresh() {
       state.needsRefresh = true;
@@ -151,6 +192,8 @@ function createBugReportState() {
       state.needsRefresh = false;
       state.viewMode = "my-reports";
       state.searchQuery = "";
+      state.repoTarget = "app";
+      state.repoCache = { app: emptyCache(), plugins: emptyCache() };
       state.listeners.clear();
     }
   };
@@ -521,12 +564,12 @@ function runAuthCheck(api) {
 }
 var ISSUE_FIELDS = "number,title,state,url,createdAt,updatedAt,author,labels";
 var PER_PAGE = 30;
-async function fetchIssues(api, page, author) {
+async function fetchIssues(api, page, author, repo = REPO) {
   const args = [
     "issue",
     "list",
     "--repo",
-    REPO,
+    repo,
     "--json",
     ISSUE_FIELDS,
     "--limit",
@@ -559,13 +602,13 @@ async function fetchIssues(api, page, author) {
   if (hasMore) items = items.slice(0, PER_PAGE);
   return { items, hasMore };
 }
-async function fetchIssueDetail(api, num) {
+async function fetchIssueDetail(api, num, repo = REPO) {
   const r = await api.process.exec("gh", [
     "issue",
     "view",
     String(num),
     "--repo",
-    REPO,
+    repo,
     "--json",
     "number,title,state,url,createdAt,updatedAt,author,labels,body,comments,assignees"
   ]);
@@ -580,13 +623,13 @@ async function fetchIssueDetail(api, num) {
     return null;
   }
 }
-async function createIssue(api, title, body, label, severity) {
-  const fullTitle = formatTitle(severity, title);
+async function createIssue(api, title, body, label, severity, repo = REPO, pluginName) {
+  const fullTitle = formatTitle(severity, title, pluginName);
   const r = await api.process.exec("gh", [
     "issue",
     "create",
     "--repo",
-    REPO,
+    repo,
     "--title",
     fullTitle,
     "--body",
@@ -603,13 +646,13 @@ async function createIssue(api, title, body, label, severity) {
   api.logging.warn("gh issue create: could not parse issue number", { stdout: r.stdout.slice(0, 200) });
   throw new Error("Failed to parse created issue number");
 }
-async function addComment(api, num, body) {
+async function addComment(api, num, body, repo = REPO) {
   const r = await api.process.exec("gh", [
     "issue",
     "comment",
     String(num),
     "--repo",
-    REPO,
+    repo,
     "--body",
     body
   ]);
@@ -680,6 +723,60 @@ var S = {
     color: "var(--text-primary, #e4e4e7)",
     cursor: "pointer",
     fontFamily: "inherit"
+  },
+  repoToggle: {
+    display: "flex",
+    padding: "8px 14px 0",
+    gap: "0px"
+  },
+  repoToggleBtn: (active) => ({
+    flex: 1,
+    padding: "5px 10px",
+    fontSize: "11px",
+    fontWeight: active ? 600 : 400,
+    cursor: "pointer",
+    background: active ? "var(--bg-accent, rgba(139,92,246,0.15))" : "transparent",
+    color: active ? "var(--text-primary, #e4e4e7)" : "var(--text-tertiary, #71717a)",
+    border: "1px solid var(--border-primary, #3f3f46)",
+    borderRight: "none",
+    fontFamily: "inherit",
+    "&:first-child": { borderRadius: "6px 0 0 6px" },
+    "&:last-child": { borderRadius: "0 6px 6px 0", borderRight: "1px solid var(--border-primary, #3f3f46)" }
+  }),
+  repoToggleBtnFirst: (active) => ({
+    flex: 1,
+    padding: "5px 10px",
+    fontSize: "11px",
+    fontWeight: active ? 600 : 400,
+    cursor: "pointer",
+    background: active ? "var(--bg-accent, rgba(139,92,246,0.15))" : "transparent",
+    color: active ? "var(--text-primary, #e4e4e7)" : "var(--text-tertiary, #71717a)",
+    border: "1px solid var(--border-primary, #3f3f46)",
+    borderRadius: "6px 0 0 6px",
+    fontFamily: "inherit"
+  }),
+  repoToggleBtnLast: (active) => ({
+    flex: 1,
+    padding: "5px 10px",
+    fontSize: "11px",
+    fontWeight: active ? 600 : 400,
+    cursor: "pointer",
+    background: active ? "var(--bg-accent, rgba(139,92,246,0.15))" : "transparent",
+    color: active ? "var(--text-primary, #e4e4e7)" : "var(--text-tertiary, #71717a)",
+    border: "1px solid var(--border-primary, #3f3f46)",
+    borderRadius: "0 6px 6px 0",
+    fontFamily: "inherit"
+  }),
+  pluginBadge: {
+    display: "inline-block",
+    padding: "0 5px",
+    borderRadius: "4px",
+    fontSize: "10px",
+    lineHeight: "16px",
+    background: "var(--bg-accent, rgba(139,92,246,0.15))",
+    color: "var(--text-accent, #a78bfa)",
+    border: "1px solid rgba(139,92,246,0.3)",
+    marginRight: "4px"
   },
   tabs: {
     display: "flex",
@@ -923,10 +1020,11 @@ function SidebarPanel({ api }) {
     reportState.needsRefresh = false;
     const load = async () => {
       reportState.setLoading(true);
+      const repo = REPOS[reportState.repoTarget];
       try {
         const [myResult, allResult] = await Promise.all([
-          reportState.ghUsername ? fetchIssues(api, 1, reportState.ghUsername) : Promise.resolve({ items: [], hasMore: false }),
-          fetchIssues(api, reportState.page)
+          reportState.ghUsername ? fetchIssues(api, 1, reportState.ghUsername, repo) : Promise.resolve({ items: [], hasMore: false }),
+          fetchIssues(api, reportState.page, void 0, repo)
         ]);
         if (reportState.page === 1) {
           reportState.setMyIssues(myResult.items);
@@ -995,6 +1093,24 @@ function SidebarPanel({ api }) {
       /* @__PURE__ */ jsx("span", { style: S.headerTitle, children: "Bug Report" }),
       /* @__PURE__ */ jsx("button", { style: S.newBtn, onClick: () => reportState.setCreatingNew(true), children: "+ New Report" })
     ] }),
+    /* @__PURE__ */ jsxs("div", { style: S.repoToggle, children: [
+      /* @__PURE__ */ jsx(
+        "button",
+        {
+          style: S.repoToggleBtnFirst(reportState.repoTarget === "app"),
+          onClick: () => reportState.setRepoTarget("app"),
+          children: "App"
+        }
+      ),
+      /* @__PURE__ */ jsx(
+        "button",
+        {
+          style: S.repoToggleBtnLast(reportState.repoTarget === "plugins"),
+          onClick: () => reportState.setRepoTarget("plugins"),
+          children: "Plugins"
+        }
+      )
+    ] }),
     /* @__PURE__ */ jsxs("div", { style: S.tabs, children: [
       /* @__PURE__ */ jsx(
         "button",
@@ -1024,7 +1140,7 @@ function SidebarPanel({ api }) {
     ) }),
     /* @__PURE__ */ jsx("div", { style: S.list, children: reportState.loading && displayIssues.length === 0 ? /* @__PURE__ */ jsx("div", { style: S.spinner, children: "Loading reports..." }) : filtered.length === 0 ? /* @__PURE__ */ jsx("div", { style: { ...S.spinner, color: "var(--text-tertiary, #71717a)" }, children: reportState.searchQuery ? "No matching reports" : reportState.viewMode === "my-reports" ? "You haven\u2019t filed any reports yet" : "No reports found" }) : /* @__PURE__ */ jsxs(Fragment, { children: [
       filtered.map((issue) => {
-        const { severity } = parseSeverityFromTitle(issue.title);
+        const { severity, pluginName } = parseSeverityFromTitle(issue.title);
         return /* @__PURE__ */ jsxs(
           "div",
           {
@@ -1033,6 +1149,7 @@ function SidebarPanel({ api }) {
             children: [
               /* @__PURE__ */ jsxs("div", { style: S.issueTitle, children: [
                 severity && /* @__PURE__ */ jsx("span", { style: { ...S.severityBadge(severity), marginRight: "6px" }, children: severity }),
+                pluginName && /* @__PURE__ */ jsx("span", { style: S.pluginBadge, children: pluginName }),
                 parseSeverityFromTitle(issue.title).cleanTitle
               ] }),
               /* @__PURE__ */ jsxs("div", { style: S.issueMeta, children: [
@@ -1070,12 +1187,16 @@ function ReportForm({ api, onCreated }) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const canSubmit = title.trim().length > 0 && !submitting;
+  const [fileAgainst, setFileAgainst] = useState(reportState.repoTarget);
+  const [pluginName, setPluginName] = useState("");
+  const canSubmit = title.trim().length > 0 && !submitting && (fileAgainst !== "plugins" || pluginName.trim().length > 0);
   const handleSubmit = useCallback(async () => {
     if (!canSubmit) return;
     setSubmitting(true);
     try {
-      const num = await createIssue(api, title.trim(), description.trim(), reportType, severity);
+      const repo = REPOS[fileAgainst];
+      const pName = fileAgainst === "plugins" ? pluginName.trim() : void 0;
+      const num = await createIssue(api, title.trim(), description.trim(), reportType, severity, repo, pName);
       api.ui.showNotice(`Report #${num} filed successfully`);
       onCreated(num);
     } catch (err) {
@@ -1084,9 +1205,42 @@ function ReportForm({ api, onCreated }) {
     } finally {
       setSubmitting(false);
     }
-  }, [api, title, description, reportType, severity, canSubmit, onCreated]);
+  }, [api, title, description, reportType, severity, canSubmit, onCreated, fileAgainst, pluginName]);
   return /* @__PURE__ */ jsxs("div", { children: [
     /* @__PURE__ */ jsx("h2", { style: { marginTop: 0, marginBottom: "16px", fontSize: "18px" }, children: "File a Report" }),
+    /* @__PURE__ */ jsxs("div", { style: S.formGroup, children: [
+      /* @__PURE__ */ jsx("label", { style: S.formLabel, children: "File against" }),
+      /* @__PURE__ */ jsxs("div", { style: { display: "flex", gap: "0px" }, children: [
+        /* @__PURE__ */ jsx(
+          "button",
+          {
+            style: S.repoToggleBtnFirst(fileAgainst === "app"),
+            onClick: () => setFileAgainst("app"),
+            children: "App"
+          }
+        ),
+        /* @__PURE__ */ jsx(
+          "button",
+          {
+            style: S.repoToggleBtnLast(fileAgainst === "plugins"),
+            onClick: () => setFileAgainst("plugins"),
+            children: "Plugins"
+          }
+        )
+      ] })
+    ] }),
+    fileAgainst === "plugins" && /* @__PURE__ */ jsxs("div", { style: S.formGroup, children: [
+      /* @__PURE__ */ jsx("label", { style: S.formLabel, children: "Plugin name" }),
+      /* @__PURE__ */ jsx(
+        "input",
+        {
+          style: S.input,
+          placeholder: "e.g. Pomodoro, Standup, Git Helper...",
+          value: pluginName,
+          onChange: (e) => setPluginName(e.target.value)
+        }
+      )
+    ] }),
     /* @__PURE__ */ jsxs("div", { style: S.formGroup, children: [
       /* @__PURE__ */ jsx("label", { style: S.formLabel, children: "Type" }),
       /* @__PURE__ */ jsx("div", { style: { display: "flex", gap: "8px" }, children: REPORT_TYPES.map((t) => /* @__PURE__ */ jsx(
@@ -1124,7 +1278,7 @@ function ReportForm({ api, onCreated }) {
       ),
       title.trim() && /* @__PURE__ */ jsxs("div", { style: { fontSize: "11px", color: "var(--text-tertiary, #71717a)", marginTop: "4px" }, children: [
         "Will be filed as: ",
-        /* @__PURE__ */ jsx("strong", { children: formatTitle(severity, title.trim()) })
+        /* @__PURE__ */ jsx("strong", { children: formatTitle(severity, title.trim(), fileAgainst === "plugins" ? pluginName.trim() || void 0 : void 0) })
       ] })
     ] }),
     /* @__PURE__ */ jsxs("div", { style: S.formGroup, children: [
@@ -1166,25 +1320,26 @@ function IssueDetailView({ api, issueNumber }) {
   const [error, setError] = useState(null);
   const [newComment, setNewComment] = useState("");
   const [commenting, setCommenting] = useState(false);
+  const repo = REPOS[reportState.repoTarget];
   useEffect(() => {
     setLoading(true);
     setError(null);
     setDetail(null);
-    fetchIssueDetail(api, issueNumber).then((d) => {
+    fetchIssueDetail(api, issueNumber, repo).then((d) => {
       setDetail(d);
       setLoading(false);
     }).catch((err) => {
       setError(err instanceof Error ? err.message : String(err));
       setLoading(false);
     });
-  }, [api, issueNumber]);
+  }, [api, issueNumber, repo]);
   const handleAddComment = useCallback(async () => {
     if (!newComment.trim() || commenting) return;
     setCommenting(true);
     try {
-      await addComment(api, issueNumber, newComment.trim());
+      await addComment(api, issueNumber, newComment.trim(), repo);
       setNewComment("");
-      const updated = await fetchIssueDetail(api, issueNumber);
+      const updated = await fetchIssueDetail(api, issueNumber, repo);
       setDetail(updated);
       api.ui.showNotice("Comment added");
     } catch (err) {
@@ -1193,7 +1348,7 @@ function IssueDetailView({ api, issueNumber }) {
     } finally {
       setCommenting(false);
     }
-  }, [api, issueNumber, newComment, commenting]);
+  }, [api, issueNumber, newComment, commenting, repo]);
   if (loading) {
     return /* @__PURE__ */ jsx("div", { style: S.spinner, children: "Loading report details..." });
   }
@@ -1204,7 +1359,7 @@ function IssueDetailView({ api, issueNumber }) {
     ] });
   }
   if (!detail) return null;
-  const { severity, cleanTitle } = parseSeverityFromTitle(detail.title);
+  const { severity, pluginName, cleanTitle } = parseSeverityFromTitle(detail.title);
   return /* @__PURE__ */ jsxs("div", { children: [
     /* @__PURE__ */ jsxs("div", { style: { marginBottom: "16px" }, children: [
       /* @__PURE__ */ jsxs("div", { style: { display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }, children: [
@@ -1213,7 +1368,8 @@ function IssueDetailView({ api, issueNumber }) {
           detail.number
         ] }),
         /* @__PURE__ */ jsx("span", { style: S.stateBadge(detail.state), children: detail.state }),
-        severity && /* @__PURE__ */ jsx("span", { style: S.severityBadge(severity), children: severity })
+        severity && /* @__PURE__ */ jsx("span", { style: S.severityBadge(severity), children: severity }),
+        pluginName && /* @__PURE__ */ jsx("span", { style: S.pluginBadge, children: pluginName })
       ] }),
       /* @__PURE__ */ jsx("h2", { style: { marginTop: 0, marginBottom: "8px", fontSize: "18px" }, children: cleanTitle }),
       /* @__PURE__ */ jsxs("div", { style: { fontSize: "12px", color: "var(--text-tertiary, #71717a)", display: "flex", gap: "12px", flexWrap: "wrap", alignItems: "center" }, children: [

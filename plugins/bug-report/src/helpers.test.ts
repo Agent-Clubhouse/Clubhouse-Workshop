@@ -14,6 +14,7 @@ import {
   SEVERITIES,
   REPORT_TYPES,
   REPO,
+  REPOS,
   IssueListItem,
 } from "./helpers";
 
@@ -24,6 +25,15 @@ import {
 describe("constants", () => {
   it("REPO is Agent-Clubhouse/Clubhouse", () => {
     expect(REPO).toBe("Agent-Clubhouse/Clubhouse");
+  });
+
+  it("REPOS maps app and plugins to correct repos", () => {
+    expect(REPOS.app).toBe("Agent-Clubhouse/Clubhouse");
+    expect(REPOS.plugins).toBe("Agent-Clubhouse/Clubhouse-Workshop");
+  });
+
+  it("REPO is an alias for REPOS.app", () => {
+    expect(REPO).toBe(REPOS.app);
   });
 
   it("SEVERITIES contains all four levels", () => {
@@ -85,6 +95,15 @@ describe("formatTitle", () => {
     expect(formatTitle("MEDIUM", "Slow load")).toBe("[MEDIUM] Slow load");
     expect(formatTitle("CRITICAL", "Data loss")).toBe("[CRITICAL] Data loss");
   });
+
+  it("includes plugin name when provided", () => {
+    expect(formatTitle("HIGH", "Login fails", "Pomodoro")).toBe("[HIGH][Pomodoro] Login fails");
+  });
+
+  it("omits plugin name bracket when not provided", () => {
+    expect(formatTitle("HIGH", "Login fails")).toBe("[HIGH] Login fails");
+    expect(formatTitle("HIGH", "Login fails", undefined)).toBe("[HIGH] Login fails");
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -114,6 +133,29 @@ describe("parseSeverityFromTitle", () => {
   it("does not match invalid severity levels", () => {
     expect(parseSeverityFromTitle("[URGENT] Not a level").severity).toBeNull();
     expect(parseSeverityFromTitle("[low] lowercase").severity).toBeNull();
+  });
+
+  it("returns null pluginName for plain severity titles", () => {
+    const result = parseSeverityFromTitle("[HIGH] Login fails");
+    expect(result.pluginName).toBeNull();
+  });
+
+  it("extracts pluginName from [SEV][Plugin] format", () => {
+    const result = parseSeverityFromTitle("[HIGH][Pomodoro] Timer stops unexpectedly");
+    expect(result.severity).toBe("HIGH");
+    expect(result.pluginName).toBe("Pomodoro");
+    expect(result.cleanTitle).toBe("Timer stops unexpectedly");
+  });
+
+  it("handles all severities with plugin name", () => {
+    expect(parseSeverityFromTitle("[LOW][Standup] Minor issue").pluginName).toBe("Standup");
+    expect(parseSeverityFromTitle("[MEDIUM][GitHelper] Slow fetch").pluginName).toBe("GitHelper");
+    expect(parseSeverityFromTitle("[CRITICAL][Auth] Token leak").pluginName).toBe("Auth");
+  });
+
+  it("returns null pluginName for titles without prefix", () => {
+    const result = parseSeverityFromTitle("Some random issue");
+    expect(result.pluginName).toBeNull();
   });
 });
 

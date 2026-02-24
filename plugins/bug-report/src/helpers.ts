@@ -6,7 +6,15 @@ export type ReportType = "bug" | "enhancement";
 export const SEVERITIES: Severity[] = ["LOW", "MEDIUM", "HIGH", "CRITICAL"];
 export const REPORT_TYPES: ReportType[] = ["bug", "enhancement"];
 
-export const REPO = "Agent-Clubhouse/Clubhouse";
+export type RepoTarget = "app" | "plugins";
+
+export const REPOS: Record<RepoTarget, string> = {
+  app: "Agent-Clubhouse/Clubhouse",
+  plugins: "Agent-Clubhouse/Clubhouse-Workshop",
+};
+
+/** Backward-compat alias for the app repo. */
+export const REPO = REPOS.app;
 
 export function severityColor(severity: Severity): string {
   switch (severity) {
@@ -24,16 +32,24 @@ export function typeColor(type: ReportType): string {
   }
 }
 
-export function formatTitle(severity: Severity, title: string): string {
+export function formatTitle(severity: Severity, title: string, pluginName?: string): string {
+  if (pluginName) {
+    return `[${severity}][${pluginName}] ${title}`;
+  }
   return `[${severity}] ${title}`;
 }
 
-export function parseSeverityFromTitle(title: string): { severity: Severity | null; cleanTitle: string } {
+export function parseSeverityFromTitle(title: string): { severity: Severity | null; pluginName: string | null; cleanTitle: string } {
+  // Match [SEV][Plugin] title  OR  [SEV] title
+  const matchWithPlugin = title.match(/^\[(LOW|MEDIUM|HIGH|CRITICAL)\]\[([^\]]+)\]\s*(.*)/);
+  if (matchWithPlugin) {
+    return { severity: matchWithPlugin[1] as Severity, pluginName: matchWithPlugin[2], cleanTitle: matchWithPlugin[3] };
+  }
   const match = title.match(/^\[(LOW|MEDIUM|HIGH|CRITICAL)\]\s*(.*)/);
   if (match) {
-    return { severity: match[1] as Severity, cleanTitle: match[2] };
+    return { severity: match[1] as Severity, pluginName: null, cleanTitle: match[2] };
   }
-  return { severity: null, cleanTitle: title };
+  return { severity: null, pluginName: null, cleanTitle: title };
 }
 
 export function relativeTime(dateStr: string): string {
