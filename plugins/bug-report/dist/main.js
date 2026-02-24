@@ -157,6 +157,87 @@ function createBugReportState() {
   return state;
 }
 
+// src/use-theme.ts
+function hexToRgba(hex, alpha) {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+function mapThemeToCSS(theme) {
+  const c = theme.colors;
+  const onAccent = theme.type === "dark" ? "#ffffff" : "#000000";
+  return {
+    // Text
+    "--text-primary": c.text,
+    "--text-secondary": c.subtext1,
+    "--text-tertiary": c.subtext0,
+    "--text-muted": c.surface2,
+    "--text-error": c.error,
+    "--text-success": c.success,
+    "--text-warning": c.warning,
+    "--text-info": c.info,
+    "--text-accent": c.accent,
+    "--text-on-badge": onAccent,
+    "--text-on-accent": onAccent,
+    // Backgrounds
+    "--bg-primary": c.base,
+    "--bg-secondary": c.mantle,
+    "--bg-tertiary": c.crust,
+    "--bg-surface": c.surface0,
+    "--bg-surface-hover": c.surface1,
+    "--bg-surface-raised": c.surface2,
+    "--bg-active": c.surface1,
+    "--bg-error": hexToRgba(c.error, 0.1),
+    "--bg-error-subtle": hexToRgba(c.error, 0.05),
+    "--bg-success": hexToRgba(c.success, 0.15),
+    "--bg-warning": hexToRgba(c.warning, 0.15),
+    "--bg-info": hexToRgba(c.info, 0.1),
+    "--bg-accent": hexToRgba(c.accent, 0.15),
+    "--bg-overlay": "rgba(0, 0, 0, 0.5)",
+    // Borders
+    "--border-primary": c.surface0,
+    "--border-secondary": c.surface1,
+    "--border-error": hexToRgba(c.error, 0.3),
+    "--border-info": hexToRgba(c.info, 0.3),
+    "--border-accent": hexToRgba(c.accent, 0.3),
+    // Shadows & overlays
+    "--shadow": "rgba(0, 0, 0, 0.3)",
+    "--shadow-light": "rgba(0, 0, 0, 0.15)",
+    "--shadow-heavy": "rgba(0, 0, 0, 0.5)",
+    "--shadow-menu": "rgba(0, 0, 0, 0.3)",
+    "--shadow-color": "rgba(0, 0, 0, 0.5)",
+    "--overlay": "rgba(0, 0, 0, 0.5)",
+    "--glow-error": hexToRgba(c.error, 0.3),
+    "--glow-accent": hexToRgba(c.accent, 0.3),
+    // Fonts
+    "--font-family": "system-ui, -apple-system, sans-serif",
+    "--font-mono": "ui-monospace, monospace",
+    // Color aliases (file icons, labels, etc.)
+    "--color-blue": c.info,
+    "--color-green": c.success,
+    "--color-yellow": c.warning,
+    "--color-orange": c.warning,
+    "--color-red": c.error,
+    "--color-purple": c.accent,
+    "--color-cyan": c.info
+  };
+}
+function useTheme(themeApi) {
+  const React2 = globalThis.React;
+  const [theme, setTheme] = React2.useState(() => themeApi.getCurrent());
+  React2.useEffect(() => {
+    setTheme(themeApi.getCurrent());
+    const disposable = themeApi.onDidChange((t) => setTheme(t));
+    return () => disposable.dispose();
+  }, [themeApi]);
+  const style = React2.useMemo(
+    () => mapThemeToCSS(theme),
+    [theme]
+  );
+  return { style, themeType: theme.type };
+}
+
 // src/main.tsx
 import { Fragment, jsx, jsxs } from "react/jsx-runtime";
 var React = globalThis.React;
@@ -760,6 +841,7 @@ var S = {
   }
 };
 function SidebarPanel({ api }) {
+  const { style: themeStyle } = useTheme(api.theme);
   const [, setTick] = useState(0);
   const rerender = useCallback(() => setTick((t) => t + 1), []);
   useEffect(() => reportState.subscribe(rerender), [rerender]);
@@ -803,7 +885,7 @@ function SidebarPanel({ api }) {
     load();
   }, [api, reportState.needsRefresh, reportState.ghAuthed, reportState.loading]);
   if (reportState.ghAuthed === false) {
-    return /* @__PURE__ */ jsxs("div", { style: S.sidebar, children: [
+    return /* @__PURE__ */ jsxs("div", { style: { ...themeStyle, ...S.sidebar }, children: [
       /* @__PURE__ */ jsx("div", { style: S.header, children: /* @__PURE__ */ jsx("span", { style: S.headerTitle, children: "Bug Report" }) }),
       /* @__PURE__ */ jsxs("div", { style: S.errorBox, children: [
         /* @__PURE__ */ jsx("div", { style: { marginBottom: "12px" }, children: /* @__PURE__ */ jsx("svg", { width: "32", height: "32", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5", children: /* @__PURE__ */ jsx("path", { d: "M12 9v3m0 3h.01M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" }) }) }),
@@ -836,14 +918,14 @@ function SidebarPanel({ api }) {
     ] });
   }
   if (reportState.ghAuthed === null) {
-    return /* @__PURE__ */ jsxs("div", { style: S.sidebar, children: [
+    return /* @__PURE__ */ jsxs("div", { style: { ...themeStyle, ...S.sidebar }, children: [
       /* @__PURE__ */ jsx("div", { style: S.header, children: /* @__PURE__ */ jsx("span", { style: S.headerTitle, children: "Bug Report" }) }),
       /* @__PURE__ */ jsx("div", { style: S.spinner, children: "Checking GitHub authentication..." })
     ] });
   }
   const displayIssues = reportState.viewMode === "my-reports" ? reportState.myIssues : reportState.issues;
   const filtered = filterIssues(displayIssues, reportState.searchQuery);
-  return /* @__PURE__ */ jsxs("div", { style: S.sidebar, children: [
+  return /* @__PURE__ */ jsxs("div", { style: { ...themeStyle, ...S.sidebar }, children: [
     /* @__PURE__ */ jsxs("div", { style: S.header, children: [
       /* @__PURE__ */ jsx("span", { style: S.headerTitle, children: "Bug Report" }),
       /* @__PURE__ */ jsx("button", { style: S.newBtn, onClick: () => reportState.setCreatingNew(true), children: "+ New Report" })
@@ -1127,6 +1209,7 @@ function IssueDetailView({ api, issueNumber }) {
   ] });
 }
 function MainPanel({ api }) {
+  const { style: themeStyle } = useTheme(api.theme);
   const [, setTick] = useState(0);
   const rerender = useCallback(() => setTick((t) => t + 1), []);
   useEffect(() => reportState.subscribe(rerender), [rerender]);
@@ -1136,7 +1219,7 @@ function MainPanel({ api }) {
     reportState.requestRefresh();
   }, []);
   if (reportState.ghAuthed === false || reportState.ghAuthed === null) {
-    return /* @__PURE__ */ jsx("div", { style: S.main, children: /* @__PURE__ */ jsxs("div", { style: S.empty, children: [
+    return /* @__PURE__ */ jsx("div", { style: { ...themeStyle, ...S.main }, children: /* @__PURE__ */ jsxs("div", { style: S.empty, children: [
       /* @__PURE__ */ jsxs("svg", { width: "48", height: "48", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5", children: [
         /* @__PURE__ */ jsx("circle", { cx: "12", cy: "12", r: "10" }),
         /* @__PURE__ */ jsx("line", { x1: "12", y1: "8", x2: "12", y2: "12" }),
@@ -1151,12 +1234,12 @@ function MainPanel({ api }) {
     ] }) });
   }
   if (reportState.creatingNew) {
-    return /* @__PURE__ */ jsx("div", { style: S.main, children: /* @__PURE__ */ jsx(ReportForm, { api, onCreated: handleCreated }) });
+    return /* @__PURE__ */ jsx("div", { style: { ...themeStyle, ...S.main }, children: /* @__PURE__ */ jsx(ReportForm, { api, onCreated: handleCreated }) });
   }
   if (reportState.selectedIssueNumber) {
-    return /* @__PURE__ */ jsx("div", { style: S.main, children: /* @__PURE__ */ jsx(IssueDetailView, { api, issueNumber: reportState.selectedIssueNumber }) });
+    return /* @__PURE__ */ jsx("div", { style: { ...themeStyle, ...S.main }, children: /* @__PURE__ */ jsx(IssueDetailView, { api, issueNumber: reportState.selectedIssueNumber }) });
   }
-  return /* @__PURE__ */ jsx("div", { style: S.main, children: /* @__PURE__ */ jsxs("div", { style: S.empty, children: [
+  return /* @__PURE__ */ jsx("div", { style: { ...themeStyle, ...S.main }, children: /* @__PURE__ */ jsxs("div", { style: S.empty, children: [
     /* @__PURE__ */ jsxs("svg", { width: "48", height: "48", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5", children: [
       /* @__PURE__ */ jsx("circle", { cx: "12", cy: "12", r: "10" }),
       /* @__PURE__ */ jsx("line", { x1: "12", y1: "8", x2: "12", y2: "12" }),
