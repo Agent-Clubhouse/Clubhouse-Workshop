@@ -309,17 +309,30 @@ function Markdown({ source }: { source: string }) {
 // ---------------------------------------------------------------------------
 
 async function checkGhAuth(api: PluginAPI): Promise<string | null> {
+  // Primary: query the GitHub API directly for the authenticated user.
+  // This is more reliable than parsing `gh auth status` output, which
+  // writes to stderr and can cause process.exec to throw in some
+  // environments (e.g. Electron-spawned subprocesses).
+  try {
+    const r = await api.process.exec("gh", ["api", "user", "-q", ".login"]);
+    const login = r.stdout.trim();
+    if (login && r.exitCode === 0) return login;
+  } catch { /* fall through to secondary check */ }
+
+  // Fallback: check `gh auth status` in case the API call failed for a
+  // non-auth reason (e.g. network). auth status works offline.
   try {
     const r = await api.process.exec("gh", ["auth", "status"]);
     const output = r.stdout + r.stderr;
     if (output.includes("Logged in")) {
-      const userResult = await api.process.exec("gh", ["api", "user", "-q", ".login"]);
-      return userResult.stdout.trim() || null;
+      // Authenticated but API call failed — return a placeholder username
+      // so the UI is not blocked.
+      const m = output.match(/account\s+(\S+)/);
+      return m ? m[1] : "unknown";
     }
-    return null;
-  } catch {
-    return null;
-  }
+  } catch { /* not authenticated */ }
+
+  return null;
 }
 
 const ISSUE_FIELDS = "number,title,state,url,createdAt,updatedAt,author,labels";
@@ -771,8 +784,14 @@ export function SidebarPanel({ api }: PanelProps) {
         </div>
         <div style={S.errorBox}>
           <div style={{ marginBottom: "12px" }}>
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-              <path d="M12 9v3m0 3h.01M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M8 2l1.88 1.88" /><path d="M14.12 3.88 16 2" />
+              <path d="M9 7.13v-1a3.003 3.003 0 1 1 6 0v1" />
+              <path d="M12 20c-3.3 0-6-2.7-6-6v-3a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v3c0 3.3-2.7 6-6 6" />
+              <path d="M12 20v-9" /><path d="M6.53 9C4.6 8.8 3 7.1 3 5" />
+              <path d="M6 13H2" /><path d="M3 21c0-2.1 1.7-3.9 3.8-4" />
+              <path d="M20.97 5c0 2.1-1.6 3.8-3.5 4" /><path d="M22 13h-4" />
+              <path d="M17.2 17c2.1.1 3.8 1.9 3.8 4" />
             </svg>
           </div>
           <div style={{ fontSize: "13px", fontWeight: 500 }}>GitHub CLI not authenticated</div>
@@ -1188,10 +1207,14 @@ export function MainPanel({ api }: PanelProps) {
     return (
       <div style={{ ...themeStyle, ...S.main }}>
         <div style={S.empty}>
-          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-            <circle cx="12" cy="12" r="10" />
-            <line x1="12" y1="8" x2="12" y2="12" />
-            <line x1="12" y1="16" x2="12.01" y2="16" />
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M8 2l1.88 1.88" /><path d="M14.12 3.88 16 2" />
+            <path d="M9 7.13v-1a3.003 3.003 0 1 1 6 0v1" />
+            <path d="M12 20c-3.3 0-6-2.7-6-6v-3a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v3c0 3.3-2.7 6-6 6" />
+            <path d="M12 20v-9" /><path d="M6.53 9C4.6 8.8 3 7.1 3 5" />
+            <path d="M6 13H2" /><path d="M3 21c0-2.1 1.7-3.9 3.8-4" />
+            <path d="M20.97 5c0 2.1-1.6 3.8-3.5 4" /><path d="M22 13h-4" />
+            <path d="M17.2 17c2.1.1 3.8 1.9 3.8 4" />
           </svg>
           <div style={{ fontSize: "14px" }}>Authenticate with GitHub to file bug reports</div>
           <div style={{ fontSize: "12px" }}>
