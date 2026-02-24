@@ -78,12 +78,17 @@ describe('automations plugin activate()', () => {
     expect(onStatusChangeSpy).toHaveBeenCalledWith(expect.any(Function));
   });
 
-  it('pushes exactly 3 disposables to ctx.subscriptions (statusChange, interval, command)', () => {
+  it('pushes exactly 4 disposables to ctx.subscriptions (statusChange, interval, create, refresh)', () => {
     activate(ctx, api);
-    expect(ctx.subscriptions).toHaveLength(3);
+    expect(ctx.subscriptions).toHaveLength(4);
     for (const sub of ctx.subscriptions) {
       expect(typeof sub.dispose).toBe('function');
     }
+  });
+
+  it('registers a refresh command', () => {
+    activate(ctx, api);
+    expect(registerSpy).toHaveBeenCalledWith('refresh', expect.any(Function));
   });
 
   it('sets up a timer (interval disposable clears it)', () => {
@@ -131,15 +136,15 @@ describe('automations plugin activate()', () => {
   it('calling activate twice registers two independent subscription sets', () => {
     activate(ctx, api);
     activate(ctx, api);
-    expect(registerSpy).toHaveBeenCalledTimes(2);
+    expect(registerSpy).toHaveBeenCalledTimes(4);
     expect(onStatusChangeSpy).toHaveBeenCalledTimes(2);
-    expect(ctx.subscriptions).toHaveLength(6);
+    expect(ctx.subscriptions).toHaveLength(8);
   });
 
   it('works without project context', () => {
     const appCtx = createMockContext({ pluginId: 'automations', projectId: undefined, projectPath: undefined });
     expect(() => activate(appCtx, api)).not.toThrow();
-    expect(appCtx.subscriptions).toHaveLength(3);
+    expect(appCtx.subscriptions).toHaveLength(4);
   });
 });
 
@@ -662,8 +667,8 @@ describe('automations plugin lifecycle', () => {
     for (const sub of ctx.subscriptions) {
       sub.dispose();
     }
-    // statusChange dispose + command dispose (interval uses clearInterval, not the spy)
-    expect(disposeSpy).toHaveBeenCalledTimes(2);
+    // statusChange dispose + create command dispose + refresh command dispose (interval uses clearInterval, not the spy)
+    expect(disposeSpy).toHaveBeenCalledTimes(3);
   });
 
   it('subscriptions dispose is idempotent (double-dispose safe)', () => {
@@ -681,7 +686,7 @@ describe('automations plugin lifecycle', () => {
       sub.dispose();
       sub.dispose();
     }
-    expect(disposeSpy).toHaveBeenCalledTimes(4);
+    expect(disposeSpy).toHaveBeenCalledTimes(6);
   });
 
   it('interval stops firing after dispose', async () => {

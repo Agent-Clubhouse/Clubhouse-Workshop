@@ -25,10 +25,40 @@ describe('wiki plugin activate()', () => {
     expect(registerSpy).toHaveBeenCalledWith('refresh', expect.any(Function));
   });
 
-  it('pushes exactly 1 disposable to ctx.subscriptions', () => {
+  it('pushes exactly 3 disposables to ctx.subscriptions', () => {
     activate(ctx, api);
-    expect(ctx.subscriptions).toHaveLength(1);
-    expect(typeof ctx.subscriptions[0].dispose).toBe('function');
+    expect(ctx.subscriptions).toHaveLength(3);
+    for (const sub of ctx.subscriptions) {
+      expect(typeof sub.dispose).toBe('function');
+    }
+  });
+
+  it('registers a newPage command', () => {
+    activate(ctx, api);
+    expect(registerSpy).toHaveBeenCalledWith('newPage', expect.any(Function));
+  });
+
+  it('registers a toggleMode command', () => {
+    activate(ctx, api);
+    expect(registerSpy).toHaveBeenCalledWith('toggleMode', expect.any(Function));
+  });
+
+  it('newPage command triggers wikiState.triggerNewPage', () => {
+    activate(ctx, api);
+    const newPageHandler = registerSpy.mock.calls.find((c: any[]) => c[0] === 'newPage')![1];
+    const before = wikiState.newPageRequested;
+    newPageHandler();
+    expect(wikiState.newPageRequested).toBe(before + 1);
+  });
+
+  it('toggleMode command triggers wikiState.toggleViewMode', () => {
+    activate(ctx, api);
+    const toggleHandler = registerSpy.mock.calls.find((c: any[]) => c[0] === 'toggleMode')![1];
+    expect(wikiState.viewMode).toBe('view');
+    toggleHandler();
+    expect(wikiState.viewMode).toBe('edit');
+    toggleHandler();
+    expect(wikiState.viewMode).toBe('view');
   });
 
   it('refresh command triggers wikiState.triggerRefresh', () => {
@@ -265,6 +295,6 @@ describe('wiki plugin lifecycle', () => {
     for (const sub of ctx.subscriptions) {
       sub.dispose();
     }
-    expect(disposeSpy).toHaveBeenCalledTimes(1);
+    expect(disposeSpy).toHaveBeenCalledTimes(3);
   });
 });

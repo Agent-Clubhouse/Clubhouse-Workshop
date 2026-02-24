@@ -347,6 +347,20 @@ function useTheme(themeApi) {
 
 // src/main.tsx
 import { jsx, jsxs } from "react/jsx-runtime";
+var refreshSignal = {
+  count: 0,
+  listeners: /* @__PURE__ */ new Set(),
+  trigger() {
+    this.count++;
+    for (const fn of this.listeners) fn();
+  },
+  subscribe(fn) {
+    this.listeners.add(fn);
+    return () => {
+      this.listeners.delete(fn);
+    };
+  }
+};
 var AUTOMATIONS_KEY = "automations";
 var runsKey = (automationId) => `runs:${automationId}`;
 var MAX_RUNS = 50;
@@ -427,6 +441,10 @@ function activate(ctx, api) {
   const cmdSub = api.commands.register("create", () => {
   });
   ctx.subscriptions.push(cmdSub);
+  const refreshSub = api.commands.register("refresh", () => {
+    refreshSignal.trigger();
+  });
+  ctx.subscriptions.push(refreshSub);
 }
 function deactivate() {
 }
@@ -475,7 +493,11 @@ function MainPanel({ api }) {
   useEffect(() => {
     loadAutomations();
     const iv = setInterval(loadAutomations, 1e4);
-    return () => clearInterval(iv);
+    const unsub = refreshSignal.subscribe(loadAutomations);
+    return () => {
+      clearInterval(iv);
+      unsub();
+    };
   }, [loadAutomations]);
   useEffect(() => {
     api.agents.getModelOptions().then(setModelOptions);

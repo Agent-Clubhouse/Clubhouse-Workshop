@@ -4,6 +4,7 @@ var wikiState = {
   isDirty: false,
   viewMode: "view",
   refreshCount: 0,
+  newPageRequested: 0,
   listeners: /* @__PURE__ */ new Set(),
   // Navigation history
   history: [],
@@ -41,6 +42,14 @@ var wikiState = {
     this.refreshCount++;
     this.notify();
   },
+  triggerNewPage() {
+    this.newPageRequested++;
+    this.notify();
+  },
+  toggleViewMode() {
+    this.viewMode = this.viewMode === "view" ? "edit" : "view";
+    this.notify();
+  },
   subscribe(fn) {
     this.listeners.add(fn);
     return () => {
@@ -57,6 +66,7 @@ var wikiState = {
     this.isDirty = false;
     this.viewMode = "view";
     this.refreshCount = 0;
+    this.newPageRequested = 0;
     this.history = [];
     this.historyIndex = -1;
     this._isNavigatingHistory = false;
@@ -567,6 +577,7 @@ function WikiTree({ api }) {
     loadTree();
   }, [loadTree]);
   const lastRefreshRef = useRef(wikiState.refreshCount);
+  const lastNewPageRef = useRef(wikiState.newPageRequested);
   useEffect(() => {
     return wikiState.subscribe(() => {
       setSelectedPath(wikiState.selectedPath);
@@ -575,8 +586,21 @@ function WikiTree({ api }) {
         lastRefreshRef.current = wikiState.refreshCount;
         loadTree();
       }
+      if (wikiState.newPageRequested !== lastNewPageRef.current) {
+        lastNewPageRef.current = wikiState.newPageRequested;
+        const scoped = wikiFilesRef.current || getScopedFiles();
+        if (!scoped) return;
+        api.ui.showInput("Page name (e.g. my-page.md)").then(async (name) => {
+          if (!name) return;
+          const fileName = name.endsWith(".md") ? name : `${name}.md`;
+          await scoped.writeFile(fileName, "");
+          wikiState.setViewMode("edit");
+          wikiState.setSelectedPath(fileName);
+          loadTree();
+        });
+      }
     });
-  }, [loadTree]);
+  }, [loadTree, api, getScopedFiles]);
   useEffect(() => {
     const disposable = api.settings.onChange((key) => {
       if (key === "wikiPath" || key === "showHiddenFiles" || key === "wikiStyle") {
@@ -2834,10 +2858,21 @@ function useTheme(themeApi) {
 import { jsx } from "react/jsx-runtime";
 var React5 = globalThis.React;
 function activate(ctx, api) {
-  const disposable = api.commands.register("refresh", () => {
-    wikiState.triggerRefresh();
-  });
-  ctx.subscriptions.push(disposable);
+  ctx.subscriptions.push(
+    api.commands.register("refresh", () => {
+      wikiState.triggerRefresh();
+    })
+  );
+  ctx.subscriptions.push(
+    api.commands.register("newPage", () => {
+      wikiState.triggerNewPage();
+    })
+  );
+  ctx.subscriptions.push(
+    api.commands.register("toggleMode", () => {
+      wikiState.toggleViewMode();
+    })
+  );
 }
 function deactivate() {
   wikiState.reset();

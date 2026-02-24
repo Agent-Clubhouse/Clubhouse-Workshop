@@ -49,6 +49,37 @@ describe('wikiState', () => {
     expect(listener).toHaveBeenCalledTimes(1); // not called again
   });
 
+  it('triggerNewPage increments count and notifies', () => {
+    const listener = vi.fn();
+    wikiState.subscribe(listener);
+    const before = wikiState.newPageRequested;
+    wikiState.triggerNewPage();
+    expect(wikiState.newPageRequested).toBe(before + 1);
+    expect(listener).toHaveBeenCalledTimes(1);
+  });
+
+  it('toggleViewMode switches between view and edit', () => {
+    expect(wikiState.viewMode).toBe('view');
+    wikiState.toggleViewMode();
+    expect(wikiState.viewMode).toBe('edit');
+    wikiState.toggleViewMode();
+    expect(wikiState.viewMode).toBe('view');
+  });
+
+  it('toggleViewMode notifies listeners', () => {
+    const listener = vi.fn();
+    wikiState.subscribe(listener);
+    wikiState.toggleViewMode();
+    expect(listener).toHaveBeenCalledTimes(1);
+  });
+
+  it('reset clears newPageRequested', () => {
+    wikiState.triggerNewPage();
+    wikiState.triggerNewPage();
+    wikiState.reset();
+    expect(wikiState.newPageRequested).toBe(0);
+  });
+
   it('reset clears all state including viewMode back to view', () => {
     wikiState.setSelectedPath('/file.md');
     wikiState.setDirty(true);
