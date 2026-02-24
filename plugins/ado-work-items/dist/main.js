@@ -552,7 +552,7 @@ ${instructions.trim()}`;
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        background: "rgba(0,0,0,0.5)"
+        background: "var(--bg-overlay, rgba(0,0,0,0.5))"
       },
       children: /* @__PURE__ */ jsxs(
         "div",
@@ -565,7 +565,7 @@ ${instructions.trim()}`;
             width: "320px",
             maxHeight: "80vh",
             overflow: "auto",
-            boxShadow: "0 8px 32px rgba(0,0,0,0.4)"
+            boxShadow: "0 8px 32px var(--shadow-heavy, rgba(0,0,0,0.4))"
           },
           children: [
             /* @__PURE__ */ jsx("div", { style: { fontSize: "14px", fontWeight: 500, color: "var(--text-primary, #e4e4e7)", marginBottom: "4px" }, children: "Assign to Agent" }),
@@ -760,7 +760,7 @@ function StatePickerDialog({
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        background: "rgba(0,0,0,0.5)"
+        background: "var(--bg-overlay, rgba(0,0,0,0.5))"
       },
       children: /* @__PURE__ */ jsxs(
         "div",
@@ -771,7 +771,7 @@ function StatePickerDialog({
             borderRadius: "8px",
             padding: "16px",
             width: "260px",
-            boxShadow: "0 8px 32px rgba(0,0,0,0.4)"
+            boxShadow: "0 8px 32px var(--shadow-heavy, rgba(0,0,0,0.4))"
           },
           children: [
             /* @__PURE__ */ jsx("div", { style: { fontSize: "14px", fontWeight: 500, color: "var(--text-primary, #e4e4e7)", marginBottom: "4px" }, children: "Change State" }),
@@ -1836,7 +1836,7 @@ var btnPrimarySmall = {
   borderRadius: "4px",
   border: "none",
   background: "var(--text-accent, #8b5cf6)",
-  color: "#fff",
+  color: "var(--text-on-accent, #fff)",
   cursor: "pointer",
   fontFamily: "var(--font-family, system-ui, -apple-system, sans-serif)"
 };
