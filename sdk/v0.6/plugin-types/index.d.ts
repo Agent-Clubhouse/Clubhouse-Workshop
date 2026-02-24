@@ -374,6 +374,7 @@ export interface EventsAPI {
 export interface SettingsAPI {
   get<T = unknown>(key: string): T | undefined;
   getAll(): Record<string, unknown>;
+  set(key: string, value: unknown): void;
   onChange(callback: (key: string, value: unknown) => void): Disposable;
 }
 

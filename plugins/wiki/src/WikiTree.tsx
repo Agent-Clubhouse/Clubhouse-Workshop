@@ -681,6 +681,14 @@ export function WikiTree({ api }: { api: PluginAPI }) {
     fontFamily: font.family,
   });
 
+  // Browse handler for inline wiki path configuration
+  const handleBrowseWikiPath = useCallback(async () => {
+    const path = await api.ui.showInput('Wiki directory path (relative to project root or absolute)');
+    if (path) {
+      api.settings.set('wikiPath', path);
+    }
+  }, [api]);
+
   // Error state
   if (configError) {
     return React.createElement('div', {
@@ -695,7 +703,20 @@ export function WikiTree({ api }: { api: PluginAPI }) {
         style: { padding: '16px 12px', fontSize: 12, color: color.textSecondary, textAlign: 'center' },
       },
         React.createElement('div', { style: { marginBottom: 8, color: color.textWarning } }, 'Wiki not configured'),
-        React.createElement('div', null, configError),
+        React.createElement('div', { style: { marginBottom: 12 } }, 'No wiki directory found. Set the path to your wiki folder to get started.'),
+        React.createElement('button', {
+          style: {
+            padding: '6px 16px',
+            fontSize: 12,
+            color: color.text,
+            background: color.bgTertiary,
+            border: `1px solid ${color.border}`,
+            borderRadius: 6,
+            cursor: 'pointer',
+            fontFamily: font.family,
+          },
+          onClick: handleBrowseWikiPath,
+        }, 'Set Wiki Path'),
       ),
     );
   }

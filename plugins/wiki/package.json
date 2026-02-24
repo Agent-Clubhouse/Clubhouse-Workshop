@@ -5,8 +5,8 @@
   "license": "MIT",
   "description": "Browse and edit markdown wikis stored in external directories",
   "scripts": {
-    "build": "esbuild src/main.tsx --bundle --format=esm --platform=browser --external:react --external:marked --external:highlight.js --outfile=dist/main.js",
-    "watch": "esbuild src/main.tsx --bundle --format=esm --platform=browser --external:react --external:marked --external:highlight.js --outfile=dist/main.js --watch",
+    "build": "esbuild src/main.tsx --bundle --format=esm --platform=browser --external:react --outfile=dist/main.js",
+    "watch": "esbuild src/main.tsx --bundle --format=esm --platform=browser --external:react --outfile=dist/main.js --watch",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
   },

@@ -241,6 +241,14 @@ describe('wiki plugin API assumptions', () => {
       expect(api.settings.get('wikiPath')).toBeUndefined();
     });
 
+    it('set is a function', () => {
+      expect(typeof api.settings.set).toBe('function');
+    });
+
+    it('set does not throw', () => {
+      expect(() => api.settings.set('wikiPath', '/path/to/wiki')).not.toThrow();
+    });
+
     it('onChange returns disposable', () => {
       const d = api.settings.onChange(() => {});
       expect(typeof d.dispose).toBe('function');

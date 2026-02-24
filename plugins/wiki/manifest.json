@@ -36,7 +36,7 @@
         "type": "directory",
         "label": "Wiki path",
         "description": "Path to the wiki directory. Use Browse to pick a folder, or type a path (relative paths resolve against the project root).",
-        "default": ""
+        "default": "wiki"
       },
       {
         "key": "wikiStyle",
