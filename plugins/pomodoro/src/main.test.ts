@@ -464,7 +464,7 @@ describe("manifest", () => {
     expect(keys).toContain("sessionsBeforeLongBreak");
   });
 
-  it("uses bug icon SVG", () => {
+  it("uses tomato icon SVG", () => {
     expect(manifest.contributes.railItem.icon).toContain("<svg");
   });
 
