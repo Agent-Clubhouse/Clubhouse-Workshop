@@ -618,11 +618,11 @@ function statusBadgeStyle(status: AgentInfo["status"]): React.CSSProperties {
   };
   switch (status) {
     case "sleeping":
-      return { ...base, background: "rgba(64,200,100,0.15)", color: "#4ade80" };
+      return { ...base, background: "var(--bg-success, rgba(64,200,100,0.15))", color: "var(--text-success, #4ade80)" };
     case "running":
-      return { ...base, background: "rgba(234,179,8,0.15)", color: "#facc15" };
+      return { ...base, background: "var(--bg-warning, rgba(234,179,8,0.15))", color: "var(--text-warning, #facc15)" };
     case "error":
-      return { ...base, background: "rgba(239,68,68,0.15)", color: "#f87171" };
+      return { ...base, background: "var(--bg-error, rgba(239,68,68,0.15))", color: "var(--text-error, #f87171)" };
     default:
       return base;
   }
@@ -730,7 +730,7 @@ function SendToAgentDialog({
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        background: "rgba(0,0,0,0.5)",
+        background: "var(--bg-overlay, rgba(0,0,0,0.5))",
       }}
     >
       <div
@@ -742,7 +742,7 @@ function SendToAgentDialog({
           width: "320px",
           maxHeight: "80vh",
           overflow: "auto",
-          boxShadow: "0 8px 32px rgba(0,0,0,0.4)",
+          boxShadow: "0 8px 32px var(--shadow-heavy, rgba(0,0,0,0.4))",
         }}
       >
         {/* Title */}
@@ -797,7 +797,7 @@ function SendToAgentDialog({
                     color: "var(--text-primary, #e4e4e7)",
                     borderRadius: "4px",
                     border: isSelected ? "1px solid var(--text-accent, #8b5cf6)" : "1px solid transparent",
-                    background: isSelected ? "rgba(74,108,247,0.1)" : "transparent",
+                    background: isSelected ? "var(--bg-accent, rgba(74,108,247,0.1))" : "transparent",
                     cursor: "pointer",
                     fontFamily: "var(--font-family, system-ui, -apple-system, sans-serif)",
                   }}
@@ -1533,8 +1533,8 @@ export function MainPanel({ api }: PanelProps) {
     cursor: "pointer",
     border: "1px solid",
     ...(isOpen
-      ? { background: "rgba(64,200,100,0.1)", color: "#4ade80", borderColor: "rgba(64,200,100,0.3)" }
-      : { background: "rgba(168,85,247,0.1)", color: "#c084fc", borderColor: "rgba(168,85,247,0.3)" }),
+      ? { background: "var(--bg-success, rgba(64,200,100,0.1))", color: "var(--text-success, #4ade80)", borderColor: "var(--border-info, rgba(64,200,100,0.3))" }
+      : { background: "var(--bg-accent, rgba(168,85,247,0.1))", color: "var(--text-accent, #c084fc)", borderColor: "var(--border-accent, rgba(168,85,247,0.3))" }),
   };
 
   return (
@@ -1837,7 +1837,7 @@ const btnPrimarySmall: React.CSSProperties = {
   borderRadius: "4px",
   border: "none",
   background: "var(--text-accent, #8b5cf6)",
-  color: "#fff",
+  color: "var(--text-on-accent, #fff)",
   cursor: "pointer",
   fontFamily: "var(--font-family, system-ui, -apple-system, sans-serif)",
 };
