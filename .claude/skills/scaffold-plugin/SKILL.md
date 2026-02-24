@@ -27,35 +27,30 @@ Explain the three scopes in plain language and help them pick:
 
 Recommend `project` unless they specifically need cross-project access.
 
-## Step 3: Choose an API version
+## Step 3: Determine API version
 
-Read `sdk/versions.json` to get the list of available versions. Present the options to the developer, defaulting to `latest`:
+Read `sdk/versions.json` to get the `latest` version. **Always use the latest version** — do not present older versions as options. Simply inform the developer:
 
-- Show all `active` versions with their notes
-- Recommend `latest` unless they have a specific reason to target an older version
-- Warn if they choose a `deprecated` version
-
-Example:
 ```
-Which API version would you like to target?
-  v0.5 — Initial release (latest, recommended)
+Using API v{latest} (the current release).
 ```
 
-Use the selected version for the manifest's `engine.api` and the package.json dependency paths.
+Use the latest version for the manifest's `engine.api` and the package.json dependency paths.
 
 ## Step 4: Help them pick permissions
 
-Based on what they described, suggest the minimum permissions they'll need. Always include `logging` and `storage`. Explain each one in a sentence:
+Based on what they described, suggest the minimum permissions they'll need. Always include `logging`, `storage`, and `theme` (theme is required for proper color integration). Explain each one in a sentence:
 
 - `logging` — see debug messages in the plugin console
 - `storage` — save data that persists across sessions
+- `theme` — adapt to the user's color theme (always include this)
 - `notifications` — show toast messages and dialogs
 - `files` — read/write files in the project
 - `git` — read git status, log, diff, branches
 - `agents` — spawn AI agents to do work
 - `terminal` — create shell sessions
 - `process` — run specific CLI tools (eslint, etc.)
-- `commands` — register keyboard shortcuts
+- `commands` — register keyboard shortcuts and command palette actions (always include this)
 - `events` — react to file changes
 - `settings` — user-configurable options
 - `navigation` — programmatically switch tabs/focus agents
@@ -63,13 +58,39 @@ Based on what they described, suggest the minimum permissions they'll need. Alwa
 - `projects` — access all projects (needs app/dual scope)
 - `badges` — show notification badges on tabs
 
-## Step 5: Create the plugin
+**Always include `commands`** — every plugin should register at least one command so users can discover and trigger its functionality from the command palette.
+
+## Step 5: Plan commands for the command palette
+
+Before generating code, think about what commands this plugin should contribute. Every plugin should have at least one command. Commands appear in the Clubhouse command palette, making the plugin discoverable and keyboard-accessible.
+
+Good command candidates:
+- The plugin's primary action (e.g., "Run Code Review", "Start Timer", "Refresh Data")
+- Common secondary actions (e.g., "Clear History", "Export Results", "Toggle View")
+- Actions that benefit from keyboard shortcuts
+
+List the planned commands in `contributes.commands` in the manifest, and register handlers for each in `activate()`.
+
+## Step 6: Create the plugin
 
 Generate the plugin files. Create a new directory at the project root with the plugin name (lowercased, hyphenated). Generate these files:
 
 ### manifest.json
 
-Based on their choices. Use the API version selected in Step 3 (from `sdk/versions.json`). Include a `contributes.help` topic. Use a simple SVG icon. Do NOT include `"official": true` — that field is reserved for first-party plugins maintained by Clubhouse Workshop.
+Based on their choices. Use the latest API version (from `sdk/versions.json`). **Always include a `contributes.help` section** with at least one topic describing the plugin's purpose, features, and usage. Include commands in `contributes.commands`. Use a simple SVG icon. Do NOT include `"official": true` — that field is reserved for first-party plugins maintained by Clubhouse Workshop.
+
+Example help topic structure:
+```json
+"help": {
+  "topics": [
+    {
+      "id": "overview",
+      "title": "Plugin Name",
+      "content": "# Plugin Name\n\n## Features\n\n- Feature 1\n- Feature 2\n\n## Usage\n\nHow to use the plugin..."
+    }
+  ]
+}
+```
 
 ### package.json
 
@@ -95,7 +116,7 @@ Based on their choices. Use the API version selected in Step 3 (from `sdk/versio
 }
 ```
 
-Replace `{version}` with the API version chosen in Step 3 (e.g., `0.5`). For plugins created outside the repo, use the npm versions instead: `"^{version}.0"`.
+Replace `{version}` with the latest API version from `sdk/versions.json`. For plugins created outside the repo, use the npm versions instead: `"^{version}.0"`.
 
 ### tsconfig.json
 
@@ -125,20 +146,41 @@ node_modules/
 dist/
 ```
 
+### src/use-theme.ts
+
+**Always include the theme hook.** Copy the `use-theme.ts` file from an existing plugin (e.g., `plugins/example-hello-world/src/use-theme.ts`). This hook bridges the ThemeAPI to CSS custom properties so the plugin's UI adapts to the user's chosen color theme.
+
 ### src/main.tsx
 
 Write a starter implementation that matches what they described. Always follow these rules:
 
 1. **Use `globalThis.React`** — never `import React from 'react'`
-2. **Export `activate`** — log a startup message, register any commands
+2. **Export `activate`** — log a startup message, register all commands from the manifest
 3. **Export `MainPanel`** — a simple UI showing their plugin's functionality
-4. **Use inline styles** — with CSS custom properties for theming (`var(--font-family)`, `var(--text-secondary)`, etc.)
-5. **Import types only** — `import type { ... } from "@clubhouse/plugin-types"`
-6. **Keep it simple** — working code they can build on, not a complex starter
+4. **Import and use `useTheme`** — call `useTheme(api.theme)` and spread `themeStyle` on the root element so the plugin respects the user's color theme
+5. **Use inline styles** — with CSS custom properties for theming (`var(--font-family)`, `var(--text-secondary)`, `var(--bg-primary)`, etc.)
+6. **Import types only** — `import type { ... } from "@clubhouse/plugin-types"`
+7. **Keep it simple** — working code they can build on, not a complex starter
+
+Theme integration pattern:
+```tsx
+import { useTheme } from './use-theme';
+
+export function MainPanel({ api }: PanelProps) {
+  const { style: themeStyle } = useTheme(api.theme);
+
+  return (
+    <div style={{ ...themeStyle, padding: 24, fontFamily: 'var(--font-family, sans-serif)' }}>
+      <h2 style={{ marginTop: 0, color: 'var(--text-primary)' }}>My Plugin</h2>
+      <p style={{ color: 'var(--text-secondary, #888)' }}>Content here</p>
+    </div>
+  );
+}
+```
 
 If they want agents, include a `runQuick` example. If they want storage, show read/write. Make the UI look nice with padding, spacing, and readable typography.
 
-## Step 6: Tell them the next steps
+## Step 7: Tell them the next steps
 
 After creating the files, tell them:
 
@@ -166,6 +208,9 @@ For live development, use: npm run watch
 - Always handle errors in async operations with try/catch
 - Type the component props as `PanelProps` from `@clubhouse/plugin-types`
 - Use `api.logging.info()` in activate to confirm the plugin loaded
+- Always import and use `useTheme` to respect the user's color theme
+- Always include `contributes.help` in the manifest with a meaningful overview topic
+- Always register at least one command for the command palette
 - Keep the initial implementation small and working — they can iterate from there
 
 ## Tone

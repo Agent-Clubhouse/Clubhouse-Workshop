@@ -75,12 +75,9 @@ The SDK uses a versioned directory structure to support multiple API versions si
 ```
 sdk/
   versions.json          # Lifecycle metadata — source of truth for version info
-  v0.5/
-    plugin-types/        # Type definitions for API v0.5
-    plugin-testing/      # Test utilities for API v0.5
-  v0.6/                  # (created via /create-version-snapshot)
-    plugin-types/
-    plugin-testing/
+  v0.6/
+    plugin-types/        # Type definitions for API v0.6
+    plugin-testing/      # Test utilities for API v0.6
 ```
 
 ### `sdk/versions.json`
@@ -109,7 +106,7 @@ Central metadata file tracking all API versions:
 
 In-repo plugins use `file:` paths pointing to the specific version:
 ```json
-"@clubhouse/plugin-types": "file:../../sdk/v0.5/plugin-types"
+"@clubhouse/plugin-types": "file:../../sdk/v0.6/plugin-types"
 ```
 
 The `engine.api` field in `manifest.json` must match a version in `sdk/versions.json`.
@@ -125,7 +122,7 @@ Every plugin needs a `manifest.json` with these required fields. The `engine.api
   "version": "0.1.0",
   "description": "What it does",
   "author": "Your Name",
-  "engine": { "api": 0.5 },
+  "engine": { "api": 0.6 },
   "scope": "project",
   "main": "./dist/main.js",
   "permissions": ["logging", "storage"],

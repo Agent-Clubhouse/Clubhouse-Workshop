@@ -15,8 +15,8 @@ You are deprecating an SDK version to signal that plugins should migrate to a ne
 
 ```
 Active SDK versions:
-  v0.5  — Initial release (latest)
-  v0.6  — Added widgets API
+  v0.6  — Theme, Sounds, AgentConfig APIs (latest)
+  v0.7  — (future example)
 ```
 
 If a version was provided via `$ARGUMENTS`, use it. Otherwise, ask which version to deprecate.
@@ -46,12 +46,12 @@ Report findings:
 Plugins targeting v{version}:
 
 In-repo plugins:
-  - example-hello-world (manifest.json engine.api: 0.5)
-  - code-review (manifest.json engine.api: 0.5)
+  - example-hello-world (manifest.json engine.api: 0.6)
+  - code-review (manifest.json engine.api: 0.6)
 
 Registry releases:
-  - example-hello-world@0.1.0 (api: 0.5)
-  - code-review@0.1.0 (api: 0.5)
+  - example-hello-world@1.0.0 (api: 0.6)
+  - code-review@1.0.0 (api: 0.6)
 
 These plugins will need to be migrated before the removal date ({date}).
 ```
