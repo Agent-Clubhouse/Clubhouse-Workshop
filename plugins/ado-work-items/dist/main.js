@@ -193,6 +193,7 @@ var workItemState = {
   stateFilter: "",
   typeFilter: "",
   searchQuery: "",
+  lastDebug: null,
   listeners: /* @__PURE__ */ new Set(),
   setSelectedItem(id) {
     this.selectedId = id;
@@ -248,6 +249,10 @@ var workItemState = {
   notify() {
     for (const fn of this.listeners) fn();
   },
+  setDebug(info) {
+    this.lastDebug = info;
+    this.notify();
+  },
   reset() {
     this.selectedId = null;
     this.creatingNew = false;
@@ -258,6 +263,7 @@ var workItemState = {
     this.stateFilter = "";
     this.typeFilter = "";
     this.searchQuery = "";
+    this.lastDebug = null;
     this.listeners.clear();
   }
 };
@@ -822,6 +828,8 @@ function SidebarPanel({ api }) {
   const [stateFilter, setStateFilter] = useState(workItemState.stateFilter);
   const [typeFilter, setTypeFilter] = useState(workItemState.typeFilter);
   const [searchQuery, setSearchQuery] = useState(workItemState.searchQuery);
+  const [showDebug, setShowDebug] = useState(false);
+  const [lastDebug, setLastDebug] = useState(workItemState.lastDebug);
   const mountedRef = useRef(true);
   const config = getConfig(api);
   useEffect(() => {
@@ -835,6 +843,7 @@ function SidebarPanel({ api }) {
       setStateFilter(workItemState.stateFilter);
       setTypeFilter(workItemState.typeFilter);
       setSearchQuery(workItemState.searchQuery);
+      setLastDebug(workItemState.lastDebug);
     });
     return () => {
       mountedRef.current = false;
@@ -848,6 +857,7 @@ function SidebarPanel({ api }) {
     try {
       let ids = [];
       if (config.queryPath) {
+        const queryLabel = `Saved query: ${config.queryPath}`;
         const args = [
           "boards",
           "query",
@@ -857,9 +867,12 @@ function SidebarPanel({ api }) {
           "json",
           ...baseArgs(config)
         ];
+        api.logging.debug("ADO query", { mode: "saved-query", path: config.queryPath, args });
         const r = await api.process.exec("az", args, { timeout: 3e4 });
         if (!mountedRef.current) return;
+        workItemState.setDebug({ query: queryLabel, args, stdout: r.stdout || "", stderr: r.stderr || "", exitCode: r.exitCode, resultCount: -1 });
         if (r.exitCode !== 0 || !r.stdout.trim()) {
+          api.logging.warn("ADO saved query failed", { exitCode: r.exitCode, stderr: r.stderr });
           setError("Failed to execute saved query. Check the query path in settings.");
           workItemState.setLoading(false);
           return;
@@ -868,6 +881,7 @@ function SidebarPanel({ api }) {
         ids = parsed.map(
           (wi) => wi.id || 0
         ).filter(Boolean);
+        workItemState.setDebug({ query: queryLabel, args, stdout: r.stdout || "", stderr: r.stderr || "", exitCode: r.exitCode, resultCount: ids.length });
       } else {
         const conditions = [
           `[System.TeamProject] = '${escapeWiql(config.project)}'`
@@ -894,9 +908,12 @@ function SidebarPanel({ api }) {
           "json",
           ...baseArgs(config)
         ];
+        api.logging.debug("ADO WIQL query", { wiql, args });
         const r = await api.process.exec("az", args, { timeout: 3e4 });
         if (!mountedRef.current) return;
+        workItemState.setDebug({ query: wiql, args, stdout: r.stdout || "", stderr: r.stderr || "", exitCode: r.exitCode, resultCount: -1 });
         if (r.exitCode !== 0 || !r.stdout.trim()) {
+          api.logging.warn("ADO WIQL query failed", { exitCode: r.exitCode, stderr: r.stderr });
           setError("Failed to query work items. Is the Azure CLI installed and authenticated?");
           workItemState.setLoading(false);
           return;
@@ -905,6 +922,8 @@ function SidebarPanel({ api }) {
         ids = parsed.map(
           (wi) => wi.id || 0
         ).filter(Boolean);
+        api.logging.debug("ADO WIQL result", { idCount: ids.length });
+        workItemState.setDebug({ query: wiql, args, stdout: r.stdout || "", stderr: r.stderr || "", exitCode: r.exitCode, resultCount: ids.length });
       }
       ids = ids.slice(0, 50);
       if (ids.length === 0) {
@@ -1100,7 +1119,69 @@ function SidebarPanel({ api }) {
         ]
       },
       item.id
-    )) }) })
+    )) }) }),
+    /* @__PURE__ */ jsxs("div", { style: { borderTop: "1px solid var(--border-primary, #3f3f46)", padding: "4px 8px", flexShrink: 0 }, children: [
+      /* @__PURE__ */ jsxs(
+        "button",
+        {
+          onClick: () => setShowDebug(!showDebug),
+          style: {
+            background: "none",
+            border: "none",
+            color: "var(--text-tertiary, #71717a)",
+            fontSize: "10px",
+            cursor: "pointer",
+            padding: 0,
+            fontFamily: "inherit"
+          },
+          children: [
+            showDebug ? "\u25BC" : "\u25B6",
+            " Debug"
+          ]
+        }
+      ),
+      showDebug && lastDebug && /* @__PURE__ */ jsxs("div", { style: {
+        marginTop: "4px",
+        padding: "6px",
+        background: "var(--bg-tertiary, #1a1a2e)",
+        borderRadius: "4px",
+        fontSize: "10px",
+        fontFamily: "monospace",
+        color: "var(--text-secondary, #a1a1aa)",
+        maxHeight: "200px",
+        overflowY: "auto",
+        wordBreak: "break-all"
+      }, children: [
+        /* @__PURE__ */ jsxs("div", { style: { marginBottom: "4px" }, children: [
+          /* @__PURE__ */ jsx("span", { style: { color: "var(--text-tertiary, #71717a)" }, children: "Query: " }),
+          lastDebug.query
+        ] }),
+        /* @__PURE__ */ jsxs("div", { style: { marginBottom: "4px" }, children: [
+          /* @__PURE__ */ jsx("span", { style: { color: "var(--text-tertiary, #71717a)" }, children: "CLI: " }),
+          "az ",
+          lastDebug.args.join(" ")
+        ] }),
+        /* @__PURE__ */ jsxs("div", { style: { marginBottom: "4px" }, children: [
+          /* @__PURE__ */ jsx("span", { style: { color: "var(--text-tertiary, #71717a)" }, children: "Exit: " }),
+          /* @__PURE__ */ jsx("span", { style: { color: lastDebug.exitCode === 0 ? "var(--text-accent, #4ade80)" : "var(--text-error, #f87171)" }, children: lastDebug.exitCode }),
+          /* @__PURE__ */ jsx("span", { style: { color: "var(--text-tertiary, #71717a)" }, children: " | Results: " }),
+          lastDebug.resultCount >= 0 ? lastDebug.resultCount : "\u2014"
+        ] }),
+        lastDebug.stderr && /* @__PURE__ */ jsxs("div", { style: { marginBottom: "4px", color: "var(--text-error, #f87171)" }, children: [
+          /* @__PURE__ */ jsx("span", { style: { color: "var(--text-tertiary, #71717a)" }, children: "Stderr: " }),
+          lastDebug.stderr.slice(0, 500)
+        ] }),
+        lastDebug.stdout && /* @__PURE__ */ jsxs("details", { style: { marginTop: "4px" }, children: [
+          /* @__PURE__ */ jsxs("summary", { style: { cursor: "pointer", color: "var(--text-tertiary, #71717a)" }, children: [
+            "Raw response (",
+            lastDebug.stdout.length,
+            " chars)"
+          ] }),
+          /* @__PURE__ */ jsx("pre", { style: { margin: "4px 0 0", whiteSpace: "pre-wrap", fontSize: "9px", maxHeight: "120px", overflow: "auto" }, children: lastDebug.stdout.slice(0, 2e3) })
+        ] })
+      ] }),
+      showDebug && !lastDebug && /* @__PURE__ */ jsx("div", { style: { marginTop: "4px", fontSize: "10px", color: "var(--text-tertiary, #71717a)" }, children: "No query executed yet. Refresh to see debug output." })
+    ] })
   ] });
 }
 function MainPanel({ api }) {
