@@ -242,6 +242,90 @@ function createMockAgentConfig() {
     getInjectedMcpServers: createMockFn().mockResolvedValue({})
   };
 }
+function createMockSounds() {
+  return {
+    registerPack: createMockFn().mockResolvedValue(void 0),
+    unregisterPack: createMockFn().mockResolvedValue(void 0),
+    listPacks: createMockFn().mockResolvedValue([])
+  };
+}
+var DEFAULT_MOCK_THEME = {
+  id: "catppuccin-mocha",
+  name: "Catppuccin Mocha",
+  type: "dark",
+  colors: {
+    base: "#1e1e2e",
+    mantle: "#181825",
+    crust: "#11111b",
+    text: "#cdd6f4",
+    subtext0: "#a6adc8",
+    subtext1: "#bac2de",
+    surface0: "#313244",
+    surface1: "#45475a",
+    surface2: "#585b70",
+    accent: "#89b4fa",
+    link: "#89b4fa",
+    warning: "#f9e2af",
+    error: "#f38ba8",
+    info: "#89b4fa",
+    success: "#a6e3a1"
+  },
+  hljs: {
+    keyword: "#cba6f7",
+    string: "#a6e3a1",
+    number: "#fab387",
+    comment: "#6c7086",
+    function: "#89b4fa",
+    type: "#f9e2af",
+    variable: "#cdd6f4",
+    regexp: "#f5c2e7",
+    tag: "#89b4fa",
+    attribute: "#89dceb",
+    symbol: "#f2cdcd",
+    meta: "#f5c2e7",
+    addition: "#a6e3a1",
+    deletion: "#f38ba8",
+    property: "#89dceb",
+    punctuation: "#bac2de"
+  },
+  terminal: {
+    background: "#1e1e2e",
+    foreground: "#cdd6f4",
+    cursor: "#f5e0dc",
+    cursorAccent: "#1e1e2e",
+    selectionBackground: "#585b70",
+    selectionForeground: "#cdd6f4",
+    black: "#45475a",
+    red: "#f38ba8",
+    green: "#a6e3a1",
+    yellow: "#f9e2af",
+    blue: "#89b4fa",
+    magenta: "#f5c2e7",
+    cyan: "#94e2d5",
+    white: "#bac2de",
+    brightBlack: "#585b70",
+    brightRed: "#f38ba8",
+    brightGreen: "#a6e3a1",
+    brightYellow: "#f9e2af",
+    brightBlue: "#89b4fa",
+    brightMagenta: "#f5c2e7",
+    brightCyan: "#94e2d5",
+    brightWhite: "#a6adc8"
+  }
+};
+function createMockTheme() {
+  return {
+    getCurrent: createMockFn().mockReturnValue({ ...DEFAULT_MOCK_THEME }),
+    onDidChange: createMockFn().mockReturnValue(noop),
+    getColor: createMockFn().mockImplementation((token) => {
+      const t = DEFAULT_MOCK_THEME;
+      const tokenStr = String(token);
+      if (tokenStr.startsWith("hljs.")) return t.hljs[tokenStr.slice(5)] ?? null;
+      if (tokenStr.startsWith("terminal.")) return t.terminal[tokenStr.slice(9)] ?? null;
+      return t.colors[tokenStr] ?? null;
+    })
+  };
+}
 function createMockContextInfo() {
   return {
     mode: "project",
@@ -285,6 +369,8 @@ function createMockAPI(overrides) {
     hub: createMockHub(),
     badges: createMockBadges(),
     agentConfig: createMockAgentConfig(),
+    sounds: createMockSounds(),
+    theme: createMockTheme(),
     context: createMockContextInfo()
   };
   if (overrides) {

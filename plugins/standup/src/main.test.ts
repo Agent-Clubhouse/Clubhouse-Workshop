@@ -52,8 +52,8 @@ describe('standup plugin manifest', () => {
     expect(manifest.scope).toBe('app');
   });
 
-  it('targets API v0.5', () => {
-    expect(manifest.engine.api).toBe(0.5);
+  it('targets API v0.6', () => {
+    expect(manifest.engine.api).toBe(0.6);
   });
 
   it('declares required permissions', () => {
@@ -66,6 +66,7 @@ describe('standup plugin manifest', () => {
     const allowed = new Set([
       'logging', 'storage', 'notifications', 'files', 'git',
       'agents', 'commands', 'process', 'projects', 'navigation', 'widgets',
+      'sounds', 'theme',
     ]);
     for (const perm of manifest.permissions) {
       expect(allowed.has(perm)).toBe(true);

@@ -8,9 +8,6 @@
  * CSS variables set on the root element cascade to all children,
  * so existing var(--token, fallback) references resolve dynamically.
  */
-const React = globalThis.React;
-const { useState, useEffect, useMemo } = React;
-
 import type { ThemeAPI, ThemeInfo } from '@clubhouse/plugin-types';
 
 function hexToRgba(hex: string, alpha: number): string {
@@ -80,18 +77,19 @@ function mapThemeToCSS(theme: ThemeInfo): Record<string, string> {
   };
 }
 
-export function useTheme(themeApi: ThemeAPI): { style: React.CSSProperties; themeType: 'dark' | 'light' } {
-  const [theme, setTheme] = useState<ThemeInfo>(() => themeApi.getCurrent());
+export function useTheme(themeApi: ThemeAPI): { style: Record<string, string>; themeType: 'dark' | 'light' } {
+  const React = globalThis.React;
+  const [theme, setTheme] = React.useState<ThemeInfo>(() => themeApi.getCurrent());
 
-  useEffect(() => {
+  React.useEffect(() => {
     // Sync in case theme changed between initial render and effect
     setTheme(themeApi.getCurrent());
     const disposable = themeApi.onDidChange((t: ThemeInfo) => setTheme(t));
     return () => disposable.dispose();
   }, [themeApi]);
 
-  const style = useMemo(
-    () => mapThemeToCSS(theme) as unknown as React.CSSProperties,
+  const style = React.useMemo(
+    () => mapThemeToCSS(theme),
     [theme],
   );
 
