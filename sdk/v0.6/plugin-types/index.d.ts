@@ -243,7 +243,6 @@ export interface PluginManifest {
   version: string;
   description?: string;
   author?: string;
-  official?: boolean;
   engine: { api: number };
   scope: PluginScope;
   main?: string;

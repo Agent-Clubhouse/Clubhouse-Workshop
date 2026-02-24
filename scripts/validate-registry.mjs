@@ -92,8 +92,8 @@ export async function validateRegistry({ checkAssets = false } = {}) {
       errors.push(`${prefix}: Invalid ID format (must be lowercase alphanumeric with hyphens)`);
     }
 
-    // Reserved prefix
-    if (plugin.id?.startsWith("example-") && !plugin.official) {
+    // Reserved prefix — example- is reserved for official Workshop examples
+    if (plugin.id?.startsWith("example-") && plugin.official === false) {
       errors.push(`${prefix}: The example- prefix is reserved for official examples`);
     }
 

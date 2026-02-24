@@ -102,9 +102,9 @@ export function validateManifest(pluginDir, { strict = false } = {}) {
     }
   }
 
-  // official must be boolean if present
-  if ("official" in manifest && typeof manifest.official !== "boolean") {
-    errors.push(`"official" must be a boolean`);
+  // official is no longer a manifest field — warn if present
+  if ("official" in manifest) {
+    warnings.push(`"official" field is deprecated in manifests — all Workshop plugins are official by default`);
   }
 
   // settingsPanel consistency

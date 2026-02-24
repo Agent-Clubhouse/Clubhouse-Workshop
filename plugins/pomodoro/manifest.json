@@ -4,7 +4,6 @@
   "version": "1.0.0",
   "description": "A simple Pomodoro timer to keep your work sessions focused.",
   "author": "Clubhouse Workshop",
-  "official": true,
   "engine": { "api": 0.6 },
   "scope": "app",
   "main": "./dist/main.js",

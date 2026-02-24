@@ -57,14 +57,14 @@ describe("bug-report manifest", () => {
   it("contributes help topics", () => {
     expect(manifest.contributes.help.topics.length).toBeGreaterThanOrEqual(1);
     const ids = manifest.contributes.help.topics.map((t: { id: string }) => t.id);
-    expect(ids).toContain("bug-report");
+    expect(ids).toContain("overview");
   });
 
   it("only allows gh command", () => {
     expect(manifest.allowedCommands).toEqual(["gh"]);
   });
 
-  it("is marked as official", () => {
-    expect(manifest.official).toBe(true);
+  it("does not include official field (set by CI in registry)", () => {
+    expect(manifest).not.toHaveProperty("official");
   });
 });
