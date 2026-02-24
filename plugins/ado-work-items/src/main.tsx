@@ -61,6 +61,15 @@ interface AdoConfig {
   validationError: string;
 }
 
+interface DebugInfo {
+  query: string;
+  args: string[];
+  stdout: string;
+  stderr: string;
+  exitCode: number;
+  resultCount: number;
+}
+
 // ---------------------------------------------------------------------------
 // Shared state (coordinates SidebarPanel and MainPanel across React trees)
 // ---------------------------------------------------------------------------
@@ -74,6 +83,7 @@ const workItemState = {
   stateFilter: "" as string,
   typeFilter: "" as string,
   searchQuery: "",
+  lastDebug: null as DebugInfo | null,
   listeners: new Set<() => void>(),
 
   setSelectedItem(id: number | null): void {
@@ -143,6 +153,11 @@ const workItemState = {
     for (const fn of this.listeners) fn();
   },
 
+  setDebug(info: DebugInfo | null): void {
+    this.lastDebug = info;
+    this.notify();
+  },
+
   reset(): void {
     this.selectedId = null;
     this.creatingNew = false;
@@ -153,6 +168,7 @@ const workItemState = {
     this.stateFilter = "";
     this.typeFilter = "";
     this.searchQuery = "";
+    this.lastDebug = null;
     this.listeners.clear();
   },
 };
@@ -819,6 +835,8 @@ export function SidebarPanel({ api }: PanelProps) {
   const [stateFilter, setStateFilter] = useState(workItemState.stateFilter);
   const [typeFilter, setTypeFilter] = useState(workItemState.typeFilter);
   const [searchQuery, setSearchQuery] = useState(workItemState.searchQuery);
+  const [showDebug, setShowDebug] = useState(false);
+  const [lastDebug, setLastDebug] = useState(workItemState.lastDebug);
   const mountedRef = useRef(true);
 
   const config = getConfig(api);
@@ -835,6 +853,7 @@ export function SidebarPanel({ api }: PanelProps) {
       setStateFilter(workItemState.stateFilter);
       setTypeFilter(workItemState.typeFilter);
       setSearchQuery(workItemState.searchQuery);
+      setLastDebug(workItemState.lastDebug);
     });
     return () => { mountedRef.current = false; unsub(); };
   }, []);
@@ -850,15 +869,19 @@ export function SidebarPanel({ api }: PanelProps) {
 
       if (config.queryPath) {
         // Use saved query
+        const queryLabel = `Saved query: ${config.queryPath}`;
         const args = [
           "boards", "query",
           "--path", config.queryPath,
           "--output", "json",
           ...baseArgs(config),
         ];
+        api.logging.debug("ADO query", { mode: "saved-query", path: config.queryPath, args });
         const r = await api.process.exec("az", args, { timeout: 30000 });
         if (!mountedRef.current) return;
+        workItemState.setDebug({ query: queryLabel, args, stdout: r.stdout || "", stderr: r.stderr || "", exitCode: r.exitCode, resultCount: -1 });
         if (r.exitCode !== 0 || !r.stdout.trim()) {
+          api.logging.warn("ADO saved query failed", { exitCode: r.exitCode, stderr: r.stderr });
           setError("Failed to execute saved query. Check the query path in settings.");
           workItemState.setLoading(false);
           return;
@@ -867,6 +890,7 @@ export function SidebarPanel({ api }: PanelProps) {
         ids = (parsed as Array<Record<string, unknown>>).map(
           (wi) => (wi.id as number) || 0,
         ).filter(Boolean);
+        workItemState.setDebug({ query: queryLabel, args, stdout: r.stdout || "", stderr: r.stderr || "", exitCode: r.exitCode, resultCount: ids.length });
       } else {
         // Build WIQL query — escape all interpolated values to prevent injection
         const conditions: string[] = [
@@ -893,9 +917,12 @@ export function SidebarPanel({ api }: PanelProps) {
           "--output", "json",
           ...baseArgs(config),
         ];
+        api.logging.debug("ADO WIQL query", { wiql, args });
         const r = await api.process.exec("az", args, { timeout: 30000 });
         if (!mountedRef.current) return;
+        workItemState.setDebug({ query: wiql, args, stdout: r.stdout || "", stderr: r.stderr || "", exitCode: r.exitCode, resultCount: -1 });
         if (r.exitCode !== 0 || !r.stdout.trim()) {
+          api.logging.warn("ADO WIQL query failed", { exitCode: r.exitCode, stderr: r.stderr });
           setError("Failed to query work items. Is the Azure CLI installed and authenticated?");
           workItemState.setLoading(false);
           return;
@@ -904,6 +931,8 @@ export function SidebarPanel({ api }: PanelProps) {
         ids = (parsed as Array<Record<string, unknown>>).map(
           (wi) => (wi.id as number) || 0,
         ).filter(Boolean);
+        api.logging.debug("ADO WIQL result", { idCount: ids.length });
+        workItemState.setDebug({ query: wiql, args, stdout: r.stdout || "", stderr: r.stderr || "", exitCode: r.exitCode, resultCount: ids.length });
       }
 
       // Limit to 50 for performance
@@ -1150,6 +1179,76 @@ export function SidebarPanel({ api }: PanelProps) {
                 </div>
               </div>
             ))}
+          </div>
+        )}
+      </div>
+
+      {/* Debug toggle */}
+      <div style={{ borderTop: "1px solid var(--border-primary, #3f3f46)", padding: "4px 8px", flexShrink: 0 }}>
+        <button
+          onClick={() => setShowDebug(!showDebug)}
+          style={{
+            background: "none",
+            border: "none",
+            color: "var(--text-tertiary, #71717a)",
+            fontSize: "10px",
+            cursor: "pointer",
+            padding: 0,
+            fontFamily: "inherit",
+          }}
+        >
+          {showDebug ? "\u25BC" : "\u25B6"} Debug
+        </button>
+        {showDebug && lastDebug && (
+          <div style={{
+            marginTop: "4px",
+            padding: "6px",
+            background: "var(--bg-tertiary, #1a1a2e)",
+            borderRadius: "4px",
+            fontSize: "10px",
+            fontFamily: "monospace",
+            color: "var(--text-secondary, #a1a1aa)",
+            maxHeight: "200px",
+            overflowY: "auto",
+            wordBreak: "break-all",
+          }}>
+            <div style={{ marginBottom: "4px" }}>
+              <span style={{ color: "var(--text-tertiary, #71717a)" }}>Query: </span>
+              {lastDebug.query}
+            </div>
+            <div style={{ marginBottom: "4px" }}>
+              <span style={{ color: "var(--text-tertiary, #71717a)" }}>CLI: </span>
+              az {lastDebug.args.join(" ")}
+            </div>
+            <div style={{ marginBottom: "4px" }}>
+              <span style={{ color: "var(--text-tertiary, #71717a)" }}>Exit: </span>
+              <span style={{ color: lastDebug.exitCode === 0 ? "var(--text-accent, #4ade80)" : "var(--text-error, #f87171)" }}>
+                {lastDebug.exitCode}
+              </span>
+              <span style={{ color: "var(--text-tertiary, #71717a)" }}> | Results: </span>
+              {lastDebug.resultCount >= 0 ? lastDebug.resultCount : "—"}
+            </div>
+            {lastDebug.stderr && (
+              <div style={{ marginBottom: "4px", color: "var(--text-error, #f87171)" }}>
+                <span style={{ color: "var(--text-tertiary, #71717a)" }}>Stderr: </span>
+                {lastDebug.stderr.slice(0, 500)}
+              </div>
+            )}
+            {lastDebug.stdout && (
+              <details style={{ marginTop: "4px" }}>
+                <summary style={{ cursor: "pointer", color: "var(--text-tertiary, #71717a)" }}>
+                  Raw response ({lastDebug.stdout.length} chars)
+                </summary>
+                <pre style={{ margin: "4px 0 0", whiteSpace: "pre-wrap", fontSize: "9px", maxHeight: "120px", overflow: "auto" }}>
+                  {lastDebug.stdout.slice(0, 2000)}
+                </pre>
+              </details>
+            )}
+          </div>
+        )}
+        {showDebug && !lastDebug && (
+          <div style={{ marginTop: "4px", fontSize: "10px", color: "var(--text-tertiary, #71717a)" }}>
+            No query executed yet. Refresh to see debug output.
           </div>
         )}
       </div>
