@@ -14,6 +14,7 @@ import {
   escapeWiql,
   validateOrgUrl,
   validateProjectName,
+  normalizeProjectName,
 } from "./helpers";
 import { useTheme } from './use-theme';
 
@@ -162,7 +163,7 @@ const workItemState = {
 
 function getConfig(api: PluginAPI): AdoConfig {
   const organization = (api.settings.get<string>("organization") || "").replace(/\/+$/, "");
-  const project = api.settings.get<string>("project") || "";
+  const project = normalizeProjectName(api.settings.get<string>("project") || "");
 
   let valid = true;
   let validationError = "";
@@ -172,7 +173,7 @@ function getConfig(api: PluginAPI): AdoConfig {
     validationError = "Invalid organization URL format. Expected https://dev.azure.com/<org> or https://<org>.visualstudio.com";
   } else if (project && !validateProjectName(project)) {
     valid = false;
-    validationError = "Invalid project name. Only letters, numbers, spaces, hyphens, underscores, and dots are allowed.";
+    validationError = "Invalid project name. Only letters, numbers, spaces, hyphens, underscores, dots, and parentheses are allowed.";
   }
 
   return {

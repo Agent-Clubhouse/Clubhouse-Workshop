@@ -86,7 +86,14 @@ function validateOrgUrl(url) {
   return /^https:\/\/(dev\.azure\.com\/[\w-]+|[\w-]+\.visualstudio\.com)\/?$/.test(url);
 }
 function validateProjectName(name) {
-  return name.length > 0 && /^[\w\s.-]+$/.test(name);
+  return name.length > 0 && /^[\w\s.()\-]+$/.test(name);
+}
+function normalizeProjectName(name) {
+  try {
+    return decodeURIComponent(name);
+  } catch {
+    return name;
+  }
 }
 function stripHtml(html) {
   return html.replace(/<br\s*\/?>/gi, "\n").replace(/<\/p>/gi, "\n").replace(/<\/div>/gi, "\n").replace(/<\/li>/gi, "\n").replace(/<[^>]+>/g, "").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&nbsp;/g, " ").replace(/\n{3,}/g, "\n\n").trim();
@@ -256,7 +263,7 @@ var workItemState = {
 };
 function getConfig(api) {
   const organization = (api.settings.get("organization") || "").replace(/\/+$/, "");
-  const project = api.settings.get("project") || "";
+  const project = normalizeProjectName(api.settings.get("project") || "");
   let valid = true;
   let validationError = "";
   if (organization && !validateOrgUrl(organization)) {
@@ -264,7 +271,7 @@ function getConfig(api) {
     validationError = "Invalid organization URL format. Expected https://dev.azure.com/<org> or https://<org>.visualstudio.com";
   } else if (project && !validateProjectName(project)) {
     valid = false;
-    validationError = "Invalid project name. Only letters, numbers, spaces, hyphens, underscores, and dots are allowed.";
+    validationError = "Invalid project name. Only letters, numbers, spaces, hyphens, underscores, dots, and parentheses are allowed.";
   }
   return {
     organization,

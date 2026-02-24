@@ -9,6 +9,7 @@ import {
   escapeWiql,
   validateOrgUrl,
   validateProjectName,
+  normalizeProjectName,
 } from "./helpers";
 
 // ---------------------------------------------------------------------------
@@ -340,6 +341,12 @@ describe("validateProjectName", () => {
     expect(validateProjectName("Team-A_Sprint.1")).toBe(true);
   });
 
+  it("accepts names with parentheses", () => {
+    expect(validateProjectName("Kaizen (AIPF)")).toBe(true);
+    expect(validateProjectName("Project (v2)")).toBe(true);
+    expect(validateProjectName("(Internal)")).toBe(true);
+  });
+
   it("rejects empty string", () => {
     expect(validateProjectName("")).toBe(false);
   });
@@ -362,5 +369,32 @@ describe("validateProjectName", () => {
   it("rejects names with slashes", () => {
     expect(validateProjectName("test/path")).toBe(false);
     expect(validateProjectName("test\\path")).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// normalizeProjectName — decodes URI-encoded project names
+// ---------------------------------------------------------------------------
+
+describe("normalizeProjectName", () => {
+  it("decodes %20 to spaces", () => {
+    expect(normalizeProjectName("Kaizen%20(AIPF)")).toBe("Kaizen (AIPF)");
+  });
+
+  it("returns plain names unchanged", () => {
+    expect(normalizeProjectName("MyProject")).toBe("MyProject");
+    expect(normalizeProjectName("Kaizen (AIPF)")).toBe("Kaizen (AIPF)");
+  });
+
+  it("decodes multiple encoded characters", () => {
+    expect(normalizeProjectName("My%20Project%20(v2)")).toBe("My Project (v2)");
+  });
+
+  it("returns empty string unchanged", () => {
+    expect(normalizeProjectName("")).toBe("");
+  });
+
+  it("returns invalid percent sequences unchanged", () => {
+    expect(normalizeProjectName("test%ZZvalue")).toBe("test%ZZvalue");
   });
 });
