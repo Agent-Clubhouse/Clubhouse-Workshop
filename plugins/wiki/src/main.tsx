@@ -7,10 +7,21 @@ import { WikiViewer } from './WikiViewer';
 import { useTheme } from './use-theme';
 
 export function activate(ctx: PluginContext, api: PluginAPI): void {
-  const disposable = api.commands.register('refresh', () => {
-    wikiState.triggerRefresh();
-  });
-  ctx.subscriptions.push(disposable);
+  ctx.subscriptions.push(
+    api.commands.register('refresh', () => {
+      wikiState.triggerRefresh();
+    }),
+  );
+  ctx.subscriptions.push(
+    api.commands.register('newPage', () => {
+      wikiState.triggerNewPage();
+    }),
+  );
+  ctx.subscriptions.push(
+    api.commands.register('toggleMode', () => {
+      wikiState.toggleViewMode();
+    }),
+  );
 }
 
 export function deactivate(): void {

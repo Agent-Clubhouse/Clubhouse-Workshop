@@ -24,7 +24,8 @@
       "layout": "full"
     },
     "commands": [
-      { "id": "create", "title": "Create Automation" }
+      { "id": "create", "title": "Create Automation" },
+      { "id": "refresh", "title": "Refresh Automations" }
     ],
     "help": {
       "topics": [

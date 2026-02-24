@@ -11,6 +11,7 @@ export const wikiState = {
   isDirty: false,
   viewMode: 'view' as 'view' | 'edit',
   refreshCount: 0,
+  newPageRequested: 0,
   listeners: new Set<() => void>(),
 
   // Navigation history
@@ -58,6 +59,16 @@ export const wikiState = {
     this.notify();
   },
 
+  triggerNewPage(): void {
+    this.newPageRequested++;
+    this.notify();
+  },
+
+  toggleViewMode(): void {
+    this.viewMode = this.viewMode === 'view' ? 'edit' : 'view';
+    this.notify();
+  },
+
   subscribe(fn: () => void): () => void {
     this.listeners.add(fn);
     return () => {
@@ -76,6 +87,7 @@ export const wikiState = {
     this.isDirty = false;
     this.viewMode = 'view';
     this.refreshCount = 0;
+    this.newPageRequested = 0;
     this.history = [];
     this.historyIndex = -1;
     this._isNavigatingHistory = false;
