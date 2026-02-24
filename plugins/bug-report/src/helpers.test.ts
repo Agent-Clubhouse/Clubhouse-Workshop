@@ -63,11 +63,11 @@ describe("severityColor", () => {
 
 describe("typeColor", () => {
   it("returns red-ish for bug", () => {
-    expect(typeColor("bug")).toBe("#d73a4a");
+    expect(typeColor("bug")).toBe("var(--text-error, #d73a4a)");
   });
 
   it("returns cyan-ish for enhancement", () => {
-    expect(typeColor("enhancement")).toBe("#a2eeef");
+    expect(typeColor("enhancement")).toBe("var(--text-info, #a2eeef)");
   });
 });
 

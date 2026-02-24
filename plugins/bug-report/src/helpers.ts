@@ -19,8 +19,8 @@ export function severityColor(severity: Severity): string {
 
 export function typeColor(type: ReportType): string {
   switch (type) {
-    case "bug": return "#d73a4a";
-    case "enhancement": return "#a2eeef";
+    case "bug": return "var(--text-error, #d73a4a)";
+    case "enhancement": return "var(--text-info, #a2eeef)";
   }
 }
 

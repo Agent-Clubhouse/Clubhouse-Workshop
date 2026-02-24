@@ -17,9 +17,9 @@ function severityColor(severity) {
 function typeColor(type) {
   switch (type) {
     case "bug":
-      return "#d73a4a";
+      return "var(--text-error, #d73a4a)";
     case "enhancement":
-      return "#a2eeef";
+      return "var(--text-info, #a2eeef)";
   }
 }
 function formatTitle(severity, title) {
@@ -779,7 +779,7 @@ var S = {
     border: "none",
     borderRadius: "6px",
     background: "var(--text-accent, #8b5cf6)",
-    color: "#fff",
+    color: "var(--text-on-accent, #fff)",
     cursor: "pointer",
     fontFamily: "inherit"
   },
@@ -832,8 +832,8 @@ var S = {
     borderRadius: "10px",
     fontSize: "11px",
     fontWeight: 500,
-    background: state === "OPEN" || state === "open" ? "rgba(64,200,100,0.15)" : "rgba(139,92,246,0.15)",
-    color: state === "OPEN" || state === "open" ? "#4ade80" : "#a78bfa"
+    background: state === "OPEN" || state === "open" ? "var(--bg-success, rgba(64,200,100,0.15))" : "var(--bg-accent, rgba(139,92,246,0.15))",
+    color: state === "OPEN" || state === "open" ? "var(--text-success, #4ade80)" : "var(--text-accent, #a78bfa)"
   }),
   commentBox: {
     borderTop: "1px solid var(--border-primary, #3f3f46)",

@@ -174,7 +174,7 @@ var color = {
   warningBg: "var(--bg-warning, rgba(249, 226, 175, 0.15))",
   error: "var(--text-error, #f38ba8)",
   errorBg: "var(--bg-error, rgba(243, 139, 168, 0.1))",
-  errorBorder: "rgba(243, 139, 168, 0.3)",
+  errorBorder: "var(--border-error, rgba(243, 139, 168, 0.3))",
   blue: "var(--text-info, #89b4fa)",
   blueBg: "var(--bg-info, rgba(137, 180, 250, 0.15))",
   blueBorder: "var(--border-info, rgba(137, 180, 250, 0.3))"
