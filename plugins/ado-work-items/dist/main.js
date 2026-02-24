@@ -117,6 +117,17 @@ function parseRawWorkItem(raw) {
     iterationPath: fields["System.IterationPath"] || ""
   };
 }
+function baseArgs(config) {
+  const args = [];
+  if (config.organization) args.push("--org", config.organization);
+  if (config.project) args.push("--project", config.project);
+  return args;
+}
+function orgArgs(config) {
+  const args = [];
+  if (config.organization) args.push("--org", config.organization);
+  return args;
+}
 function stripHtml(html) {
   return html.replace(/<br\s*\/?>/gi, "\n").replace(/<\/p>/gi, "\n").replace(/<\/div>/gi, "\n").replace(/<\/li>/gi, "\n").replace(/<[^>]+>/g, "").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&nbsp;/g, " ").replace(/\n{3,}/g, "\n\n").trim();
 }
@@ -313,12 +324,6 @@ function getConfig(api) {
     validationError
   };
 }
-function baseArgs(config) {
-  const args = [];
-  if (config.organization) args.push("--org", config.organization);
-  if (config.project) args.push("--project", config.project);
-  return args;
-}
 function buildWorkItemUrl(config, id) {
   return `${config.organization}/${encodeURIComponent(config.project)}/_workitems/edit/${id}`;
 }
@@ -376,14 +381,18 @@ async function fetchSingleWorkItem(api, config, id) {
     String(id),
     "--output",
     "json",
-    ...baseArgs(config)
+    ...orgArgs(config)
   ];
   const r = await api.process.exec("az", args, { timeout: 3e4 });
-  if (r.exitCode !== 0 || !r.stdout.trim()) return null;
+  if (r.exitCode !== 0 || !r.stdout.trim()) {
+    api.logging.debug("ADO work-item show failed", { id, exitCode: r.exitCode, stderr: r.stderr });
+    return null;
+  }
   try {
     const parsed = JSON.parse(r.stdout);
     return parseRawWorkItem(parsed);
-  } catch {
+  } catch (err) {
+    api.logging.debug("ADO work-item show parse failed", { id, error: String(err) });
     return null;
   }
 }
@@ -406,7 +415,7 @@ async function fetchWorkItemsByIds(api, config, ids) {
       batch.join(","),
       "--output",
       "json",
-      ...baseArgs(config)
+      ...orgArgs(config)
     ];
     const r = await api.process.exec("az", args, { timeout: 3e4 });
     if (r.exitCode !== 0 || !r.stdout.trim()) {
@@ -443,7 +452,10 @@ async function fetchWorkItemsByIds(api, config, ids) {
 async function fetchComments(api, config, workItemId) {
   const url = `${config.organization}/${encodeURIComponent(config.project)}/_apis/wit/workItems/${workItemId}/comments?api-version=7.1-preview.4`;
   const r = await api.process.exec("az", ["rest", "--method", "get", "--url", url, "--output", "json"], { timeout: 3e4 });
-  if (r.exitCode !== 0 || !r.stdout.trim()) return [];
+  if (r.exitCode !== 0 || !r.stdout.trim()) {
+    api.logging.debug("ADO comment fetch failed", { workItemId, exitCode: r.exitCode, stderr: r.stderr });
+    return [];
+  }
   try {
     const data = JSON.parse(r.stdout);
     const comments = [];
@@ -457,7 +469,8 @@ async function fetchComments(api, config, workItemId) {
       }
     }
     return comments;
-  } catch {
+  } catch (err) {
+    api.logging.debug("ADO comment parse failed", { workItemId, error: String(err) });
     return [];
   }
 }
@@ -988,8 +1001,9 @@ function SidebarPanel({ api }) {
       const results = await fetchWorkItemsByIds(api, config, ids);
       if (!mountedRef.current) return;
       workItemState.setItems(results);
-    } catch {
+    } catch (err) {
       if (!mountedRef.current) return;
+      api.logging.warn("ADO fetchItems failed", { error: String(err) });
       setError("Failed to load work items. Is the Azure CLI installed and authenticated?");
     } finally {
       workItemState.setLoading(false);
@@ -1007,10 +1021,18 @@ function SidebarPanel({ api }) {
     }
   }, [needsRefresh, fetchItems]);
   useEffect(() => {
+    let timer = null;
     const unsub = api.settings.onChange(() => {
-      workItemState.requestRefresh();
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => {
+        timer = null;
+        workItemState.requestRefresh();
+      }, 300);
     });
-    return () => unsub.dispose();
+    return () => {
+      if (timer) clearTimeout(timer);
+      unsub.dispose();
+    };
   }, [api]);
   const filteredItems = useMemo(() => {
     if (!searchQuery.trim()) return items;
@@ -1292,7 +1314,7 @@ function MainPanel({ api }) {
         String(selected),
         "--output",
         "json",
-        ...baseArgs(config)
+        ...orgArgs(config)
       ];
       const r = await api.process.exec("az", args, { timeout: 3e4 });
       if (cancelled) return;
