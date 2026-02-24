@@ -3,7 +3,7 @@ import { createMockAPI, createMockContext } from "@clubhouse/plugin-testing";
 import type { PluginAPI, PluginContext } from "@clubhouse/plugin-types";
 
 // Import the activate function, state, and auth helper
-import { activate, deactivate, checkGhAuth } from "./main";
+import { activate, deactivate, checkGhAuth, fetchIssues, fetchIssueDetail } from "./main";
 import { createBugReportState } from "./state";
 
 describe("activate", () => {
@@ -171,6 +171,130 @@ describe("checkGhAuth", () => {
     // gh api user: empty stdout → fail
     // gh auth status: no "Logged in" in output → fail
     // gh issue list: stdout doesn't start with "[" → fail
+    expect(result).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// fetchIssues — must handle empty/failed gh responses gracefully
+// ---------------------------------------------------------------------------
+
+describe("fetchIssues", () => {
+  let api: PluginAPI;
+
+  beforeEach(() => {
+    api = createMockAPI();
+  });
+
+  it("returns items when gh succeeds with valid JSON", async () => {
+    const issues = [
+      { number: 1, title: "Bug", state: "OPEN", url: "", createdAt: "", updatedAt: "", author: { login: "u" }, labels: [] },
+    ];
+    (api.process.exec as ReturnType<typeof vi.fn>).mockResolvedValue({
+      stdout: JSON.stringify(issues),
+      stderr: "",
+      exitCode: 0,
+    });
+    const result = await fetchIssues(api, 1);
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0].number).toBe(1);
+  });
+
+  it("returns empty items when gh exits with non-zero code", async () => {
+    (api.process.exec as ReturnType<typeof vi.fn>).mockResolvedValue({
+      stdout: "",
+      stderr: "error: not authenticated",
+      exitCode: 1,
+    });
+    const result = await fetchIssues(api, 1);
+    expect(result.items).toEqual([]);
+    expect(result.hasMore).toBe(false);
+  });
+
+  it("returns empty items when gh returns empty stdout", async () => {
+    (api.process.exec as ReturnType<typeof vi.fn>).mockResolvedValue({
+      stdout: "",
+      stderr: "",
+      exitCode: 0,
+    });
+    const result = await fetchIssues(api, 1);
+    expect(result.items).toEqual([]);
+    expect(result.hasMore).toBe(false);
+  });
+
+  it("returns empty items when gh returns invalid JSON", async () => {
+    (api.process.exec as ReturnType<typeof vi.fn>).mockResolvedValue({
+      stdout: "not json{",
+      stderr: "",
+      exitCode: 0,
+    });
+    const result = await fetchIssues(api, 1);
+    expect(result.items).toEqual([]);
+    expect(result.hasMore).toBe(false);
+  });
+
+  it("logs warning when gh fails", async () => {
+    const warnSpy = vi.spyOn(api.logging, "warn");
+    (api.process.exec as ReturnType<typeof vi.fn>).mockResolvedValue({
+      stdout: "",
+      stderr: "auth required",
+      exitCode: 1,
+    });
+    await fetchIssues(api, 1);
+    expect(warnSpy).toHaveBeenCalled();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// fetchIssueDetail — must handle empty/failed gh responses gracefully
+// ---------------------------------------------------------------------------
+
+describe("fetchIssueDetail", () => {
+  let api: PluginAPI;
+
+  beforeEach(() => {
+    api = createMockAPI();
+  });
+
+  it("returns detail when gh succeeds", async () => {
+    const detail = { number: 42, title: "Bug", state: "OPEN", body: "desc" };
+    (api.process.exec as ReturnType<typeof vi.fn>).mockResolvedValue({
+      stdout: JSON.stringify(detail),
+      stderr: "",
+      exitCode: 0,
+    });
+    const result = await fetchIssueDetail(api, 42);
+    expect(result).not.toBeNull();
+    expect(result!.number).toBe(42);
+  });
+
+  it("returns null when gh exits with non-zero code", async () => {
+    (api.process.exec as ReturnType<typeof vi.fn>).mockResolvedValue({
+      stdout: "",
+      stderr: "not found",
+      exitCode: 1,
+    });
+    const result = await fetchIssueDetail(api, 999);
+    expect(result).toBeNull();
+  });
+
+  it("returns null when gh returns empty stdout", async () => {
+    (api.process.exec as ReturnType<typeof vi.fn>).mockResolvedValue({
+      stdout: "",
+      stderr: "",
+      exitCode: 0,
+    });
+    const result = await fetchIssueDetail(api, 42);
+    expect(result).toBeNull();
+  });
+
+  it("returns null when gh returns invalid JSON", async () => {
+    (api.process.exec as ReturnType<typeof vi.fn>).mockResolvedValue({
+      stdout: "truncated{",
+      stderr: "",
+      exitCode: 0,
+    });
+    const result = await fetchIssueDetail(api, 42);
     expect(result).toBeNull();
   });
 });

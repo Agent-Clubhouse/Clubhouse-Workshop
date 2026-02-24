@@ -375,7 +375,7 @@ function runAuthCheck(api: PluginAPI): void {
 const ISSUE_FIELDS = "number,title,state,url,createdAt,updatedAt,author,labels";
 const PER_PAGE = 30;
 
-async function fetchIssues(
+export async function fetchIssues(
   api: PluginAPI,
   page: number,
   author?: string,
@@ -398,7 +398,18 @@ async function fetchIssues(
   }
 
   const r = await api.process.exec("gh", args);
-  let items: IssueListItem[] = JSON.parse(r.stdout);
+  if (r.exitCode !== 0 || !r.stdout.trim()) {
+    api.logging.warn("gh issue list failed", { exitCode: r.exitCode, stderr: r.stderr, author, page });
+    return { items: [], hasMore: false };
+  }
+
+  let items: IssueListItem[];
+  try {
+    items = JSON.parse(r.stdout);
+  } catch (err) {
+    api.logging.warn("gh issue list JSON parse failed", { error: String(err), stdout: r.stdout.slice(0, 200) });
+    return { items: [], hasMore: false };
+  }
 
   // Handle pagination offset
   if (page > 1) {
@@ -411,13 +422,22 @@ async function fetchIssues(
   return { items, hasMore };
 }
 
-async function fetchIssueDetail(api: PluginAPI, num: number): Promise<IssueDetail> {
+export async function fetchIssueDetail(api: PluginAPI, num: number): Promise<IssueDetail | null> {
   const r = await api.process.exec("gh", [
     "issue", "view", String(num),
     "--repo", REPO,
     "--json", "number,title,state,url,createdAt,updatedAt,author,labels,body,comments,assignees",
   ]);
-  return JSON.parse(r.stdout);
+  if (r.exitCode !== 0 || !r.stdout.trim()) {
+    api.logging.warn("gh issue view failed", { num, exitCode: r.exitCode, stderr: r.stderr });
+    return null;
+  }
+  try {
+    return JSON.parse(r.stdout);
+  } catch (err) {
+    api.logging.warn("gh issue view JSON parse failed", { num, error: String(err), stdout: r.stdout.slice(0, 200) });
+    return null;
+  }
 }
 
 async function createIssue(
@@ -435,18 +455,27 @@ async function createIssue(
     "--body", body,
     "--label", label,
   ]);
+  if (r.exitCode !== 0) {
+    api.logging.warn("gh issue create failed", { exitCode: r.exitCode, stderr: r.stderr });
+    throw new Error(r.stderr.trim() || "Failed to create issue");
+  }
   // gh outputs the issue URL, extract the number
   const urlMatch = r.stdout.trim().match(/\/issues\/(\d+)/);
   if (urlMatch) return parseInt(urlMatch[1], 10);
+  api.logging.warn("gh issue create: could not parse issue number", { stdout: r.stdout.slice(0, 200) });
   throw new Error("Failed to parse created issue number");
 }
 
 async function addComment(api: PluginAPI, num: number, body: string): Promise<void> {
-  await api.process.exec("gh", [
+  const r = await api.process.exec("gh", [
     "issue", "comment", String(num),
     "--repo", REPO,
     "--body", body,
   ]);
+  if (r.exitCode !== 0) {
+    api.logging.warn("gh issue comment failed", { num, exitCode: r.exitCode, stderr: r.stderr });
+    throw new Error(r.stderr.trim() || "Failed to add comment");
+  }
 }
 
 // ---------------------------------------------------------------------------
