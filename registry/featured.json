@@ -9,6 +9,10 @@
     {
       "id": "automations",
       "reason": "Schedule recurring agent tasks with cron — automate your workflow without lifting a finger."
+    },
+    {
+      "id": "bug-report",
+      "reason": "File structured bug reports and feature requests directly to GitHub with severity tracking and label support."
     }
   ]
 }
