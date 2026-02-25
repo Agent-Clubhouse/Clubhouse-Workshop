@@ -100,42 +100,167 @@ function validateCronExpression(expression) {
   }
   return null;
 }
+var DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+var MONTH_NAMES = ["", "January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+function formatHour12(h) {
+  const ampm = h >= 12 ? "PM" : "AM";
+  const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+  return `${h12} ${ampm}`;
+}
+function formatTime12(h, m) {
+  const ampm = h >= 12 ? "PM" : "AM";
+  const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+  return `${h12}:${String(m).padStart(2, "0")} ${ampm}`;
+}
+function isContiguousRange(values) {
+  if (values.size === 0) return null;
+  const sorted = [...values].sort((a, b) => a - b);
+  for (let i = 1; i < sorted.length; i++) {
+    if (sorted[i] !== sorted[i - 1] + 1) return null;
+  }
+  return { start: sorted[0], end: sorted[sorted.length - 1] };
+}
+function detectStep(values, min, max) {
+  if (values.size <= 1) return null;
+  const sorted = [...values].sort((a, b) => a - b);
+  if (sorted[0] !== min) return null;
+  const step = sorted[1] - sorted[0];
+  if (step <= 0) return null;
+  for (let i = 2; i < sorted.length; i++) {
+    if (sorted[i] - sorted[i - 1] !== step) return null;
+  }
+  if (sorted[sorted.length - 1] !== min + step * (sorted.length - 1)) return null;
+  if (sorted[sorted.length - 1] + step > max + 1) return null;
+  return step;
+}
+function describeDaySet(values) {
+  if (values.size === 7) return "";
+  if (values.size === 5) {
+    const weekdays = /* @__PURE__ */ new Set([1, 2, 3, 4, 5]);
+    if ([...values].every((v) => weekdays.has(v))) return "Monday through Friday";
+  }
+  if (values.size === 2) {
+    const weekend = /* @__PURE__ */ new Set([0, 6]);
+    if ([...values].every((v) => weekend.has(v))) return "Saturday and Sunday";
+  }
+  const range = isContiguousRange(values);
+  if (range) {
+    if (range.start === range.end) return DAY_NAMES[range.start];
+    return `${DAY_NAMES[range.start]} through ${DAY_NAMES[range.end]}`;
+  }
+  const sorted = [...values].sort((a, b) => a - b);
+  if (sorted.length === 2) return `${DAY_NAMES[sorted[0]]} and ${DAY_NAMES[sorted[1]]}`;
+  return sorted.map((d) => DAY_NAMES[d]).join(", ");
+}
+function describeMonthSet(values) {
+  if (values.size === 12) return "";
+  const sorted = [...values].sort((a, b) => a - b);
+  if (sorted.length === 1) return `in ${MONTH_NAMES[sorted[0]]}`;
+  const range = isContiguousRange(values);
+  if (range) return `${MONTH_NAMES[range.start]} through ${MONTH_NAMES[range.end]}`;
+  return `in ${sorted.map((m) => MONTH_NAMES[m]).join(", ")}`;
+}
+function describeDomSet(values) {
+  if (values.size === 31) return "";
+  const sorted = [...values].sort((a, b) => a - b);
+  if (sorted.length === 1) {
+    const d = sorted[0];
+    const suffix = d === 1 || d === 21 || d === 31 ? "st" : d === 2 || d === 22 ? "nd" : d === 3 || d === 23 ? "rd" : "th";
+    return `on the ${d}${suffix}`;
+  }
+  const range = isContiguousRange(values);
+  if (range) return `on days ${range.start}\u2013${range.end}`;
+  return `on days ${sorted.join(", ")}`;
+}
 function describeSchedule(expression) {
   const preset = PRESETS.find((p) => p.value === expression);
   if (preset) return preset.label;
   const fields = expression.trim().split(/\s+/);
   if (fields.length !== 5) return expression;
-  const [min, hour, dom, mon, dow] = fields;
-  if (min.startsWith("*/") && hour === "*" && dom === "*" && mon === "*" && dow === "*") {
-    return `Every ${min.slice(2)} minutes`;
+  const [minF, hourF, domF, monF, dowF] = fields;
+  const minutes = parseField(minF, 0, 59);
+  const hours = parseField(hourF, 0, 23);
+  const doms = parseField(domF, 1, 31);
+  const months = parseField(monF, 1, 12);
+  const dows = parseField(dowF, 0, 6);
+  const allMinutes = minutes.size === 60;
+  const allHours = hours.size === 24;
+  const allDoms = doms.size === 31;
+  const allMonths = months.size === 12;
+  const allDows = dows.size === 7;
+  const parts = [];
+  const minuteStep = detectStep(minutes, 0, 59);
+  const hourStep = detectStep(hours, 0, 23);
+  if (allMinutes && allHours) {
+    parts.push("Every minute");
+  } else if (minuteStep && minuteStep > 1 && allHours) {
+    parts.push(`Every ${minuteStep} minutes`);
+  } else if (allMinutes && !allHours) {
+    const hourRange = isContiguousRange(hours);
+    if (hourRange) {
+      parts.push(`Every minute from ${formatHour12(hourRange.start)} to ${formatHour12(hourRange.end)}`);
+    } else {
+      parts.push("Every minute during select hours");
+    }
+  } else if (minutes.size === 1 && allHours) {
+    const m = [...minutes][0];
+    parts.push(`Every hour at :${String(m).padStart(2, "0")}`);
+  } else if (minutes.size === 1 && hourStep && hourStep > 1) {
+    const m = [...minutes][0];
+    if (m === 0) {
+      parts.push(`Every ${hourStep} hours`);
+    } else {
+      parts.push(`Every ${hourStep} hours at :${String(m).padStart(2, "0")}`);
+    }
+  } else if (minutes.size === 1 && hours.size === 1) {
+    const m = [...minutes][0];
+    const h = [...hours][0];
+    parts.push(`At ${formatTime12(h, m)}`);
+  } else if (minutes.size === 1 && !allHours) {
+    const m = [...minutes][0];
+    const hourRange = isContiguousRange(hours);
+    if (hourRange) {
+      if (hourRange.start === hourRange.end) {
+        parts.push(`At ${formatTime12(hourRange.start, m)}`);
+      } else {
+        parts.push(`Every hour from ${formatHour12(hourRange.start)} to ${formatHour12(hourRange.end)} at :${String(m).padStart(2, "0")}`);
+      }
+    } else if (hourStep && hourStep > 1) {
+      parts.push(`Every ${hourStep} hours at :${String(m).padStart(2, "0")}`);
+    } else {
+      const times = [...hours].sort((a, b) => a - b).map((h) => formatTime12(h, m));
+      if (times.length <= 3) {
+        parts.push(`At ${times.join(", ")}`);
+      } else {
+        parts.push(`${times.length} times daily at :${String(m).padStart(2, "0")}`);
+      }
+    }
+  } else if (minuteStep && minuteStep > 1 && !allHours) {
+    const hourRange = isContiguousRange(hours);
+    if (hourRange) {
+      parts.push(`Every ${minuteStep} minutes from ${formatHour12(hourRange.start)} to ${formatHour12(hourRange.end)}`);
+    } else {
+      parts.push(`Every ${minuteStep} minutes during select hours`);
+    }
+  } else {
+    parts.push(`${minF} ${hourF}`);
   }
-  if (/^\d+$/.test(min) && hour === "*" && dom === "*" && mon === "*" && dow === "*") {
-    return `Every hour at :${min.padStart(2, "0")}`;
+  if (!allDows) {
+    const dayDesc = describeDaySet(dows);
+    if (dayDesc) parts.push(dayDesc);
+  } else if (!allDoms) {
+    const domDesc = describeDomSet(doms);
+    if (domDesc) parts.push(domDesc);
   }
-  if (/^\d+$/.test(min) && /^\d+$/.test(hour) && dom === "*" && mon === "*" && dow === "*") {
-    const h = parseInt(hour, 10);
-    const ampm = h >= 12 ? "PM" : "AM";
-    const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
-    return `Daily at ${h12}:${min.padStart(2, "0")} ${ampm}`;
+  if (!allMonths) {
+    const monthDesc = describeMonthSet(months);
+    if (monthDesc) parts.push(monthDesc);
   }
-  if (/^\d+$/.test(min) && /^\d+$/.test(hour) && dom === "*" && mon === "*" && dow === "1-5") {
-    const h = parseInt(hour, 10);
-    const ampm = h >= 12 ? "PM" : "AM";
-    const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
-    return `Weekdays at ${h12}:${min.padStart(2, "0")} ${ampm}`;
+  if (parts.length === 0) return expression;
+  let result = parts.join(", ");
+  if (parts.length > 1 && parts[0].startsWith("At ")) {
   }
-  if (/^\d+$/.test(min) && /^\d+$/.test(hour) && dom === "*" && mon === "*" && /^\d$/.test(dow)) {
-    const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-    const h = parseInt(hour, 10);
-    const ampm = h >= 12 ? "PM" : "AM";
-    const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
-    const dayName = dayNames[parseInt(dow, 10)] ?? dow;
-    return `${dayName} at ${h12}:${min.padStart(2, "0")} ${ampm}`;
-  }
-  if (min === "0" && hour.startsWith("*/") && dom === "*" && mon === "*" && dow === "*") {
-    return `Every ${hour.slice(2)} hours`;
-  }
-  return expression;
+  return result;
 }
 var PRESETS = [
   { label: "Every 5 min", value: "*/5 * * * *" },
@@ -415,7 +540,9 @@ function activate(ctx, api) {
       }
       try {
         const agentId = await api.agents.runQuick(auto.prompt, {
-          model: auto.model || void 0
+          model: auto.model || void 0,
+          orchestrator: auto.orchestrator || void 0,
+          freeAgentMode: auto.freeAgentMode || void 0
         });
         pendingRuns.set(agentId, auto.id);
         const runsRaw = await storage.read(runsKey(auto.id));
@@ -467,13 +594,16 @@ function MainPanel({ api }) {
   const [selectedId, setSelectedId] = useState(null);
   const [runs, setRuns] = useState([]);
   const [modelOptions, setModelOptions] = useState([]);
+  const [orchestrators, setOrchestrators] = useState([]);
   const [loaded, setLoaded] = useState(false);
   const [runningIds, setRunningIds] = useState(/* @__PURE__ */ new Set());
   const [expandedRunId, setExpandedRunId] = useState(null);
   const [completedAgents, setCompletedAgents] = useState([]);
   const [editName, setEditName] = useState("");
   const [editCron, setEditCron] = useState("");
+  const [editOrchestrator, setEditOrchestrator] = useState("");
   const [editModel, setEditModel] = useState("");
+  const [editFreeAgent, setEditFreeAgent] = useState(false);
   const [editPrompt, setEditPrompt] = useState("");
   const [editEnabled, setEditEnabled] = useState(true);
   const [cronError, setCronError] = useState(null);
@@ -500,14 +630,19 @@ function MainPanel({ api }) {
     };
   }, [loadAutomations]);
   useEffect(() => {
-    api.agents.getModelOptions().then(setModelOptions);
+    setOrchestrators(api.agents.listOrchestrators());
   }, [api]);
+  useEffect(() => {
+    api.agents.getModelOptions(void 0, editOrchestrator || void 0).then(setModelOptions);
+  }, [api, editOrchestrator]);
   const selected = automations.find((a) => a.id === selectedId) ?? null;
   useEffect(() => {
     if (selected) {
       setEditName(selected.name);
       setEditCron(selected.cronExpression);
+      setEditOrchestrator(selected.orchestrator ?? "");
       setEditModel(selected.model);
+      setEditFreeAgent(selected.freeAgentMode ?? false);
       setEditPrompt(selected.prompt);
       setEditEnabled(selected.enabled);
       setCronError(null);
@@ -532,7 +667,9 @@ function MainPanel({ api }) {
       id: generateId(),
       name: "New Automation",
       cronExpression: "0 * * * *",
+      orchestrator: "",
       model: "",
+      freeAgentMode: false,
       prompt: "",
       enabled: false,
       createdAt: Date.now(),
@@ -552,11 +689,11 @@ function MainPanel({ api }) {
     }
     setCronError(null);
     const next = automations.map(
-      (a) => a.id === selectedId ? { ...a, name: editName, cronExpression: editCron, model: editModel, prompt: editPrompt, enabled: editEnabled } : a
+      (a) => a.id === selectedId ? { ...a, name: editName, cronExpression: editCron, orchestrator: editOrchestrator, model: editModel, freeAgentMode: editFreeAgent, prompt: editPrompt, enabled: editEnabled } : a
     );
     await storage.write(AUTOMATIONS_KEY, next);
     setAutomations(next);
-  }, [selectedId, automations, storage, editName, editCron, editModel, editPrompt, editEnabled]);
+  }, [selectedId, automations, storage, editName, editCron, editOrchestrator, editModel, editFreeAgent, editPrompt, editEnabled]);
   const deleteAutomation = useCallback(async () => {
     if (!selectedId) return;
     const next = automations.filter((a) => a.id !== selectedId);
@@ -735,17 +872,72 @@ function MainPanel({ api }) {
           /* @__PURE__ */ jsx("div", { style: { fontSize: 10, color: color.textTertiary, marginTop: 4 }, children: describeSchedule(editCron) }),
           cronError && /* @__PURE__ */ jsx("div", { style: { fontSize: 11, color: color.error, marginTop: 4 }, children: cronError })
         ] }),
+        orchestrators.length > 0 && /* @__PURE__ */ jsxs("div", { children: [
+          /* @__PURE__ */ jsx("label", { style: label, children: "Orchestrator" }),
+          /* @__PURE__ */ jsxs(
+            "select",
+            {
+              style: { ...baseInput, cursor: "pointer" },
+              value: editOrchestrator,
+              onChange: (e) => {
+                setEditOrchestrator(e.target.value);
+                setEditModel("");
+              },
+              children: [
+                /* @__PURE__ */ jsx("option", { value: "", children: "Default" }),
+                orchestrators.map((o) => /* @__PURE__ */ jsxs("option", { value: o.id, children: [
+                  o.displayName,
+                  o.badge ? ` ${o.badge}` : ""
+                ] }, o.id))
+              ]
+            }
+          )
+        ] }),
         /* @__PURE__ */ jsxs("div", { children: [
           /* @__PURE__ */ jsx("label", { style: label, children: "Model" }),
-          /* @__PURE__ */ jsx(
+          /* @__PURE__ */ jsxs(
             "select",
             {
               style: { ...baseInput, cursor: "pointer" },
               value: editModel,
               onChange: (e) => setEditModel(e.target.value),
-              children: modelOptions.map((m) => /* @__PURE__ */ jsx("option", { value: m.id, children: m.label }, m.id))
+              children: [
+                /* @__PURE__ */ jsx("option", { value: "", children: "Default" }),
+                modelOptions.map((m) => /* @__PURE__ */ jsx("option", { value: m.id, children: m.label }, m.id))
+              ]
             }
           )
+        ] }),
+        /* @__PURE__ */ jsxs("div", { children: [
+          /* @__PURE__ */ jsxs(
+            "label",
+            {
+              style: { ...label, display: "flex", alignItems: "center", gap: 8, cursor: "pointer" },
+              onClick: () => setEditFreeAgent(!editFreeAgent),
+              children: [
+                /* @__PURE__ */ jsx(
+                  "span",
+                  {
+                    style: {
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      width: 16,
+                      height: 16,
+                      borderRadius: 3,
+                      border: `1px solid ${editFreeAgent ? color.accent : color.borderSecondary}`,
+                      background: editFreeAgent ? color.accent : "transparent",
+                      transition: "all 0.15s",
+                      flexShrink: 0
+                    },
+                    children: editFreeAgent && /* @__PURE__ */ jsx("svg", { width: "10", height: "10", viewBox: "0 0 12 12", fill: "none", stroke: "var(--text-on-accent, #fff)", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", children: /* @__PURE__ */ jsx("polyline", { points: "2 6 5 9 10 3" }) })
+                  }
+                ),
+                "Free Agent Mode"
+              ]
+            }
+          ),
+          /* @__PURE__ */ jsx("div", { style: { fontSize: 10, color: color.textTertiary, marginTop: 2, marginLeft: 24 }, children: "Agent runs with full autonomy \u2014 no permission prompts" })
         ] }),
         /* @__PURE__ */ jsxs("div", { children: [
           /* @__PURE__ */ jsx("label", { style: label, children: "Prompt" }),

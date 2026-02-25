@@ -113,6 +113,8 @@ function createMockAgents() {
     dismissCompleted: createMockFn(),
     getDetailedStatus: createMockFn().mockReturnValue(null),
     getModelOptions: createMockFn().mockResolvedValue([]),
+    listOrchestrators: createMockFn().mockReturnValue([]),
+    checkOrchestratorAvailability: createMockFn().mockResolvedValue({ available: true }),
     onStatusChange: createMockFn().mockReturnValue(noop),
     onAnyChange: createMockFn().mockReturnValue(noop)
   };
