@@ -1,6 +1,6 @@
 {
   "name": "wiki",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "private": true,
   "license": "MIT",
   "description": "Browse and edit markdown wikis stored in external directories",
