@@ -242,12 +242,42 @@ async function gatherGitData(api, projectPath, sinceDate, untilDate) {
   }
   return sections.length > 0 ? sections.join("\n\n") : "No git activity found for this date range.";
 }
+var AGENT_TIMEOUT_MS = 12e4;
+function waitForAgent(api, agentId) {
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      sub.dispose();
+      reject(new Error(
+        "Agent timed out. The AI agent did not finish within 2 minutes. Try again or check Settings to choose a faster model."
+      ));
+    }, AGENT_TIMEOUT_MS);
+    const sub = api.agents.onStatusChange((id, status, prevStatus) => {
+      if (id !== agentId) return;
+      const isDone = prevStatus === "running" && status === "sleeping" || prevStatus === "running" && status === "error";
+      if (!isDone) return;
+      clearTimeout(timeout);
+      sub.dispose();
+      const completed = api.agents.listCompleted();
+      const info = completed.find((c) => c.id === agentId);
+      if (status === "error") {
+        reject(new Error(
+          info?.summary ? `Agent error: ${info.summary}` : "The AI agent encountered an error while generating the standup. Check your model and orchestrator settings."
+        ));
+        return;
+      }
+      resolve({
+        summary: info?.summary ?? null,
+        exitCode: info?.exitCode ?? 0
+      });
+    });
+  });
+}
 async function generateStandups(api) {
   standupState.setGenerating(true);
   try {
     const activeProject = api.projects.getActive();
     if (!activeProject) {
-      api.ui.showError("No active project. Open a project first.");
+      api.ui.showError("No active project. Open a project to generate standups.");
       return;
     }
     const lookbackDays = api.settings.get("lookbackDays") ?? 7;
@@ -262,6 +292,19 @@ async function generateStandups(api) {
     const model = api.settings.get("model") || void 0;
     const freeAgentMode = api.settings.get("freeAgentMode") ?? false;
     const systemPrompt = api.settings.get("prompt") || DEFAULT_PROMPT;
+    if (orchestrator) {
+      try {
+        const check = await api.agents.checkOrchestratorAvailability(orchestrator);
+        if (!check.available) {
+          api.ui.showError(
+            `Orchestrator "${orchestrator}" is not available${check.error ? `: ${check.error}` : ""}. Check your Standup settings or clear the orchestrator selection.`
+          );
+          return;
+        }
+      } catch {
+        api.logging.warn("Could not verify orchestrator availability, proceeding anyway");
+      }
+    }
     const newEntries = [];
     for (const dateStr of missing) {
       const nextDay = new Date(dateStr);
@@ -277,12 +320,29 @@ async function generateStandups(api) {
 Project: ${activeProject.name}
 
 ${gitData}`;
-      const output = await api.agents.runQuick(prompt, {
-        systemPrompt,
-        orchestrator,
-        model,
-        freeAgentMode
-      });
+      let output;
+      try {
+        const agentId = await api.agents.runQuick(prompt, {
+          systemPrompt,
+          orchestrator,
+          model,
+          freeAgentMode
+        });
+        const result = await waitForAgent(api, agentId);
+        if (!result.summary) {
+          api.logging.warn(`Agent produced no summary for ${dateStr}, skipping`);
+          continue;
+        }
+        if (result.exitCode !== 0) {
+          api.logging.warn(`Agent exited with code ${result.exitCode} for ${dateStr}`);
+        }
+        output = result.summary;
+      } catch (agentErr) {
+        const agentMsg = agentErr instanceof Error ? agentErr.message : String(agentErr);
+        api.logging.error(`Agent failed for ${dateStr}: ${agentMsg}`);
+        api.ui.showError(`Failed to generate standup for ${dateStr}: ${agentMsg}`);
+        continue;
+      }
       const entry = {
         id: `${dateStr}-${Date.now()}`,
         date: dateStr,
@@ -305,7 +365,8 @@ ${gitData}`;
     api.ui.showNotice(`Generated ${newEntries.length} standup(s)`);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    api.ui.showError(`Standup failed: ${msg}`);
+    api.ui.showError(`Standup generation failed: ${msg}`);
+    api.logging.error(`Standup generation error: ${msg}`);
   } finally {
     standupState.setGenerating(false);
     standupState.setGeneratingDates([]);
@@ -528,17 +589,22 @@ function SettingsPanel({ api }) {
   const [lookback, setLookback] = useState(api.settings.get("lookbackDays") ?? 7);
   const [orchestrators, setOrchestrators] = useState([]);
   const [models, setModels] = useState([]);
+  const [settingsError, setSettingsError] = useState(null);
   useEffect(() => {
     try {
       const orchs = api.agents.listOrchestrators();
       setOrchestrators(orchs.map((o) => ({ id: o.id, displayName: o.displayName })));
-    } catch {
+      setSettingsError(null);
+    } catch (err) {
+      api.logging.warn("Could not load orchestrator list: " + (err instanceof Error ? err.message : String(err)));
+      setSettingsError("Could not load orchestrators. The agents system may not be ready yet \u2014 try reopening settings.");
     }
   }, [api]);
   useEffect(() => {
     api.agents.getModelOptions(void 0, orchestrator || void 0).then((opts) => {
       setModels(opts);
-    }).catch(() => {
+    }).catch((err) => {
+      api.logging.warn("Could not load model options: " + (err instanceof Error ? err.message : String(err)));
     });
   }, [api, orchestrator]);
   const inputStyle = {
@@ -573,6 +639,16 @@ function SettingsPanel({ api }) {
     overflow: "auto"
   }, children: [
     /* @__PURE__ */ jsx("h2", { style: { margin: "0 0 20px 0", fontSize: 16, color: "var(--text-primary)" }, children: "Standup Settings" }),
+    settingsError && /* @__PURE__ */ jsx("div", { style: {
+      padding: "10px 14px",
+      marginBottom: 20,
+      background: "var(--bg-error, rgba(248,113,113,0.1))",
+      border: "1px solid var(--border-error, rgba(248,113,113,0.3))",
+      borderRadius: 6,
+      color: "var(--text-error, #f87171)",
+      fontSize: 12,
+      lineHeight: 1.5
+    }, children: settingsError }),
     /* @__PURE__ */ jsxs("div", { style: groupStyle, children: [
       /* @__PURE__ */ jsx("label", { style: labelStyle, children: "Orchestrator" }),
       /* @__PURE__ */ jsx("div", { style: descStyle, children: "Agent orchestrator to use (leave empty for default)" }),
@@ -702,5 +778,6 @@ export {
   gatherGitData,
   getMissingDates,
   loadHistory,
-  toDateStr
+  toDateStr,
+  waitForAgent
 };
