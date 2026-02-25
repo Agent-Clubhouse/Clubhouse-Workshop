@@ -40,7 +40,7 @@ export function SidebarPanel({ api }: PanelProps) {
 export function MainPanel({ api }: PanelProps) {
   const { style: themeStyle } = useTheme(api.theme);
   return (
-    <div style={{ ...themeStyle }}>
+    <div style={{ ...themeStyle, height: '100%' }}>
       <WikiViewer api={api} />
     </div>
   );
