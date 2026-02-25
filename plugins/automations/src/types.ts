@@ -2,7 +2,9 @@ export interface Automation {
   id: string;
   name: string;
   cronExpression: string;
+  orchestrator: string;
   model: string;
+  freeAgentMode: boolean;
   prompt: string;
   enabled: boolean;
   createdAt: number;

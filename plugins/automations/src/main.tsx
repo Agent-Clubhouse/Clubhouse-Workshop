@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
-import type { PluginContext, PluginAPI, PluginModule, ModelOption, CompletedQuickAgentInfo } from '@clubhouse/plugin-types';
+import type { PluginContext, PluginAPI, PluginModule, ModelOption, CompletedQuickAgentInfo, PluginOrchestratorInfo } from '@clubhouse/plugin-types';
 import type { Automation, RunRecord } from './types';
 import { matchesCron, describeSchedule, validateCronExpression, PRESETS } from './cron';
 import * as S from './styles';
@@ -107,6 +107,8 @@ export function activate(ctx: PluginContext, api: PluginAPI): void {
       try {
         const agentId = await api.agents.runQuick(auto.prompt, {
           model: auto.model || undefined,
+          orchestrator: auto.orchestrator || undefined,
+          freeAgentMode: auto.freeAgentMode || undefined,
         });
 
         pendingRuns.set(agentId, auto.id);
@@ -180,6 +182,7 @@ export function MainPanel({ api }: { api: PluginAPI }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [runs, setRuns] = useState<RunRecord[]>([]);
   const [modelOptions, setModelOptions] = useState<ModelOption[]>([]);
+  const [orchestrators, setOrchestrators] = useState<PluginOrchestratorInfo[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [runningIds, setRunningIds] = useState<Set<string>>(new Set());
   const [expandedRunId, setExpandedRunId] = useState<string | null>(null);
@@ -188,7 +191,9 @@ export function MainPanel({ api }: { api: PluginAPI }) {
   // Editor state
   const [editName, setEditName] = useState('');
   const [editCron, setEditCron] = useState('');
+  const [editOrchestrator, setEditOrchestrator] = useState('');
   const [editModel, setEditModel] = useState('');
+  const [editFreeAgent, setEditFreeAgent] = useState(false);
   const [editPrompt, setEditPrompt] = useState('');
   const [editEnabled, setEditEnabled] = useState(true);
   const [cronError, setCronError] = useState<string | null>(null);
@@ -216,10 +221,15 @@ export function MainPanel({ api }: { api: PluginAPI }) {
     return () => { clearInterval(iv); unsub(); };
   }, [loadAutomations]);
 
-  // ── Load model options ──────────────────────────────────────────────
+  // ── Load orchestrators ─────────────────────────────────────────────
   useEffect(() => {
-    api.agents.getModelOptions().then(setModelOptions);
+    setOrchestrators(api.agents.listOrchestrators());
   }, [api]);
+
+  // ── Load model options (filtered by orchestrator) ─────────────────
+  useEffect(() => {
+    api.agents.getModelOptions(undefined, editOrchestrator || undefined).then(setModelOptions);
+  }, [api, editOrchestrator]);
 
   // ── Sync editor when selection changes ──────────────────────────────
   const selected = automations.find((a) => a.id === selectedId) ?? null;
@@ -228,7 +238,9 @@ export function MainPanel({ api }: { api: PluginAPI }) {
     if (selected) {
       setEditName(selected.name);
       setEditCron(selected.cronExpression);
+      setEditOrchestrator(selected.orchestrator ?? '');
       setEditModel(selected.model);
+      setEditFreeAgent(selected.freeAgentMode ?? false);
       setEditPrompt(selected.prompt);
       setEditEnabled(selected.enabled);
       setCronError(null);
@@ -255,7 +267,9 @@ export function MainPanel({ api }: { api: PluginAPI }) {
       id: generateId(),
       name: 'New Automation',
       cronExpression: '0 * * * *',
+      orchestrator: '',
       model: '',
+      freeAgentMode: false,
       prompt: '',
       enabled: false,
       createdAt: Date.now(),
@@ -277,12 +291,12 @@ export function MainPanel({ api }: { api: PluginAPI }) {
     setCronError(null);
     const next = automations.map((a) =>
       a.id === selectedId
-        ? { ...a, name: editName, cronExpression: editCron, model: editModel, prompt: editPrompt, enabled: editEnabled }
+        ? { ...a, name: editName, cronExpression: editCron, orchestrator: editOrchestrator, model: editModel, freeAgentMode: editFreeAgent, prompt: editPrompt, enabled: editEnabled }
         : a,
     );
     await storage.write(AUTOMATIONS_KEY, next);
     setAutomations(next);
-  }, [selectedId, automations, storage, editName, editCron, editModel, editPrompt, editEnabled]);
+  }, [selectedId, automations, storage, editName, editCron, editOrchestrator, editModel, editFreeAgent, editPrompt, editEnabled]);
 
   const deleteAutomation = useCallback(async () => {
     if (!selectedId) return;
@@ -496,6 +510,28 @@ export function MainPanel({ api }: { api: PluginAPI }) {
                 </div>
               )}
             </div>
+            {/* Orchestrator */}
+            {orchestrators.length > 0 && (
+              <div>
+                <label style={S.label}>Orchestrator</label>
+                <select
+                  style={{ ...S.baseInput, cursor: 'pointer' }}
+                  value={editOrchestrator}
+                  onChange={(e) => {
+                    setEditOrchestrator(e.target.value);
+                    // Reset model when orchestrator changes since available models differ
+                    setEditModel('');
+                  }}
+                >
+                  <option value="">Default</option>
+                  {orchestrators.map((o) => (
+                    <option key={o.id} value={o.id}>
+                      {o.displayName}{o.badge ? ` ${o.badge}` : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
             {/* Model */}
             <div>
               <label style={S.label}>Model</label>
@@ -504,10 +540,43 @@ export function MainPanel({ api }: { api: PluginAPI }) {
                 value={editModel}
                 onChange={(e) => setEditModel(e.target.value)}
               >
+                <option value="">Default</option>
                 {modelOptions.map((m) => (
                   <option key={m.id} value={m.id}>{m.label}</option>
                 ))}
               </select>
+            </div>
+            {/* Free Agent Mode */}
+            <div>
+              <label
+                style={{ ...S.label, display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}
+                onClick={() => setEditFreeAgent(!editFreeAgent)}
+              >
+                <span
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: 16,
+                    height: 16,
+                    borderRadius: 3,
+                    border: `1px solid ${editFreeAgent ? S.color.accent : S.color.borderSecondary}`,
+                    background: editFreeAgent ? S.color.accent : 'transparent',
+                    transition: 'all 0.15s',
+                    flexShrink: 0,
+                  }}
+                >
+                  {editFreeAgent && (
+                    <svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="var(--text-on-accent, #fff)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="2 6 5 9 10 3" />
+                    </svg>
+                  )}
+                </span>
+                Free Agent Mode
+              </label>
+              <div style={{ fontSize: 10, color: S.color.textTertiary, marginTop: 2, marginLeft: 24 }}>
+                Agent runs with full autonomy — no permission prompts
+              </div>
             </div>
             {/* Prompt */}
             <div>
