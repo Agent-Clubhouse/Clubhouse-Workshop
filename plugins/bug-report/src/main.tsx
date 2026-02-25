@@ -18,7 +18,7 @@ import {
   REPO,
   REPOS,
 } from "./helpers";
-import type { Severity, ReportType, RepoTarget, IssueListItem } from "./helpers";
+import type { Severity, ReportType, RepoTarget, StateFilter, IssueListItem } from "./helpers";
 import { createBugReportState } from "./state";
 import type { ViewMode } from "./state";
 import { useTheme } from "./use-theme";
@@ -381,13 +381,14 @@ export async function fetchIssues(
   page: number,
   author?: string,
   repo: string = REPO,
+  stateFilter: StateFilter = "all",
 ): Promise<{ items: IssueListItem[]; hasMore: boolean }> {
   const args = [
     "issue", "list",
     "--repo", repo,
     "--json", ISSUE_FIELDS,
     "--limit", String(PER_PAGE + 1),
-    "--state", "all",
+    "--state", stateFilter,
   ];
   if (author) {
     args.push("--author", author);
@@ -597,6 +598,25 @@ const S = {
     border: "1px solid var(--border-primary, #3f3f46)",
     borderRadius: "0 6px 6px 0",
     fontFamily: "inherit",
+  }),
+  stateFilterBar: {
+    display: "flex",
+    padding: "4px 14px 8px",
+    gap: "0px",
+  },
+  stateFilterBtn: (active: boolean, position?: "first" | "middle" | "last") => ({
+    flex: 1,
+    padding: "3px 8px",
+    fontSize: "11px",
+    fontWeight: active ? 600 : 400,
+    cursor: "pointer",
+    background: active ? "var(--bg-accent, rgba(139,92,246,0.15))" : "transparent",
+    color: active ? "var(--text-primary, #e4e4e7)" : "var(--text-tertiary, #71717a)",
+    border: "1px solid var(--border-primary, #3f3f46)",
+    borderRight: position === "last" ? "1px solid var(--border-primary, #3f3f46)" : "none",
+    borderRadius: position === "first" ? "4px 0 0 4px" : position === "last" ? "0 4px 4px 0" : "0",
+    fontFamily: "inherit",
+    textAlign: "center" as const,
   }),
   pluginBadge: {
     display: "inline-block",
@@ -865,11 +885,12 @@ export function SidebarPanel({ api }: PanelProps) {
       const repo = REPOS[reportState.repoTarget];
       try {
         // Fetch both my issues and all issues in parallel
+        const sf = reportState.stateFilter;
         const [myResult, allResult] = await Promise.all([
           reportState.ghUsername
-            ? fetchIssues(api, 1, reportState.ghUsername, repo)
+            ? fetchIssues(api, 1, reportState.ghUsername, repo, sf)
             : Promise.resolve({ items: [], hasMore: false }),
-          fetchIssues(api, reportState.page, undefined, repo),
+          fetchIssues(api, reportState.page, undefined, repo, sf),
         ]);
 
         if (reportState.page === 1) {
@@ -996,6 +1017,22 @@ export function SidebarPanel({ api }: PanelProps) {
             reportState.setSearchQuery((e.target as HTMLInputElement).value)
           }
         />
+      </div>
+
+      {/* State filter */}
+      <div style={S.stateFilterBar}>
+        {(["open", "closed", "all"] as const).map((f, i, arr) => (
+          <button
+            key={f}
+            style={S.stateFilterBtn(
+              reportState.stateFilter === f,
+              i === 0 ? "first" : i === arr.length - 1 ? "last" : "middle",
+            )}
+            onClick={() => reportState.setStateFilter(f)}
+          >
+            {f === "open" ? "Open" : f === "closed" ? "Closed" : "All"}
+          </button>
+        ))}
       </div>
 
       {/* Issue list */}

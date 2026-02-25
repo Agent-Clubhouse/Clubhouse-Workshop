@@ -258,6 +258,42 @@ describe("fetchIssues", () => {
     expect(result.hasMore).toBe(false);
   });
 
+  it("passes state filter to gh CLI --state flag", async () => {
+    (api.process.exec as ReturnType<typeof vi.fn>).mockResolvedValue({
+      stdout: "[]",
+      stderr: "",
+      exitCode: 0,
+    });
+    await fetchIssues(api, 1, undefined, undefined, "closed");
+    const args = (api.process.exec as ReturnType<typeof vi.fn>).mock.calls[0][1];
+    const stateIdx = args.indexOf("--state");
+    expect(args[stateIdx + 1]).toBe("closed");
+  });
+
+  it("defaults state filter to all when not provided", async () => {
+    (api.process.exec as ReturnType<typeof vi.fn>).mockResolvedValue({
+      stdout: "[]",
+      stderr: "",
+      exitCode: 0,
+    });
+    await fetchIssues(api, 1);
+    const args = (api.process.exec as ReturnType<typeof vi.fn>).mock.calls[0][1];
+    const stateIdx = args.indexOf("--state");
+    expect(args[stateIdx + 1]).toBe("all");
+  });
+
+  it("passes open state filter to gh CLI", async () => {
+    (api.process.exec as ReturnType<typeof vi.fn>).mockResolvedValue({
+      stdout: "[]",
+      stderr: "",
+      exitCode: 0,
+    });
+    await fetchIssues(api, 1, undefined, undefined, "open");
+    const args = (api.process.exec as ReturnType<typeof vi.fn>).mock.calls[0][1];
+    const stateIdx = args.indexOf("--state");
+    expect(args[stateIdx + 1]).toBe("open");
+  });
+
   it("logs warning when gh fails", async () => {
     const warnSpy = vi.spyOn(api.logging, "warn");
     (api.process.exec as ReturnType<typeof vi.fn>).mockResolvedValue({

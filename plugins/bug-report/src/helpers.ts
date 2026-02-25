@@ -7,6 +7,7 @@ export const SEVERITIES: Severity[] = ["LOW", "MEDIUM", "HIGH", "CRITICAL"];
 export const REPORT_TYPES: ReportType[] = ["bug", "enhancement"];
 
 export type RepoTarget = "app" | "plugins";
+export type StateFilter = "all" | "open" | "closed";
 
 export const REPOS: Record<RepoTarget, string> = {
   app: "Agent-Clubhouse/Clubhouse",

@@ -156,6 +156,45 @@ describe("setSearchQuery", () => {
   });
 });
 
+describe("setStateFilter", () => {
+  it("initialises with open", () => {
+    const state = createBugReportState();
+    expect(state.stateFilter).toBe("open");
+  });
+
+  it("switches state filter and resets page", () => {
+    const state = createBugReportState();
+    state.page = 3;
+    state.setStateFilter("closed");
+    expect(state.stateFilter).toBe("closed");
+    expect(state.page).toBe(1);
+  });
+
+  it("triggers a refresh", () => {
+    const state = createBugReportState();
+    state.setStateFilter("all");
+    expect(state.needsRefresh).toBe(true);
+  });
+
+  it("is a no-op when setting the same filter", () => {
+    const state = createBugReportState();
+    const listener = vi.fn();
+    state.subscribe(listener);
+    state.setStateFilter("open"); // already open
+    expect(listener).not.toHaveBeenCalled();
+  });
+
+  it("can cycle through all filters", () => {
+    const state = createBugReportState();
+    state.setStateFilter("closed");
+    expect(state.stateFilter).toBe("closed");
+    state.setStateFilter("all");
+    expect(state.stateFilter).toBe("all");
+    state.setStateFilter("open");
+    expect(state.stateFilter).toBe("open");
+  });
+});
+
 describe("requestRefresh", () => {
   it("sets needsRefresh and notifies", () => {
     const state = createBugReportState();
@@ -289,6 +328,7 @@ describe("reset", () => {
     state.hasMore = true;
     state.viewMode = "all-recent";
     state.searchQuery = "test";
+    state.stateFilter = "closed";
 
     state.reset();
 
@@ -304,6 +344,7 @@ describe("reset", () => {
     expect(state.needsRefresh).toBe(false);
     expect(state.viewMode).toBe("my-reports");
     expect(state.searchQuery).toBe("");
+    expect(state.stateFilter).toBe("open");
     expect(state.repoTarget).toBe("app");
     expect(state.repoCache.app).toEqual({ issues: [], myIssues: [], page: 1, hasMore: false });
     expect(state.repoCache.plugins).toEqual({ issues: [], myIssues: [], page: 1, hasMore: false });
