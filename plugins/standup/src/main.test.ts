@@ -1,8 +1,8 @@
 import { describe, it, expect, vi } from 'vitest';
-import { activate, loadHistory, toDateStr, getMissingDates, gatherGitData } from './main';
+import { activate, loadHistory, toDateStr, getMissingDates, gatherGitData, waitForAgent } from './main';
 import { createStandupState } from './state';
 import { createMockContext, createMockAPI } from '@clubhouse/plugin-testing';
-import type { ScopedStorage, PluginAPI } from '@clubhouse/plugin-types';
+import type { ScopedStorage, PluginAPI, Disposable } from '@clubhouse/plugin-types';
 import manifest from '../manifest.json';
 
 // ── Constants (must match main.tsx) ──────────────────────────────────
@@ -397,5 +397,134 @@ describe('gatherGitData', () => {
 
     expect(result).toContain('#1');
     expect(result).not.toContain('#2');
+  });
+});
+
+// ── waitForAgent ──────────────────────────────────────────────────────
+
+describe('waitForAgent', () => {
+  function createMockApiWithAgentHandlers() {
+    let statusCallback: ((agentId: string, status: string, prevStatus: string) => void) | null = null;
+    let completedList: Array<{ id: string; summary: string | null; exitCode: number }> = [];
+
+    const api = createMockAPI({
+      agents: {
+        onStatusChange: vi.fn((cb: (agentId: string, status: string, prevStatus: string) => void) => {
+          statusCallback = cb;
+          return { dispose: vi.fn() } as Disposable;
+        }),
+        listCompleted: vi.fn(() => completedList),
+      },
+    } as Parameters<typeof createMockAPI>[0]);
+
+    return {
+      api,
+      triggerStatus(agentId: string, status: string, prevStatus: string) {
+        statusCallback?.(agentId, status, prevStatus);
+      },
+      setCompleted(list: Array<{ id: string; summary: string | null; exitCode: number }>) {
+        completedList = list;
+        (api.agents.listCompleted as ReturnType<typeof vi.fn>).mockReturnValue(list);
+      },
+    };
+  }
+
+  it('resolves with summary when agent completes successfully', async () => {
+    const { api, triggerStatus, setCompleted } = createMockApiWithAgentHandlers();
+
+    const promise = waitForAgent(api, 'agent-1');
+
+    setCompleted([{
+      id: 'agent-1',
+      summary: '**Done**\n- Fixed bug\n**Next**\n- Deploy',
+      exitCode: 0,
+    }]);
+    triggerStatus('agent-1', 'sleeping', 'running');
+
+    const result = await promise;
+    expect(result.summary).toBe('**Done**\n- Fixed bug\n**Next**\n- Deploy');
+    expect(result.exitCode).toBe(0);
+  });
+
+  it('ignores status changes for other agents', async () => {
+    const { api, triggerStatus, setCompleted } = createMockApiWithAgentHandlers();
+
+    const promise = waitForAgent(api, 'agent-1');
+
+    // Different agent finishes — should be ignored
+    triggerStatus('agent-other', 'sleeping', 'running');
+
+    // Our agent finishes
+    setCompleted([{ id: 'agent-1', summary: 'Done', exitCode: 0 }]);
+    triggerStatus('agent-1', 'sleeping', 'running');
+
+    const result = await promise;
+    expect(result.summary).toBe('Done');
+  });
+
+  it('rejects when agent errors', async () => {
+    const { api, triggerStatus, setCompleted } = createMockApiWithAgentHandlers();
+
+    const promise = waitForAgent(api, 'agent-1');
+
+    setCompleted([{ id: 'agent-1', summary: 'Model rate limited', exitCode: 1 }]);
+    triggerStatus('agent-1', 'error', 'running');
+
+    await expect(promise).rejects.toThrow('Agent error: Model rate limited');
+  });
+
+  it('rejects with generic message when agent errors with no summary', async () => {
+    const { api, triggerStatus, setCompleted } = createMockApiWithAgentHandlers();
+
+    const promise = waitForAgent(api, 'agent-1');
+
+    setCompleted([]);
+    triggerStatus('agent-1', 'error', 'running');
+
+    await expect(promise).rejects.toThrow('encountered an error');
+  });
+
+  it('handles null summary on success', async () => {
+    const { api, triggerStatus, setCompleted } = createMockApiWithAgentHandlers();
+
+    const promise = waitForAgent(api, 'agent-1');
+
+    setCompleted([{ id: 'agent-1', summary: null, exitCode: 0 }]);
+    triggerStatus('agent-1', 'sleeping', 'running');
+
+    const result = await promise;
+    expect(result.summary).toBeNull();
+    expect(result.exitCode).toBe(0);
+  });
+
+  it('ignores non-terminal status transitions', async () => {
+    const { api, triggerStatus, setCompleted } = createMockApiWithAgentHandlers();
+
+    const promise = waitForAgent(api, 'agent-1');
+
+    // Non-terminal transitions should be ignored
+    triggerStatus('agent-1', 'running', 'idle');
+    triggerStatus('agent-1', 'working', 'running');
+
+    // Terminal transition
+    setCompleted([{ id: 'agent-1', summary: 'Report', exitCode: 0 }]);
+    triggerStatus('agent-1', 'sleeping', 'running');
+
+    const result = await promise;
+    expect(result.summary).toBe('Report');
+  });
+
+  it('times out after the configured duration', async () => {
+    vi.useFakeTimers();
+    const { api } = createMockApiWithAgentHandlers();
+
+    const promise = waitForAgent(api, 'agent-1');
+
+    // Advance past the timeout
+    vi.advanceTimersByTime(120_001);
+
+    await expect(promise).rejects.toThrow('timed out');
+
+    vi.useRealTimers();
   });
 });
