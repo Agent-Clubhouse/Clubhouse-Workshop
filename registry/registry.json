@@ -320,6 +320,37 @@
           "size": 8364
         }
       }
+    },
+    {
+      "id": "bug-report",
+      "name": "Bug Report",
+      "description": "File bug reports and feature requests for Clubhouse with structured severity and label support",
+      "author": "Clubhouse Workshop",
+      "official": true,
+      "repo": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop",
+      "path": "plugins/bug-report",
+      "tags": [
+        "github",
+        "issues",
+        "bug-tracking"
+      ],
+      "latest": "1.0.0",
+      "releases": {
+        "1.0.0": {
+          "api": 0.6,
+          "asset": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop/releases/download/bug-report-v1.0.0/bug-report-v1.0.0.zip",
+          "sha256": "d20a23a8c474c881d2ab56dbbbe03d3ed8ee7b5b789b6963aa0b8f6df20ea055",
+          "permissions": [
+            "logging",
+            "storage",
+            "notifications",
+            "commands",
+            "process",
+            "theme"
+          ],
+          "size": 13329
+        }
+      }
     }
   ]
 }
