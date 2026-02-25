@@ -1,6 +1,6 @@
 {
   "name": "kanboss",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "license": "MIT",
   "description": "Kanban boards with AI-powered automation for Clubhouse",
