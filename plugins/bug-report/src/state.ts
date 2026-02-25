@@ -1,9 +1,10 @@
 // Bug report state factory — extracted for testability.
 
-import type { IssueListItem, RepoTarget } from "./helpers";
+import type { IssueListItem, RepoTarget, StateFilter } from "./helpers";
 
 export type { IssueListItem } from "./helpers";
 export type { RepoTarget } from "./helpers";
+export type { StateFilter } from "./helpers";
 
 export type ViewMode = "my-reports" | "all-recent";
 
@@ -27,6 +28,7 @@ export interface BugReportState {
   needsRefresh: boolean;
   viewMode: ViewMode;
   searchQuery: string;
+  stateFilter: StateFilter;
   repoTarget: RepoTarget;
   repoCache: Record<RepoTarget, RepoCacheEntry>;
   listeners: Set<() => void>;
@@ -41,6 +43,7 @@ export interface BugReportState {
   setLoading(loading: boolean): void;
   setViewMode(mode: ViewMode): void;
   setSearchQuery(query: string): void;
+  setStateFilter(filter: StateFilter): void;
   setRepoTarget(target: RepoTarget): void;
   requestRefresh(): void;
   subscribe(fn: () => void): () => void;
@@ -66,6 +69,7 @@ export function createBugReportState(): BugReportState {
     needsRefresh: false,
     viewMode: "my-reports",
     searchQuery: "",
+    stateFilter: "open",
     repoTarget: "app",
     repoCache: { app: emptyCache(), plugins: emptyCache() },
     listeners: new Set(),
@@ -126,6 +130,13 @@ export function createBugReportState(): BugReportState {
       state.notify();
     },
 
+    setStateFilter(filter: StateFilter): void {
+      if (filter === state.stateFilter) return;
+      state.stateFilter = filter;
+      state.page = 1;
+      state.requestRefresh();
+    },
+
     setRepoTarget(target: RepoTarget): void {
       if (target === state.repoTarget) return;
       // Save current state to cache
@@ -183,6 +194,7 @@ export function createBugReportState(): BugReportState {
       state.needsRefresh = false;
       state.viewMode = "my-reports";
       state.searchQuery = "";
+      state.stateFilter = "open";
       state.repoTarget = "app";
       state.repoCache = { app: emptyCache(), plugins: emptyCache() };
       state.listeners.clear();

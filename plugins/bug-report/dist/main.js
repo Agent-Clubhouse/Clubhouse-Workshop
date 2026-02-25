@@ -95,6 +95,7 @@ function createBugReportState() {
     needsRefresh: false,
     viewMode: "my-reports",
     searchQuery: "",
+    stateFilter: "open",
     repoTarget: "app",
     repoCache: { app: emptyCache(), plugins: emptyCache() },
     listeners: /* @__PURE__ */ new Set(),
@@ -144,6 +145,12 @@ function createBugReportState() {
       state.searchQuery = query;
       state.notify();
     },
+    setStateFilter(filter) {
+      if (filter === state.stateFilter) return;
+      state.stateFilter = filter;
+      state.page = 1;
+      state.requestRefresh();
+    },
     setRepoTarget(target) {
       if (target === state.repoTarget) return;
       state.repoCache[state.repoTarget] = {
@@ -192,6 +199,7 @@ function createBugReportState() {
       state.needsRefresh = false;
       state.viewMode = "my-reports";
       state.searchQuery = "";
+      state.stateFilter = "open";
       state.repoTarget = "app";
       state.repoCache = { app: emptyCache(), plugins: emptyCache() };
       state.listeners.clear();
@@ -564,7 +572,7 @@ function runAuthCheck(api) {
 }
 var ISSUE_FIELDS = "number,title,state,url,createdAt,updatedAt,author,labels";
 var PER_PAGE = 30;
-async function fetchIssues(api, page, author, repo = REPO) {
+async function fetchIssues(api, page, author, repo = REPO, stateFilter = "all") {
   const args = [
     "issue",
     "list",
@@ -575,7 +583,7 @@ async function fetchIssues(api, page, author, repo = REPO) {
     "--limit",
     String(PER_PAGE + 1),
     "--state",
-    "all"
+    stateFilter
   ];
   if (author) {
     args.push("--author", author);
@@ -766,6 +774,25 @@ var S = {
     border: "1px solid var(--border-primary, #3f3f46)",
     borderRadius: "0 6px 6px 0",
     fontFamily: "inherit"
+  }),
+  stateFilterBar: {
+    display: "flex",
+    padding: "4px 14px 8px",
+    gap: "0px"
+  },
+  stateFilterBtn: (active, position) => ({
+    flex: 1,
+    padding: "3px 8px",
+    fontSize: "11px",
+    fontWeight: active ? 600 : 400,
+    cursor: "pointer",
+    background: active ? "var(--bg-accent, rgba(139,92,246,0.15))" : "transparent",
+    color: active ? "var(--text-primary, #e4e4e7)" : "var(--text-tertiary, #71717a)",
+    border: "1px solid var(--border-primary, #3f3f46)",
+    borderRight: position === "last" ? "1px solid var(--border-primary, #3f3f46)" : "none",
+    borderRadius: position === "first" ? "4px 0 0 4px" : position === "last" ? "0 4px 4px 0" : "0",
+    fontFamily: "inherit",
+    textAlign: "center"
   }),
   pluginBadge: {
     display: "inline-block",
@@ -1022,9 +1049,10 @@ function SidebarPanel({ api }) {
       reportState.setLoading(true);
       const repo = REPOS[reportState.repoTarget];
       try {
+        const sf = reportState.stateFilter;
         const [myResult, allResult] = await Promise.all([
-          reportState.ghUsername ? fetchIssues(api, 1, reportState.ghUsername, repo) : Promise.resolve({ items: [], hasMore: false }),
-          fetchIssues(api, reportState.page, void 0, repo)
+          reportState.ghUsername ? fetchIssues(api, 1, reportState.ghUsername, repo, sf) : Promise.resolve({ items: [], hasMore: false }),
+          fetchIssues(api, reportState.page, void 0, repo, sf)
         ]);
         if (reportState.page === 1) {
           reportState.setMyIssues(myResult.items);
@@ -1138,6 +1166,18 @@ function SidebarPanel({ api }) {
         onChange: (e) => reportState.setSearchQuery(e.target.value)
       }
     ) }),
+    /* @__PURE__ */ jsx("div", { style: S.stateFilterBar, children: ["open", "closed", "all"].map((f, i, arr) => /* @__PURE__ */ jsx(
+      "button",
+      {
+        style: S.stateFilterBtn(
+          reportState.stateFilter === f,
+          i === 0 ? "first" : i === arr.length - 1 ? "last" : "middle"
+        ),
+        onClick: () => reportState.setStateFilter(f),
+        children: f === "open" ? "Open" : f === "closed" ? "Closed" : "All"
+      },
+      f
+    )) }),
     /* @__PURE__ */ jsx("div", { style: S.list, children: reportState.loading && displayIssues.length === 0 ? /* @__PURE__ */ jsx("div", { style: S.spinner, children: "Loading reports..." }) : filtered.length === 0 ? /* @__PURE__ */ jsx("div", { style: { ...S.spinner, color: "var(--text-tertiary, #71717a)" }, children: reportState.searchQuery ? "No matching reports" : reportState.viewMode === "my-reports" ? "You haven\u2019t filed any reports yet" : "No reports found" }) : /* @__PURE__ */ jsxs(Fragment, { children: [
       filtered.map((issue) => {
         const { severity, pluginName } = parseSeverityFromTitle(issue.title);
