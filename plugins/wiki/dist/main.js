@@ -13412,7 +13412,7 @@ function SidebarPanel({ api }) {
 }
 function MainPanel({ api }) {
   const { style: themeStyle } = useTheme(api.theme);
-  return /* @__PURE__ */ jsx("div", { style: { ...themeStyle }, children: /* @__PURE__ */ jsx(WikiViewer, { api }) });
+  return /* @__PURE__ */ jsx("div", { style: { ...themeStyle, height: "100%" }, children: /* @__PURE__ */ jsx(WikiViewer, { api }) });
 }
 export {
   MainPanel,

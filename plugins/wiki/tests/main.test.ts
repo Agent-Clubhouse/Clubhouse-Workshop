@@ -1,4 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+
+vi.mock('../src/use-theme', () => ({
+  useTheme: () => ({ style: { '--bg-primary': '#000' }, themeType: 'dark' as const }),
+}));
+
 import { activate, deactivate, MainPanel, SidebarPanel } from '../src/main';
 import { wikiState } from '../src/state';
 import { createMockContext, createMockAPI } from '@clubhouse/plugin-testing';
@@ -260,6 +265,25 @@ describe('wiki plugin API assumptions', () => {
       const d = api.commands.register('refresh', () => {});
       expect(typeof d.dispose).toBe('function');
     });
+  });
+});
+
+// ── Panel height constraints ────────────────────────────────────────
+
+describe('MainPanel scroll support', () => {
+  it('wrapper div has height 100% so content can scroll', () => {
+    const api = createMockAPI();
+    const element = MainPanel({ api } as any);
+    // MainPanel returns a <div style={{ ...themeStyle, height: '100%' }}>
+    expect(element.props.style.height).toBe('100%');
+  });
+});
+
+describe('SidebarPanel scroll support', () => {
+  it('wrapper div has height 100%', () => {
+    const api = createMockAPI();
+    const element = SidebarPanel({ api } as any);
+    expect(element.props.style.height).toBe('100%');
   });
 });
 
