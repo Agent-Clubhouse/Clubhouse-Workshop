@@ -12,7 +12,9 @@ function makeAutomation(overrides?: Partial<Automation>): Automation {
     id: 'auto-1',
     name: 'Test Auto',
     cronExpression: '* * * * *', // every minute
+    orchestrator: '',
     model: '',
+    freeAgentMode: false,
     prompt: 'do stuff',
     enabled: true,
     createdAt: 1000,
@@ -189,7 +191,7 @@ describe('automations cron tick', () => {
     await vi.advanceTimersByTimeAsync(30_000);
 
     expect(runQuickSpy).toHaveBeenCalledTimes(1);
-    expect(runQuickSpy).toHaveBeenCalledWith('do stuff', { model: undefined });
+    expect(runQuickSpy).toHaveBeenCalledWith('do stuff', { model: undefined, orchestrator: undefined, freeAgentMode: undefined });
   });
 
   it('passes model option when set', async () => {
@@ -199,7 +201,7 @@ describe('automations cron tick', () => {
     activate(ctx, api);
     await vi.advanceTimersByTimeAsync(30_000);
 
-    expect(runQuickSpy).toHaveBeenCalledWith('do stuff', { model: 'fast-model' });
+    expect(runQuickSpy).toHaveBeenCalledWith('do stuff', { model: 'fast-model', orchestrator: undefined, freeAgentMode: undefined });
   });
 
   it('skips disabled automations', async () => {
@@ -311,6 +313,36 @@ describe('automations cron tick', () => {
     expect(runQuickSpy).not.toHaveBeenCalled();
   });
 
+  it('passes orchestrator option when set', async () => {
+    const auto = makeAutomation({ orchestrator: 'claude-code' });
+    storage._data.set('automations', [auto]);
+
+    activate(ctx, api);
+    await vi.advanceTimersByTimeAsync(30_000);
+
+    expect(runQuickSpy).toHaveBeenCalledWith('do stuff', { model: undefined, orchestrator: 'claude-code', freeAgentMode: undefined });
+  });
+
+  it('passes freeAgentMode when enabled', async () => {
+    const auto = makeAutomation({ freeAgentMode: true });
+    storage._data.set('automations', [auto]);
+
+    activate(ctx, api);
+    await vi.advanceTimersByTimeAsync(30_000);
+
+    expect(runQuickSpy).toHaveBeenCalledWith('do stuff', { model: undefined, orchestrator: undefined, freeAgentMode: true });
+  });
+
+  it('passes all options when orchestrator, model, and freeAgentMode are set', async () => {
+    const auto = makeAutomation({ orchestrator: 'claude-code', model: 'opus', freeAgentMode: true });
+    storage._data.set('automations', [auto]);
+
+    activate(ctx, api);
+    await vi.advanceTimersByTimeAsync(30_000);
+
+    expect(runQuickSpy).toHaveBeenCalledWith('do stuff', { model: 'opus', orchestrator: 'claude-code', freeAgentMode: true });
+  });
+
   it('handles storage returning non-array data gracefully', async () => {
     storage._data.set('automations', 'corrupted');
     activate(ctx, api);
@@ -329,8 +361,8 @@ describe('automations cron tick', () => {
     await vi.advanceTimersByTimeAsync(30_000);
 
     expect(runQuickSpy).toHaveBeenCalledTimes(2);
-    expect(runQuickSpy).toHaveBeenCalledWith('first', { model: undefined });
-    expect(runQuickSpy).toHaveBeenCalledWith('second', { model: undefined });
+    expect(runQuickSpy).toHaveBeenCalledWith('first', { model: undefined, orchestrator: undefined, freeAgentMode: undefined });
+    expect(runQuickSpy).toHaveBeenCalledWith('second', { model: undefined, orchestrator: undefined, freeAgentMode: undefined });
   });
 });
 
@@ -591,6 +623,29 @@ describe('automations plugin API assumptions', () => {
     it('resolves to an array of { id: string, label: string }', async () => {
       const opts = await api.agents.getModelOptions();
       expect(Array.isArray(opts)).toBe(true);
+    });
+
+    it('accepts optional orchestrator parameter', async () => {
+      const opts = await api.agents.getModelOptions(undefined, 'claude-code');
+      expect(Array.isArray(opts)).toBe(true);
+    });
+  });
+
+  describe('agents.listOrchestrators', () => {
+    it('exists and returns an array', () => {
+      const result = api.agents.listOrchestrators();
+      expect(Array.isArray(result)).toBe(true);
+    });
+  });
+
+  describe('agents.checkOrchestratorAvailability', () => {
+    it('exists and returns a promise', () => {
+      expect(api.agents.checkOrchestratorAvailability('test')).toBeInstanceOf(Promise);
+    });
+
+    it('resolves to an object with available boolean', async () => {
+      const result = await api.agents.checkOrchestratorAvailability('test');
+      expect(typeof result.available).toBe('boolean');
     });
   });
 

@@ -170,25 +170,25 @@ describe('describeSchedule', () => {
   });
 
   it('describes daily at specific time (AM)', () => {
-    expect(describeSchedule('30 8 * * *')).toBe('Daily at 8:30 AM');
+    expect(describeSchedule('30 8 * * *')).toBe('At 8:30 AM');
   });
 
   it('describes daily at specific time (PM)', () => {
-    expect(describeSchedule('0 14 * * *')).toBe('Daily at 2:00 PM');
+    expect(describeSchedule('0 14 * * *')).toBe('At 2:00 PM');
   });
 
   it('describes daily at midnight', () => {
-    expect(describeSchedule('0 0 * * *')).toBe('Daily at 12:00 AM');
+    expect(describeSchedule('0 0 * * *')).toBe('At 12:00 AM');
   });
 
   it('describes weekday schedule', () => {
-    expect(describeSchedule('0 9 * * 1-5')).toBe('Weekdays at 9:00 AM');
+    expect(describeSchedule('0 9 * * 1-5')).toBe('At 9:00 AM, Monday through Friday');
   });
 
   it('describes specific day of week at time', () => {
     expect(describeSchedule('0 9 * * 1')).toBe('Every Monday');
     expect(describeSchedule('0 12 * * 6')).toBe('Saturday at noon');
-    expect(describeSchedule('0 15 * * 0')).toBe('Sunday at 3:00 PM');
+    expect(describeSchedule('0 15 * * 0')).toBe('At 3:00 PM, Sunday');
   });
 
   it('describes every N hours pattern', () => {
@@ -196,8 +196,56 @@ describe('describeSchedule', () => {
     expect(describeSchedule('0 */6 * * *')).toBe('Every 6 hours');
   });
 
-  it('falls back to raw expression for complex patterns', () => {
-    expect(describeSchedule('0 9 1,15 * *')).toBe('0 9 1,15 * *');
+  // ── Rich description tests ──
+
+  it('describes hour range with weekdays', () => {
+    expect(describeSchedule('0 6-20 * * 1-5')).toBe('Every hour from 6 AM to 8 PM at :00, Monday through Friday');
+  });
+
+  it('describes every N minutes during hour range', () => {
+    expect(describeSchedule('*/15 9-17 * * *')).toBe('Every 15 minutes from 9 AM to 5 PM');
+  });
+
+  it('describes every N minutes during hour range on weekdays', () => {
+    expect(describeSchedule('*/30 8-18 * * 1-5')).toBe('Every 30 minutes from 8 AM to 6 PM, Monday through Friday');
+  });
+
+  it('describes specific time on specific day-of-month', () => {
+    expect(describeSchedule('0 9 1 * *')).toBe('At 9:00 AM, on the 1st');
+  });
+
+  it('describes specific time in specific month', () => {
+    expect(describeSchedule('0 9 * 6 *')).toBe('At 9:00 AM, in June');
+  });
+
+  it('describes weekend days', () => {
+    expect(describeSchedule('0 10 * * 0,6')).toBe('At 10:00 AM, Saturday and Sunday');
+  });
+
+  it('describes day range (Tuesday through Thursday)', () => {
+    expect(describeSchedule('0 12 * * 2-4')).toBe('At 12:00 PM, Tuesday through Thursday');
+  });
+
+  it('describes specific day-of-month ordinal suffixes', () => {
+    expect(describeSchedule('0 8 2 * *')).toBe('At 8:00 AM, on the 2nd');
+    expect(describeSchedule('0 8 3 * *')).toBe('At 8:00 AM, on the 3rd');
+    expect(describeSchedule('0 8 4 * *')).toBe('At 8:00 AM, on the 4th');
+    expect(describeSchedule('0 8 21 * *')).toBe('At 8:00 AM, on the 21st');
+    expect(describeSchedule('0 8 22 * *')).toBe('At 8:00 AM, on the 22nd');
+    expect(describeSchedule('0 8 23 * *')).toBe('At 8:00 AM, on the 23rd');
+    expect(describeSchedule('0 8 31 * *')).toBe('At 8:00 AM, on the 31st');
+  });
+
+  it('describes month range', () => {
+    expect(describeSchedule('0 9 * 3-5 *')).toBe('At 9:00 AM, March through May');
+  });
+
+  it('describes every minute', () => {
+    expect(describeSchedule('* * * * *')).toBe('Every minute');
+  });
+
+  it('describes complex: specific time, day-of-month, and month', () => {
+    expect(describeSchedule('0 9 15 6 *')).toBe('At 9:00 AM, on the 15th, in June');
   });
 
   it('returns raw expression for invalid field count', () => {
