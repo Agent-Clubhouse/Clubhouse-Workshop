@@ -158,6 +158,62 @@ export async function gatherGitData(
 }
 
 // ---------------------------------------------------------------------------
+// Agent lifecycle helpers
+// ---------------------------------------------------------------------------
+
+const AGENT_TIMEOUT_MS = 120_000;
+
+/**
+ * Wait for a quick agent to finish and return its summary.
+ * Subscribes to onStatusChange, resolves when the agent transitions
+ * from 'running' to 'sleeping' (success) or 'error' (failure).
+ */
+export function waitForAgent(
+  api: PluginAPI,
+  agentId: string,
+): Promise<{ summary: string | null; exitCode: number }> {
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      sub.dispose();
+      reject(new Error(
+        "Agent timed out. The AI agent did not finish within 2 minutes. " +
+        "Try again or check Settings to choose a faster model."
+      ));
+    }, AGENT_TIMEOUT_MS);
+
+    const sub = api.agents.onStatusChange((id, status, prevStatus) => {
+      if (id !== agentId) return;
+
+      const isDone =
+        (prevStatus === "running" && status === "sleeping") ||
+        (prevStatus === "running" && status === "error");
+
+      if (!isDone) return;
+
+      clearTimeout(timeout);
+      sub.dispose();
+
+      const completed = api.agents.listCompleted();
+      const info = completed.find((c) => c.id === agentId);
+
+      if (status === "error") {
+        reject(new Error(
+          info?.summary
+            ? `Agent error: ${info.summary}`
+            : "The AI agent encountered an error while generating the standup. Check your model and orchestrator settings."
+        ));
+        return;
+      }
+
+      resolve({
+        summary: info?.summary ?? null,
+        exitCode: info?.exitCode ?? 0,
+      });
+    });
+  });
+}
+
+// ---------------------------------------------------------------------------
 // Generate standups
 // ---------------------------------------------------------------------------
 
@@ -167,7 +223,7 @@ async function generateStandups(api: PluginAPI): Promise<void> {
   try {
     const activeProject = api.projects.getActive();
     if (!activeProject) {
-      api.ui.showError("No active project. Open a project first.");
+      api.ui.showError("No active project. Open a project to generate standups.");
       return;
     }
 
@@ -187,6 +243,22 @@ async function generateStandups(api: PluginAPI): Promise<void> {
     const freeAgentMode = api.settings.get<boolean>("freeAgentMode") ?? false;
     const systemPrompt = api.settings.get<string>("prompt") || DEFAULT_PROMPT;
 
+    // Verify orchestrator availability if one is configured
+    if (orchestrator) {
+      try {
+        const check = await api.agents.checkOrchestratorAvailability(orchestrator);
+        if (!check.available) {
+          api.ui.showError(
+            `Orchestrator "${orchestrator}" is not available${check.error ? `: ${check.error}` : ""}. ` +
+            "Check your Standup settings or clear the orchestrator selection."
+          );
+          return;
+        }
+      } catch {
+        api.logging.warn("Could not verify orchestrator availability, proceeding anyway");
+      }
+    }
+
     const newEntries: StandupEntry[] = [];
 
     for (const dateStr of missing) {
@@ -200,18 +272,38 @@ async function generateStandups(api: PluginAPI): Promise<void> {
       const gitData = await gatherGitData(api, activeProject.path, dateStr, untilStr);
 
       if (gitData === "No git activity found for this date range.") {
-        // Skip days with no activity
         continue;
       }
 
       const prompt = `Generate a standup report for ${dateStr}.\n\nProject: ${activeProject.name}\n\n${gitData}`;
 
-      const output = await api.agents.runQuick(prompt, {
-        systemPrompt,
-        orchestrator,
-        model,
-        freeAgentMode,
-      });
+      let output: string;
+      try {
+        const agentId = await api.agents.runQuick(prompt, {
+          systemPrompt,
+          orchestrator,
+          model,
+          freeAgentMode,
+        });
+
+        const result = await waitForAgent(api, agentId);
+
+        if (!result.summary) {
+          api.logging.warn(`Agent produced no summary for ${dateStr}, skipping`);
+          continue;
+        }
+
+        if (result.exitCode !== 0) {
+          api.logging.warn(`Agent exited with code ${result.exitCode} for ${dateStr}`);
+        }
+
+        output = result.summary;
+      } catch (agentErr: unknown) {
+        const agentMsg = agentErr instanceof Error ? agentErr.message : String(agentErr);
+        api.logging.error(`Agent failed for ${dateStr}: ${agentMsg}`);
+        api.ui.showError(`Failed to generate standup for ${dateStr}: ${agentMsg}`);
+        continue;
+      }
 
       const entry: StandupEntry = {
         id: `${dateStr}-${Date.now()}`,
@@ -241,7 +333,8 @@ async function generateStandups(api: PluginAPI): Promise<void> {
     api.ui.showNotice(`Generated ${newEntries.length} standup(s)`);
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
-    api.ui.showError(`Standup failed: ${msg}`);
+    api.ui.showError(`Standup generation failed: ${msg}`);
+    api.logging.error(`Standup generation error: ${msg}`);
   } finally {
     standupState.setGenerating(false);
     standupState.setGeneratingDates([]);
@@ -527,18 +620,25 @@ export function SettingsPanel({ api }: PanelProps) {
   // Dynamic options from API
   const [orchestrators, setOrchestrators] = useState<Array<{ id: string; displayName: string }>>([]);
   const [models, setModels] = useState<Array<{ id: string; label: string }>>([]);
+  const [settingsError, setSettingsError] = useState<string | null>(null);
 
   useEffect(() => {
     try {
       const orchs = api.agents.listOrchestrators();
       setOrchestrators(orchs.map(o => ({ id: o.id, displayName: o.displayName })));
-    } catch { /* ignore */ }
+      setSettingsError(null);
+    } catch (err) {
+      api.logging.warn("Could not load orchestrator list: " + (err instanceof Error ? err.message : String(err)));
+      setSettingsError("Could not load orchestrators. The agents system may not be ready yet — try reopening settings.");
+    }
   }, [api]);
 
   useEffect(() => {
     api.agents.getModelOptions(undefined, orchestrator || undefined).then(opts => {
       setModels(opts);
-    }).catch(() => { /* ignore */ });
+    }).catch((err) => {
+      api.logging.warn("Could not load model options: " + (err instanceof Error ? err.message : String(err)));
+    });
   }, [api, orchestrator]);
 
   const inputStyle: React.CSSProperties = {
@@ -580,6 +680,21 @@ export function SettingsPanel({ api }: PanelProps) {
       <h2 style={{ margin: "0 0 20px 0", fontSize: 16, color: "var(--text-primary)" }}>
         Standup Settings
       </h2>
+
+      {settingsError && (
+        <div style={{
+          padding: "10px 14px",
+          marginBottom: 20,
+          background: "var(--bg-error, rgba(248,113,113,0.1))",
+          border: "1px solid var(--border-error, rgba(248,113,113,0.3))",
+          borderRadius: 6,
+          color: "var(--text-error, #f87171)",
+          fontSize: 12,
+          lineHeight: 1.5,
+        }}>
+          {settingsError}
+        </div>
+      )}
 
       <div style={groupStyle}>
         <label style={labelStyle}>Orchestrator</label>
