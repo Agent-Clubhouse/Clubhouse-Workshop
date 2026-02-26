@@ -18,6 +18,7 @@ function makeAutomation(overrides?: Partial<Automation>): Automation {
     prompt: 'do stuff',
     enabled: true,
     createdAt: 1000,
+    missedRunPolicy: 'ignore',
     lastRunAt: null,
     ...overrides,
   };
@@ -80,9 +81,9 @@ describe('automations plugin activate()', () => {
     expect(onStatusChangeSpy).toHaveBeenCalledWith(expect.any(Function));
   });
 
-  it('pushes exactly 4 disposables to ctx.subscriptions (statusChange, interval, create, refresh)', () => {
+  it('pushes exactly 5 disposables to ctx.subscriptions (statusChange, interval, create, refresh, run-now)', () => {
     activate(ctx, api);
-    expect(ctx.subscriptions).toHaveLength(4);
+    expect(ctx.subscriptions).toHaveLength(5);
     for (const sub of ctx.subscriptions) {
       expect(typeof sub.dispose).toBe('function');
     }
@@ -138,15 +139,15 @@ describe('automations plugin activate()', () => {
   it('calling activate twice registers two independent subscription sets', () => {
     activate(ctx, api);
     activate(ctx, api);
-    expect(registerSpy).toHaveBeenCalledTimes(4);
+    expect(registerSpy).toHaveBeenCalledTimes(6); // create, refresh, run-now × 2
     expect(onStatusChangeSpy).toHaveBeenCalledTimes(2);
-    expect(ctx.subscriptions).toHaveLength(8);
+    expect(ctx.subscriptions).toHaveLength(10);
   });
 
   it('works without project context', () => {
     const appCtx = createMockContext({ pluginId: 'automations', projectId: undefined, projectPath: undefined });
     expect(() => activate(appCtx, api)).not.toThrow();
-    expect(appCtx.subscriptions).toHaveLength(4);
+    expect(appCtx.subscriptions).toHaveLength(5);
   });
 });
 
@@ -511,6 +512,266 @@ describe('automations onStatusChange tracking', () => {
   });
 });
 
+// ── Missed-run catch-up behavior ─────────────────────────────────────
+
+describe('automations missed-run catch-up', () => {
+  let ctx: PluginContext;
+  let storage: ReturnType<typeof createMapStorage>;
+  let runQuickSpy: ReturnType<typeof vi.fn>;
+  let onStatusChangeSpy: ReturnType<typeof vi.fn>;
+  let api: PluginAPI;
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    ctx = createMockContext({ pluginId: 'automations' });
+    storage = createMapStorage();
+    runQuickSpy = vi.fn().mockResolvedValue('spawned-agent-1');
+    onStatusChangeSpy = vi.fn(() => ({ dispose: vi.fn() }));
+    api = createMockAPI({
+      commands: { register: vi.fn(() => ({ dispose: vi.fn() })), execute: vi.fn() },
+      agents: {
+        ...createMockAPI().agents,
+        runQuick: runQuickSpy,
+        onStatusChange: onStatusChangeSpy,
+      },
+      storage: {
+        ...createMockAPI().storage,
+        projectLocal: storage,
+      },
+    });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('ignores missed runs when policy is "ignore"', async () => {
+    // Set time to 10:30, but lastRunAt was 2 hours ago (8:30) — many missed hourly runs
+    vi.setSystemTime(new Date(2026, 1, 15, 10, 30, 0));
+    const auto = makeAutomation({
+      cronExpression: '0 * * * *', // every hour
+      missedRunPolicy: 'ignore',
+      lastRunAt: new Date(2026, 1, 15, 8, 30, 0).getTime(),
+    });
+    storage._data.set('automations', [auto]);
+
+    activate(ctx, api);
+    await vi.advanceTimersByTimeAsync(30_000);
+
+    // Should not fire because 10:30 doesn't match "0 * * * *"
+    expect(runQuickSpy).not.toHaveBeenCalled();
+  });
+
+  it('fires once when policy is "run-once" with missed runs', async () => {
+    vi.setSystemTime(new Date(2026, 1, 15, 10, 30, 0));
+    const auto = makeAutomation({
+      cronExpression: '0 * * * *', // every hour
+      missedRunPolicy: 'run-once',
+      lastRunAt: new Date(2026, 1, 15, 7, 0, 0).getTime(), // 3.5 hours ago → 3 missed
+    });
+    storage._data.set('automations', [auto]);
+
+    activate(ctx, api);
+    await vi.advanceTimersByTimeAsync(30_000);
+
+    expect(runQuickSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('fires up to missed count when policy is "run-all"', async () => {
+    vi.setSystemTime(new Date(2026, 1, 15, 10, 30, 0));
+    let callCount = 0;
+    runQuickSpy.mockImplementation(() => Promise.resolve(`agent-${++callCount}`));
+    const auto = makeAutomation({
+      cronExpression: '0 * * * *', // every hour
+      missedRunPolicy: 'run-all',
+      lastRunAt: new Date(2026, 1, 15, 7, 0, 0).getTime(), // 3 missed: 8:00, 9:00, 10:00
+    });
+    storage._data.set('automations', [auto]);
+
+    activate(ctx, api);
+    await vi.advanceTimersByTimeAsync(30_000);
+
+    expect(runQuickSpy).toHaveBeenCalledTimes(3);
+  });
+
+  it('caps "run-all" at 10 catch-up runs', async () => {
+    vi.setSystemTime(new Date(2026, 1, 15, 12, 0, 0));
+    let callCount = 0;
+    runQuickSpy.mockImplementation(() => Promise.resolve(`agent-${++callCount}`));
+    const auto = makeAutomation({
+      cronExpression: '*/5 * * * *', // every 5 min
+      missedRunPolicy: 'run-all',
+      lastRunAt: new Date(2026, 1, 15, 0, 0, 0).getTime(), // 12 hours ago → way more than 10
+    });
+    storage._data.set('automations', [auto]);
+
+    activate(ctx, api);
+    await vi.advanceTimersByTimeAsync(30_000);
+
+    expect(runQuickSpy).toHaveBeenCalledTimes(10);
+  });
+
+  it('does not catch up when there are no missed runs', async () => {
+    vi.setSystemTime(new Date(2026, 1, 15, 10, 0, 15)); // 10:00:15
+    const auto = makeAutomation({
+      cronExpression: '0 * * * *',
+      missedRunPolicy: 'run-once',
+      lastRunAt: new Date(2026, 1, 15, 10, 0, 0).getTime(), // just ran at 10:00
+    });
+    storage._data.set('automations', [auto]);
+
+    activate(ctx, api);
+    await vi.advanceTimersByTimeAsync(30_000);
+
+    // No missed runs, and current time (10:00) matches but same-minute guard blocks it
+    expect(runQuickSpy).not.toHaveBeenCalled();
+  });
+
+  it('defaults to ignore when missedRunPolicy is not set (backwards compat)', async () => {
+    vi.setSystemTime(new Date(2026, 1, 15, 10, 30, 0));
+    const auto = makeAutomation({
+      cronExpression: '0 * * * *',
+      lastRunAt: new Date(2026, 1, 15, 7, 0, 0).getTime(),
+    });
+    // Simulate old data without missedRunPolicy
+    delete (auto as any).missedRunPolicy;
+    storage._data.set('automations', [auto]);
+
+    activate(ctx, api);
+    await vi.advanceTimersByTimeAsync(30_000);
+
+    expect(runQuickSpy).not.toHaveBeenCalled();
+  });
+
+  it('skips catch-up for disabled automations', async () => {
+    vi.setSystemTime(new Date(2026, 1, 15, 10, 30, 0));
+    const auto = makeAutomation({
+      cronExpression: '0 * * * *',
+      missedRunPolicy: 'run-once',
+      enabled: false,
+      lastRunAt: new Date(2026, 1, 15, 7, 0, 0).getTime(),
+    });
+    storage._data.set('automations', [auto]);
+
+    activate(ctx, api);
+    await vi.advanceTimersByTimeAsync(30_000);
+
+    expect(runQuickSpy).not.toHaveBeenCalled();
+  });
+});
+
+// ── Run Now command behavior ─────────────────────────────────────────
+
+describe('automations run-now command', () => {
+  let ctx: PluginContext;
+  let storage: ReturnType<typeof createMapStorage>;
+  let runQuickSpy: ReturnType<typeof vi.fn>;
+  let registerSpy: ReturnType<typeof vi.fn>;
+  let runNowCallback: (automationId?: string) => Promise<void>;
+  let api: PluginAPI;
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    ctx = createMockContext({ pluginId: 'automations' });
+    storage = createMapStorage();
+    runQuickSpy = vi.fn().mockResolvedValue('manual-agent-1');
+
+    registerSpy = vi.fn((name: string, cb: any) => {
+      if (name === 'run-now') runNowCallback = cb;
+      return { dispose: vi.fn() };
+    });
+
+    api = createMockAPI({
+      commands: { register: registerSpy, execute: vi.fn() },
+      agents: {
+        ...createMockAPI().agents,
+        runQuick: runQuickSpy,
+        onStatusChange: vi.fn(() => ({ dispose: vi.fn() })),
+      },
+      storage: {
+        ...createMockAPI().storage,
+        projectLocal: storage,
+      },
+    });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('registers a run-now command', () => {
+    activate(ctx, api);
+    expect(registerSpy).toHaveBeenCalledWith('run-now', expect.any(Function));
+  });
+
+  it('fires the automation when run-now is invoked', async () => {
+    const auto = makeAutomation({ enabled: true });
+    storage._data.set('automations', [auto]);
+
+    activate(ctx, api);
+    await runNowCallback('auto-1');
+
+    expect(runQuickSpy).toHaveBeenCalledTimes(1);
+    expect(runQuickSpy).toHaveBeenCalledWith('do stuff', { model: undefined, orchestrator: undefined, freeAgentMode: undefined });
+  });
+
+  it('works even when automation is disabled', async () => {
+    const auto = makeAutomation({ enabled: false });
+    storage._data.set('automations', [auto]);
+
+    activate(ctx, api);
+    await runNowCallback('auto-1');
+
+    expect(runQuickSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('records a run in storage', async () => {
+    const auto = makeAutomation();
+    storage._data.set('automations', [auto]);
+
+    activate(ctx, api);
+    await runNowCallback('auto-1');
+
+    const runs = storage._data.get('runs:auto-1') as RunRecord[];
+    expect(runs).toHaveLength(1);
+    expect(runs[0].agentId).toBe('manual-agent-1');
+    expect(runs[0].status).toBe('running');
+  });
+
+  it('updates lastRunAt after run-now', async () => {
+    const auto = makeAutomation({ lastRunAt: null });
+    storage._data.set('automations', [auto]);
+
+    activate(ctx, api);
+    await runNowCallback('auto-1');
+
+    const automations = storage._data.get('automations') as Automation[];
+    expect(automations[0].lastRunAt).toBeTypeOf('number');
+  });
+
+  it('does nothing when automationId is not provided', async () => {
+    activate(ctx, api);
+    await runNowCallback(undefined);
+    expect(runQuickSpy).not.toHaveBeenCalled();
+  });
+
+  it('does nothing when automationId is not found', async () => {
+    storage._data.set('automations', []);
+    activate(ctx, api);
+    await runNowCallback('nonexistent');
+    expect(runQuickSpy).not.toHaveBeenCalled();
+  });
+
+  it('survives runQuick rejection', async () => {
+    runQuickSpy.mockRejectedValue(new Error('spawn failed'));
+    const auto = makeAutomation();
+    storage._data.set('automations', [auto]);
+
+    activate(ctx, api);
+    await expect(runNowCallback('auto-1')).resolves.not.toThrow();
+  });
+});
+
 // ── deactivate() ─────────────────────────────────────────────────────
 
 describe('automations plugin deactivate()', () => {
@@ -722,8 +983,8 @@ describe('automations plugin lifecycle', () => {
     for (const sub of ctx.subscriptions) {
       sub.dispose();
     }
-    // statusChange dispose + create command dispose + refresh command dispose (interval uses clearInterval, not the spy)
-    expect(disposeSpy).toHaveBeenCalledTimes(3);
+    // statusChange dispose + create command dispose + refresh command dispose + run-now dispose (interval uses clearInterval, not the spy)
+    expect(disposeSpy).toHaveBeenCalledTimes(4);
   });
 
   it('subscriptions dispose is idempotent (double-dispose safe)', () => {
@@ -741,7 +1002,7 @@ describe('automations plugin lifecycle', () => {
       sub.dispose();
       sub.dispose();
     }
-    expect(disposeSpy).toHaveBeenCalledTimes(6);
+    expect(disposeSpy).toHaveBeenCalledTimes(8);
   });
 
   it('interval stops firing after dispose', async () => {
