@@ -1,3 +1,5 @@
+export type MissedRunPolicy = 'ignore' | 'run-once' | 'run-all';
+
 export interface Automation {
   id: string;
   name: string;
@@ -7,6 +9,7 @@ export interface Automation {
   freeAgentMode: boolean;
   prompt: string;
   enabled: boolean;
+  missedRunPolicy: MissedRunPolicy;
   createdAt: number;
   lastRunAt: number | null;
 }
