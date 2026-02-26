@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseField, matchesCron, describeSchedule, validateCronExpression, PRESETS } from './cron';
+import { parseField, matchesCron, describeSchedule, validateCronExpression, countMissedFireTimes, PRESETS } from './cron';
 
 // ── parseField ──────────────────────────────────────────────────────────
 
@@ -299,6 +299,70 @@ describe('validateCronExpression', () => {
     for (const p of PRESETS) {
       expect(validateCronExpression(p.value)).toBeNull();
     }
+  });
+});
+
+// ── countMissedFireTimes ─────────────────────────────────────────────────
+
+describe('countMissedFireTimes', () => {
+  it('returns 0 when from equals to', () => {
+    const d = new Date(2026, 1, 15, 10, 0);
+    expect(countMissedFireTimes('* * * * *', d, d)).toBe(0);
+  });
+
+  it('returns 0 when to is before from', () => {
+    const from = new Date(2026, 1, 15, 10, 30);
+    const to = new Date(2026, 1, 15, 10, 0);
+    expect(countMissedFireTimes('* * * * *', from, to)).toBe(0);
+  });
+
+  it('counts every-minute fires over a 5-minute window', () => {
+    const from = new Date(2026, 1, 15, 10, 0, 0); // 10:00:00
+    const to = new Date(2026, 1, 15, 10, 5, 0);   // 10:05:00
+    // Fires at :01, :02, :03, :04, :05 = 5
+    expect(countMissedFireTimes('* * * * *', from, to)).toBe(5);
+  });
+
+  it('counts hourly fires over a 3-hour window', () => {
+    const from = new Date(2026, 1, 15, 9, 0, 0);  // 9:00:00
+    const to = new Date(2026, 1, 15, 12, 0, 0);    // 12:00:00
+    // "0 * * * *" fires at 10:00, 11:00, 12:00 = 3
+    expect(countMissedFireTimes('0 * * * *', from, to)).toBe(3);
+  });
+
+  it('counts every-5-min fires over 30 minutes', () => {
+    const from = new Date(2026, 1, 15, 10, 0, 0);
+    const to = new Date(2026, 1, 15, 10, 30, 0);
+    // "*/5 * * * *" fires at :05, :10, :15, :20, :25, :30 = 6
+    expect(countMissedFireTimes('*/5 * * * *', from, to)).toBe(6);
+  });
+
+  it('returns 0 when no cron matches in the window', () => {
+    const from = new Date(2026, 1, 15, 10, 1, 0);  // 10:01
+    const to = new Date(2026, 1, 15, 10, 4, 0);     // 10:04
+    // "0 * * * *" only fires at :00, so no matches between :01 and :04
+    expect(countMissedFireTimes('0 * * * *', from, to)).toBe(0);
+  });
+
+  it('from is exclusive (does not count the from minute)', () => {
+    const from = new Date(2026, 1, 15, 10, 0, 0);
+    const to = new Date(2026, 1, 15, 10, 0, 30);
+    // Window is within the same minute, next minute not reached
+    expect(countMissedFireTimes('* * * * *', from, to)).toBe(0);
+  });
+
+  it('respects maxMinutes cap', () => {
+    const from = new Date(2026, 0, 1, 0, 0, 0);
+    const to = new Date(2026, 1, 1, 0, 0, 0); // 31 days later
+    // With maxMinutes=60, only scans first 60 minutes
+    expect(countMissedFireTimes('* * * * *', from, to, 60)).toBe(60);
+  });
+
+  it('handles overnight window', () => {
+    const from = new Date(2026, 1, 15, 23, 58, 0);
+    const to = new Date(2026, 1, 16, 0, 2, 0);
+    // "* * * * *" fires at 23:59, 0:00, 0:01, 0:02 = 4
+    expect(countMissedFireTimes('* * * * *', from, to)).toBe(4);
   });
 });
 

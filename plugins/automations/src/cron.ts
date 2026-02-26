@@ -337,6 +337,40 @@ export function describeSchedule(expression: string): string {
   return result;
 }
 
+/**
+ * Returns the number of cron fire times between `from` (exclusive) and `to` (inclusive).
+ * Iterates minute-by-minute. Caps iteration at `maxMinutes` (default 20160 = 14 days)
+ * to avoid runaway loops for long offline periods.
+ */
+export function countMissedFireTimes(
+  expression: string,
+  from: Date,
+  to: Date,
+  maxMinutes = 20_160,
+): number {
+  const startMs = from.getTime();
+  const endMs = to.getTime();
+  if (endMs <= startMs) return 0;
+
+  // Start from the next whole minute after `from`
+  const cursor = new Date(startMs);
+  cursor.setSeconds(0, 0);
+  cursor.setTime(cursor.getTime() + 60_000); // advance to next minute
+
+  let count = 0;
+  let iterations = 0;
+
+  while (cursor.getTime() <= endMs && iterations < maxMinutes) {
+    if (matchesCron(expression, cursor)) {
+      count++;
+    }
+    cursor.setTime(cursor.getTime() + 60_000);
+    iterations++;
+  }
+
+  return count;
+}
+
 export const PRESETS = [
   { label: 'Every 5 min', value: '*/5 * * * *' },
   { label: 'Every hour', value: '0 * * * *' },

@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import type { PluginContext, PluginAPI, PluginModule, ModelOption, CompletedQuickAgentInfo, PluginOrchestratorInfo } from '@clubhouse/plugin-types';
-import type { Automation, RunRecord } from './types';
-import { matchesCron, describeSchedule, validateCronExpression, PRESETS } from './cron';
+import type { Automation, RunRecord, MissedRunPolicy } from './types';
+import { matchesCron, describeSchedule, validateCronExpression, countMissedFireTimes, PRESETS } from './cron';
 import * as S from './styles';
 import { useTheme } from './use-theme';
 
@@ -23,6 +23,7 @@ const refreshSignal = {
 const AUTOMATIONS_KEY = 'automations';
 const runsKey = (automationId: string) => `runs:${automationId}`;
 const MAX_RUNS = 50;
+const MAX_CATCHUP = 10;
 
 // ── activate() ──────────────────────────────────────────────────────────
 
@@ -31,6 +32,36 @@ export function activate(ctx: PluginContext, api: PluginAPI): void {
 
   // Track agent → automation mapping for runs in flight
   const pendingRuns = new Map<string, string>();
+
+  // Shared helper: fire an agent for an automation and record the run
+  async function fireAutomation(auto: Automation, automations: Automation[]): Promise<void> {
+    const agentId = await api.agents.runQuick(auto.prompt, {
+      model: auto.model || undefined,
+      orchestrator: auto.orchestrator || undefined,
+      freeAgentMode: auto.freeAgentMode || undefined,
+    });
+
+    pendingRuns.set(agentId, auto.id);
+
+    // Record the run
+    const runsRaw = await storage.read(runsKey(auto.id));
+    const runs: RunRecord[] = Array.isArray(runsRaw) ? runsRaw : [];
+    runs.unshift({
+      agentId,
+      automationId: auto.id,
+      startedAt: Date.now(),
+      status: 'running',
+      summary: null,
+      exitCode: null,
+      completedAt: null,
+    });
+    if (runs.length > MAX_RUNS) runs.length = MAX_RUNS;
+    await storage.write(runsKey(auto.id), runs);
+
+    // Update lastRunAt
+    auto.lastRunAt = Date.now();
+    await storage.write(AUTOMATIONS_KEY, automations);
+  }
 
   // 1. onStatusChange — detect agent completion
   const statusSub = api.agents.onStatusChange((agentId, status, prevStatus) => {
@@ -87,6 +118,29 @@ export function activate(ctx: PluginContext, api: PluginAPI): void {
 
     for (const auto of automations) {
       if (!auto.enabled) continue;
+
+      const policy = auto.missedRunPolicy || 'ignore';
+
+      // ── Missed-run catch-up ──
+      if (policy !== 'ignore' && auto.lastRunAt) {
+        const lastRun = new Date(auto.lastRunAt);
+        const missed = countMissedFireTimes(auto.cronExpression, lastRun, now);
+
+        if (missed > 0) {
+          const timesToFire = policy === 'run-once' ? 1 : Math.min(missed, MAX_CATCHUP);
+          for (let i = 0; i < timesToFire; i++) {
+            try {
+              await fireAutomation(auto, automations);
+            } catch {
+              // spawn failed — skip
+            }
+          }
+          // Already handled this tick (including the current-time match if any)
+          continue;
+        }
+      }
+
+      // ── Normal current-time matching ──
       if (!matchesCron(auto.cronExpression, now)) continue;
 
       // Prevent re-firing within the same minute
@@ -105,33 +159,7 @@ export function activate(ctx: PluginContext, api: PluginAPI): void {
 
       // Fire the agent
       try {
-        const agentId = await api.agents.runQuick(auto.prompt, {
-          model: auto.model || undefined,
-          orchestrator: auto.orchestrator || undefined,
-          freeAgentMode: auto.freeAgentMode || undefined,
-        });
-
-        pendingRuns.set(agentId, auto.id);
-
-        // Record the run
-        const runsRaw = await storage.read(runsKey(auto.id));
-        const runs: RunRecord[] = Array.isArray(runsRaw) ? runsRaw : [];
-        runs.unshift({
-          agentId,
-          automationId: auto.id,
-          startedAt: Date.now(),
-          status: 'running',
-          summary: null,
-          exitCode: null,
-          completedAt: null,
-        });
-        // Cap at MAX_RUNS
-        if (runs.length > MAX_RUNS) runs.length = MAX_RUNS;
-        await storage.write(runsKey(auto.id), runs);
-
-        // Update lastRunAt
-        auto.lastRunAt = Date.now();
-        await storage.write(AUTOMATIONS_KEY, automations);
+        await fireAutomation(auto, automations);
       } catch {
         // Agent spawn failed — skip silently
       }
@@ -150,6 +178,23 @@ export function activate(ctx: PluginContext, api: PluginAPI): void {
     refreshSignal.trigger();
   });
   ctx.subscriptions.push(refreshSub);
+
+  // 4. Register run-now command — fires the automation immediately (works even when disabled)
+  const runNowSub = api.commands.register('run-now', async (...args: unknown[]) => {
+    const automationId = args[0] as string | undefined;
+    if (!automationId) return;
+    const raw = await storage.read(AUTOMATIONS_KEY);
+    const automations: Automation[] = Array.isArray(raw) ? raw : [];
+    const auto = automations.find((a) => a.id === automationId);
+    if (!auto) return;
+    try {
+      await fireAutomation(auto, automations);
+      refreshSignal.trigger();
+    } catch {
+      // spawn failed
+    }
+  });
+  ctx.subscriptions.push(runNowSub);
 }
 
 export function deactivate(): void {
@@ -196,6 +241,7 @@ export function MainPanel({ api }: { api: PluginAPI }) {
   const [editFreeAgent, setEditFreeAgent] = useState(false);
   const [editPrompt, setEditPrompt] = useState('');
   const [editEnabled, setEditEnabled] = useState(true);
+  const [editMissedRunPolicy, setEditMissedRunPolicy] = useState<MissedRunPolicy>('ignore');
   const [cronError, setCronError] = useState<string | null>(null);
 
   // ── Load automations on mount + poll ────────────────────────────────
@@ -243,6 +289,7 @@ export function MainPanel({ api }: { api: PluginAPI }) {
       setEditFreeAgent(selected.freeAgentMode ?? false);
       setEditPrompt(selected.prompt);
       setEditEnabled(selected.enabled);
+      setEditMissedRunPolicy(selected.missedRunPolicy ?? 'ignore');
       setCronError(null);
     }
   }, [selected?.id]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -272,6 +319,7 @@ export function MainPanel({ api }: { api: PluginAPI }) {
       freeAgentMode: false,
       prompt: '',
       enabled: false,
+      missedRunPolicy: 'ignore',
       createdAt: Date.now(),
       lastRunAt: null,
     };
@@ -291,12 +339,12 @@ export function MainPanel({ api }: { api: PluginAPI }) {
     setCronError(null);
     const next = automations.map((a) =>
       a.id === selectedId
-        ? { ...a, name: editName, cronExpression: editCron, orchestrator: editOrchestrator, model: editModel, freeAgentMode: editFreeAgent, prompt: editPrompt, enabled: editEnabled }
+        ? { ...a, name: editName, cronExpression: editCron, orchestrator: editOrchestrator, model: editModel, freeAgentMode: editFreeAgent, prompt: editPrompt, enabled: editEnabled, missedRunPolicy: editMissedRunPolicy }
         : a,
     );
     await storage.write(AUTOMATIONS_KEY, next);
     setAutomations(next);
-  }, [selectedId, automations, storage, editName, editCron, editOrchestrator, editModel, editFreeAgent, editPrompt, editEnabled]);
+  }, [selectedId, automations, storage, editName, editCron, editOrchestrator, editModel, editFreeAgent, editPrompt, editEnabled, editMissedRunPolicy]);
 
   const deleteAutomation = useCallback(async () => {
     if (!selectedId) return;
@@ -316,6 +364,12 @@ export function MainPanel({ api }: { api: PluginAPI }) {
     if (id === selectedId) setEditEnabled(!editEnabled);
   }, [automations, storage, selectedId, editEnabled]);
 
+  const runNow = useCallback(async (id: string) => {
+    await api.commands.execute('run-now', id);
+    await loadAutomations();
+    await loadRuns();
+  }, [api, loadAutomations, loadRuns]);
+
   const deleteRun = useCallback(async (agentId: string) => {
     if (!selectedId) return;
     const raw = await storage.read(runsKey(selectedId));
@@ -326,8 +380,8 @@ export function MainPanel({ api }: { api: PluginAPI }) {
   }, [selectedId, storage]);
 
   // Stable refs for callbacks
-  const actionsRef = useRef({ createAutomation, saveAutomation, deleteAutomation, toggleEnabled, deleteRun });
-  actionsRef.current = { createAutomation, saveAutomation, deleteAutomation, toggleEnabled, deleteRun };
+  const actionsRef = useRef({ createAutomation, saveAutomation, deleteAutomation, toggleEnabled, runNow, deleteRun });
+  actionsRef.current = { createAutomation, saveAutomation, deleteAutomation, toggleEnabled, runNow, deleteRun };
 
   if (!loaded) {
     return (
@@ -443,6 +497,20 @@ export function MainPanel({ api }: { api: PluginAPI }) {
             >
               Save
             </button>
+            {/* Run Now */}
+            <button
+              style={{
+                ...S.baseButton,
+                background: S.color.successBg,
+                color: S.color.success,
+                border: `1px solid ${S.color.success}`,
+                fontWeight: 500,
+              }}
+              onClick={() => actionsRef.current.runNow(selected.id)}
+              title="Run this automation immediately (ignores schedule and enabled state)"
+            >
+              Run Now
+            </button>
             {/* Spacer */}
             <div style={{ flex: 1 }} />
             {/* Delete */}
@@ -509,6 +577,24 @@ export function MainPanel({ api }: { api: PluginAPI }) {
                   {cronError}
                 </div>
               )}
+            </div>
+            {/* Missed Runs */}
+            <div>
+              <label style={S.label}>If Runs Were Missed</label>
+              <select
+                style={{ ...S.baseInput, cursor: 'pointer' }}
+                value={editMissedRunPolicy}
+                onChange={(e) => setEditMissedRunPolicy(e.target.value as MissedRunPolicy)}
+              >
+                <option value="ignore">Do Nothing</option>
+                <option value="run-once">Run Once (catch up with a single run)</option>
+                <option value="run-all">Run All (up to 10 catch-up runs)</option>
+              </select>
+              <div style={{ fontSize: 10, color: S.color.textTertiary, marginTop: 4 }}>
+                {editMissedRunPolicy === 'ignore' && 'Skipped runs are silently ignored'}
+                {editMissedRunPolicy === 'run-once' && 'Fires one catch-up run when the app resumes'}
+                {editMissedRunPolicy === 'run-all' && 'Fires up to 10 catch-up runs when the app resumes'}
+              </div>
             </div>
             {/* Orchestrator */}
             {orchestrators.length > 0 && (
