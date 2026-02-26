@@ -262,6 +262,24 @@ function describeSchedule(expression) {
   }
   return result;
 }
+function countMissedFireTimes(expression, from, to, maxMinutes = 20160) {
+  const startMs = from.getTime();
+  const endMs = to.getTime();
+  if (endMs <= startMs) return 0;
+  const cursor = new Date(startMs);
+  cursor.setSeconds(0, 0);
+  cursor.setTime(cursor.getTime() + 6e4);
+  let count = 0;
+  let iterations = 0;
+  while (cursor.getTime() <= endMs && iterations < maxMinutes) {
+    if (matchesCron(expression, cursor)) {
+      count++;
+    }
+    cursor.setTime(cursor.getTime() + 6e4);
+    iterations++;
+  }
+  return count;
+}
 var PRESETS = [
   { label: "Every 5 min", value: "*/5 * * * *" },
   { label: "Every hour", value: "0 * * * *" },
@@ -489,9 +507,33 @@ var refreshSignal = {
 var AUTOMATIONS_KEY = "automations";
 var runsKey = (automationId) => `runs:${automationId}`;
 var MAX_RUNS = 50;
+var MAX_CATCHUP = 10;
 function activate(ctx, api) {
   const storage = api.storage.projectLocal;
   const pendingRuns = /* @__PURE__ */ new Map();
+  async function fireAutomation(auto, automations) {
+    const agentId = await api.agents.runQuick(auto.prompt, {
+      model: auto.model || void 0,
+      orchestrator: auto.orchestrator || void 0,
+      freeAgentMode: auto.freeAgentMode || void 0
+    });
+    pendingRuns.set(agentId, auto.id);
+    const runsRaw = await storage.read(runsKey(auto.id));
+    const runs = Array.isArray(runsRaw) ? runsRaw : [];
+    runs.unshift({
+      agentId,
+      automationId: auto.id,
+      startedAt: Date.now(),
+      status: "running",
+      summary: null,
+      exitCode: null,
+      completedAt: null
+    });
+    if (runs.length > MAX_RUNS) runs.length = MAX_RUNS;
+    await storage.write(runsKey(auto.id), runs);
+    auto.lastRunAt = Date.now();
+    await storage.write(AUTOMATIONS_KEY, automations);
+  }
   const statusSub = api.agents.onStatusChange((agentId, status, prevStatus) => {
     const automationId = pendingRuns.get(agentId);
     if (!automationId) return;
@@ -531,6 +573,21 @@ function activate(ctx, api) {
     const automations = Array.isArray(raw) ? raw : [];
     for (const auto of automations) {
       if (!auto.enabled) continue;
+      const policy = auto.missedRunPolicy || "ignore";
+      if (policy !== "ignore" && auto.lastRunAt) {
+        const lastRun = new Date(auto.lastRunAt);
+        const missed = countMissedFireTimes(auto.cronExpression, lastRun, now);
+        if (missed > 0) {
+          const timesToFire = policy === "run-once" ? 1 : Math.min(missed, MAX_CATCHUP);
+          for (let i = 0; i < timesToFire; i++) {
+            try {
+              await fireAutomation(auto, automations);
+            } catch {
+            }
+          }
+          continue;
+        }
+      }
       if (!matchesCron(auto.cronExpression, now)) continue;
       if (auto.lastRunAt) {
         const lastRun = new Date(auto.lastRunAt);
@@ -539,27 +596,7 @@ function activate(ctx, api) {
         }
       }
       try {
-        const agentId = await api.agents.runQuick(auto.prompt, {
-          model: auto.model || void 0,
-          orchestrator: auto.orchestrator || void 0,
-          freeAgentMode: auto.freeAgentMode || void 0
-        });
-        pendingRuns.set(agentId, auto.id);
-        const runsRaw = await storage.read(runsKey(auto.id));
-        const runs = Array.isArray(runsRaw) ? runsRaw : [];
-        runs.unshift({
-          agentId,
-          automationId: auto.id,
-          startedAt: Date.now(),
-          status: "running",
-          summary: null,
-          exitCode: null,
-          completedAt: null
-        });
-        if (runs.length > MAX_RUNS) runs.length = MAX_RUNS;
-        await storage.write(runsKey(auto.id), runs);
-        auto.lastRunAt = Date.now();
-        await storage.write(AUTOMATIONS_KEY, automations);
+        await fireAutomation(auto, automations);
       } catch {
       }
     }
@@ -572,6 +609,20 @@ function activate(ctx, api) {
     refreshSignal.trigger();
   });
   ctx.subscriptions.push(refreshSub);
+  const runNowSub = api.commands.register("run-now", async (...args) => {
+    const automationId = args[0];
+    if (!automationId) return;
+    const raw = await storage.read(AUTOMATIONS_KEY);
+    const automations = Array.isArray(raw) ? raw : [];
+    const auto = automations.find((a) => a.id === automationId);
+    if (!auto) return;
+    try {
+      await fireAutomation(auto, automations);
+      refreshSignal.trigger();
+    } catch {
+    }
+  });
+  ctx.subscriptions.push(runNowSub);
 }
 function deactivate() {
 }
@@ -606,6 +657,7 @@ function MainPanel({ api }) {
   const [editFreeAgent, setEditFreeAgent] = useState(false);
   const [editPrompt, setEditPrompt] = useState("");
   const [editEnabled, setEditEnabled] = useState(true);
+  const [editMissedRunPolicy, setEditMissedRunPolicy] = useState("ignore");
   const [cronError, setCronError] = useState(null);
   const loadAutomations = useCallback(async () => {
     const raw = await storage.read(AUTOMATIONS_KEY);
@@ -645,6 +697,7 @@ function MainPanel({ api }) {
       setEditFreeAgent(selected.freeAgentMode ?? false);
       setEditPrompt(selected.prompt);
       setEditEnabled(selected.enabled);
+      setEditMissedRunPolicy(selected.missedRunPolicy ?? "ignore");
       setCronError(null);
     }
   }, [selected?.id]);
@@ -672,6 +725,7 @@ function MainPanel({ api }) {
       freeAgentMode: false,
       prompt: "",
       enabled: false,
+      missedRunPolicy: "ignore",
       createdAt: Date.now(),
       lastRunAt: null
     };
@@ -689,11 +743,11 @@ function MainPanel({ api }) {
     }
     setCronError(null);
     const next = automations.map(
-      (a) => a.id === selectedId ? { ...a, name: editName, cronExpression: editCron, orchestrator: editOrchestrator, model: editModel, freeAgentMode: editFreeAgent, prompt: editPrompt, enabled: editEnabled } : a
+      (a) => a.id === selectedId ? { ...a, name: editName, cronExpression: editCron, orchestrator: editOrchestrator, model: editModel, freeAgentMode: editFreeAgent, prompt: editPrompt, enabled: editEnabled, missedRunPolicy: editMissedRunPolicy } : a
     );
     await storage.write(AUTOMATIONS_KEY, next);
     setAutomations(next);
-  }, [selectedId, automations, storage, editName, editCron, editOrchestrator, editModel, editFreeAgent, editPrompt, editEnabled]);
+  }, [selectedId, automations, storage, editName, editCron, editOrchestrator, editModel, editFreeAgent, editPrompt, editEnabled, editMissedRunPolicy]);
   const deleteAutomation = useCallback(async () => {
     if (!selectedId) return;
     const next = automations.filter((a) => a.id !== selectedId);
@@ -710,6 +764,11 @@ function MainPanel({ api }) {
     setAutomations(next);
     if (id === selectedId) setEditEnabled(!editEnabled);
   }, [automations, storage, selectedId, editEnabled]);
+  const runNow = useCallback(async (id) => {
+    await api.commands.execute("run-now", id);
+    await loadAutomations();
+    await loadRuns();
+  }, [api, loadAutomations, loadRuns]);
   const deleteRun = useCallback(async (agentId) => {
     if (!selectedId) return;
     const raw = await storage.read(runsKey(selectedId));
@@ -718,8 +777,8 @@ function MainPanel({ api }) {
     await storage.write(runsKey(selectedId), next);
     setRuns(next);
   }, [selectedId, storage]);
-  const actionsRef = useRef({ createAutomation, saveAutomation, deleteAutomation, toggleEnabled, deleteRun });
-  actionsRef.current = { createAutomation, saveAutomation, deleteAutomation, toggleEnabled, deleteRun };
+  const actionsRef = useRef({ createAutomation, saveAutomation, deleteAutomation, toggleEnabled, runNow, deleteRun });
+  actionsRef.current = { createAutomation, saveAutomation, deleteAutomation, toggleEnabled, runNow, deleteRun };
   if (!loaded) {
     return /* @__PURE__ */ jsx("div", { style: { display: "flex", alignItems: "center", justifyContent: "center", height: "100%", color: color.textTertiary, fontSize: 12 }, children: "Loading automations..." });
   }
@@ -810,6 +869,21 @@ function MainPanel({ api }) {
             children: "Save"
           }
         ),
+        /* @__PURE__ */ jsx(
+          "button",
+          {
+            style: {
+              ...baseButton,
+              background: color.successBg,
+              color: color.success,
+              border: `1px solid ${color.success}`,
+              fontWeight: 500
+            },
+            onClick: () => actionsRef.current.runNow(selected.id),
+            title: "Run this automation immediately (ignores schedule and enabled state)",
+            children: "Run Now"
+          }
+        ),
         /* @__PURE__ */ jsx("div", { style: { flex: 1 } }),
         /* @__PURE__ */ jsx(
           "button",
@@ -871,6 +945,27 @@ function MainPanel({ api }) {
           ),
           /* @__PURE__ */ jsx("div", { style: { fontSize: 10, color: color.textTertiary, marginTop: 4 }, children: describeSchedule(editCron) }),
           cronError && /* @__PURE__ */ jsx("div", { style: { fontSize: 11, color: color.error, marginTop: 4 }, children: cronError })
+        ] }),
+        /* @__PURE__ */ jsxs("div", { children: [
+          /* @__PURE__ */ jsx("label", { style: label, children: "If Runs Were Missed" }),
+          /* @__PURE__ */ jsxs(
+            "select",
+            {
+              style: { ...baseInput, cursor: "pointer" },
+              value: editMissedRunPolicy,
+              onChange: (e) => setEditMissedRunPolicy(e.target.value),
+              children: [
+                /* @__PURE__ */ jsx("option", { value: "ignore", children: "Do Nothing" }),
+                /* @__PURE__ */ jsx("option", { value: "run-once", children: "Run Once (catch up with a single run)" }),
+                /* @__PURE__ */ jsx("option", { value: "run-all", children: "Run All (up to 10 catch-up runs)" })
+              ]
+            }
+          ),
+          /* @__PURE__ */ jsxs("div", { style: { fontSize: 10, color: color.textTertiary, marginTop: 4 }, children: [
+            editMissedRunPolicy === "ignore" && "Skipped runs are silently ignored",
+            editMissedRunPolicy === "run-once" && "Fires one catch-up run when the app resumes",
+            editMissedRunPolicy === "run-all" && "Fires up to 10 catch-up runs when the app resumes"
+          ] })
         ] }),
         orchestrators.length > 0 && /* @__PURE__ */ jsxs("div", { children: [
           /* @__PURE__ */ jsx("label", { style: label, children: "Orchestrator" }),

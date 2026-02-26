@@ -180,7 +180,8 @@ export function activate(ctx: PluginContext, api: PluginAPI): void {
   ctx.subscriptions.push(refreshSub);
 
   // 4. Register run-now command — fires the automation immediately (works even when disabled)
-  const runNowSub = api.commands.register('run-now', async (automationId?: string) => {
+  const runNowSub = api.commands.register('run-now', async (...args: unknown[]) => {
+    const automationId = args[0] as string | undefined;
     if (!automationId) return;
     const raw = await storage.read(AUTOMATIONS_KEY);
     const automations: Automation[] = Array.isArray(raw) ? raw : [];
