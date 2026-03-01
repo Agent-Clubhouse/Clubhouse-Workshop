@@ -6,8 +6,8 @@ import type { ScopedStorage } from "@clubhouse/plugin-types";
 import type { BuddyGroup, GroupMember } from "../types";
 import { generateGroupName } from "../names";
 
-const INDEX_KEY = "groups/index";
-function groupKey(id: string): string { return `groups/${id}`; }
+const INDEX_KEY = "buddyGroupIndex";
+function groupKey(id: string): string { return `buddyGroup_${id}`; }
 
 function uuid(): string {
   return `${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
