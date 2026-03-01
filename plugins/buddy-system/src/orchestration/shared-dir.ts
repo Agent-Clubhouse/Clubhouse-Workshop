@@ -5,12 +5,9 @@
 import type { FilesAPI } from "@clubhouse/plugin-types";
 import type { BuddyGroup, GroupMember, Deliverable } from "../types";
 
-const FALLBACK_ROOT = `${process.env.HOME || process.env.USERPROFILE || "/tmp"}/.clubhouse/buddy-system`;
-
 function resolveRoot(files: FilesAPI): string {
-  // Prefer the plugin's own data directory (auto-cleaned on uninstall).
-  // Falls back to ~/.clubhouse/buddy-system/ if dataDir is not yet available.
-  return files.dataDir ? `${files.dataDir}/groups` : FALLBACK_ROOT;
+  if (!files.dataDir) throw new Error("FilesAPI.dataDir is required (v0.7+)");
+  return `${files.dataDir}/groups`;
 }
 
 export interface SharedDirectory {

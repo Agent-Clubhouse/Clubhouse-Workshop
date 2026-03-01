@@ -178,9 +178,9 @@ function createGroupStore(storage) {
 }
 
 // src/orchestration/shared-dir.ts
-var FALLBACK_ROOT = `${process.env.HOME || process.env.USERPROFILE || "/tmp"}/.clubhouse/buddy-system`;
 function resolveRoot(files) {
-  return files.dataDir ? `${files.dataDir}/groups` : FALLBACK_ROOT;
+  if (!files.dataDir) throw new Error("FilesAPI.dataDir is required (v0.7+)");
+  return `${files.dataDir}/groups`;
 }
 function createSharedDirectory(files) {
   const root = resolveRoot(files);
