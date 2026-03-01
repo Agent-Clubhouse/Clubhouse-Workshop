@@ -225,6 +225,63 @@ export interface TerminalColors {
 }
 
 // ---------------------------------------------------------------------------
+// Sound types
+// ---------------------------------------------------------------------------
+
+/**
+ * Sound events recognised by the Clubhouse application.
+ *
+ * Each event corresponds to a distinct moment in the UI that can trigger audio
+ * feedback.  A sound pack maps one or more of these events to audio files.
+ *
+ * | Event                | Description             |
+ * | -------------------- | ----------------------- |
+ * | `agent-done`         | Agent finished its task  |
+ * | `error`              | An error occurred        |
+ * | `permission`         | Permission requested     |
+ * | `permission-granted` | Permission was granted   |
+ * | `permission-denied`  | Permission was denied    |
+ * | `agent-wake`         | Agent woke up            |
+ * | `agent-sleep`        | Agent went to sleep      |
+ * | `agent-focus`        | Agent received focus     |
+ * | `notification`       | General notification     |
+ */
+export type SoundEvent =
+  | "agent-done"
+  | "error"
+  | "permission"
+  | "permission-granted"
+  | "permission-denied"
+  | "agent-wake"
+  | "agent-sleep"
+  | "agent-focus"
+  | "notification";
+
+/** Human-readable labels for each {@link SoundEvent}. */
+export type SoundEventLabels = {
+  readonly [K in SoundEvent]: string;
+};
+
+/** Audio file formats accepted by the Clubhouse sound system. */
+export type SupportedAudioExtension = ".mp3" | ".wav" | ".ogg";
+
+/**
+ * All recognised sound events as a constant array.
+ *
+ * Useful for iteration / validation at runtime:
+ * ```ts
+ * import { ALL_SOUND_EVENTS } from "@clubhouse/plugin-types";
+ * for (const event of ALL_SOUND_EVENTS) { … }
+ * ```
+ */
+export declare const ALL_SOUND_EVENTS: readonly SoundEvent[];
+
+/**
+ * Display labels for each sound event, e.g. `"agent-done"` → `"Agent Finished"`.
+ */
+export declare const SOUND_EVENT_LABELS: SoundEventLabels;
+
+// ---------------------------------------------------------------------------
 // Manifest types
 // ---------------------------------------------------------------------------
 
@@ -299,10 +356,22 @@ export interface PluginSoundPackDeclaration {
   /** Display name for the sound pack. */
   name: string;
   /**
-   * Mapping of sound event names to audio file paths relative to the plugin directory.
-   * e.g., { "agent-done": "sounds/done.mp3", "error": "sounds/error.wav" }
+   * Mapping of {@link SoundEvent} names to audio file paths (relative to the
+   * plugin directory).  Only the events you want to override need to be
+   * provided; the rest fall back to the user's current pack or the defaults.
+   *
+   * Supported audio formats: `.mp3`, `.wav`, `.ogg`
+   *
+   * @example
+   * ```json
+   * {
+   *   "agent-done": "sounds/done.mp3",
+   *   "error": "sounds/error.wav",
+   *   "notification": "sounds/ping.ogg"
+   * }
+   * ```
    */
-  sounds: Record<string, string>;
+  sounds: Partial<Record<SoundEvent, string>>;
 }
 
 /** Declare a color theme that ships with this plugin (v0.7+). */
