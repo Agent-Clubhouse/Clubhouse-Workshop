@@ -26,6 +26,7 @@ Or reference directly in your `tsconfig.json`:
 - **Global dialogs** — register modal dialogs via `contributes.globalDialog` with keyboard bindings
 - **Manifest agent config** — auto-inject skills, templates, and MCP servers via `contributes.agentConfig`
 - **File watching** — `api.files.watch(glob, callback)` with the `files.watch` permission
+- **Typed sound events** — `SoundEvent` union, `ALL_SOUND_EVENTS` constant, and `SupportedAudioExtension` for compile-time sound pack validation
 - **Pack plugins** — headless manifest-only plugins with `kind: 'pack'`
 - **Dialog panels** — export a `DialogPanel` component for global modal overlays
 
