@@ -43,12 +43,20 @@ export function validateManifest(pluginDir, { strict = false } = {}) {
     return { errors: [`manifest.json is not valid JSON: ${e.message}`], warnings };
   }
 
-  // Required fields
-  const required = ["id", "name", "version", "description", "author", "engine", "scope", "main"];
+  // Required fields — "main" is not required for pack plugins (manifest-only)
+  const isPack = manifest.kind === "pack";
+  const required = isPack
+    ? ["id", "name", "version", "description", "author", "engine", "scope"]
+    : ["id", "name", "version", "description", "author", "engine", "scope", "main"];
   for (const field of required) {
     if (!(field in manifest)) {
       errors.push(`Missing required field: ${field}`);
     }
+  }
+
+  // Validate kind field if present
+  if ("kind" in manifest && !["plugin", "pack"].includes(manifest.kind)) {
+    errors.push(`Invalid kind: "${manifest.kind}" (must be "plugin" or "pack")`);
   }
 
   // ID format
