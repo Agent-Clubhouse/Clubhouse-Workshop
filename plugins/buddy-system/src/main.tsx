@@ -93,6 +93,23 @@ const STATUS_LABELS: Record<string, string> = {
   archived: "Archived",
 };
 
+const MEMBER_STATUS_HINTS: Record<string, string> = {
+  idle: "Idle — waiting for assignment",
+  creating: "Creating — agent is being set up",
+  working: "Working — actively executing their deliverable",
+  blocked: "Blocked — waiting on a dependency or another member",
+  done: "Done — deliverable complete",
+  error: "Error — something went wrong during execution",
+};
+
+const STATUS_HINTS: Record<string, string> = {
+  idle: "Ready to configure. Add members, set a leader, then assign a mission.",
+  planning: "The group leader is awake and creating a plan. Other members are still sleeping.",
+  executing: "All assigned members are awake and working on their deliverables.",
+  complete: "All deliverables are done. The group has finished its mission.",
+  archived: "This group has been archived.",
+};
+
 function statusColor(status: string): string {
   switch (status) {
     case "executing": return "var(--text-info)";
@@ -175,7 +192,7 @@ function MemberCard({ api, member, onRemove, onSetLeader }: {
           {member.projectName}
         </div>
       </div>
-      <span title={member.status} style={{ fontSize: 13, color: memberStatusColor(member.status), fontWeight: 600 }}>
+      <span title={MEMBER_STATUS_HINTS[member.status] ?? member.status} style={{ fontSize: 13, color: memberStatusColor(member.status), fontWeight: 600, cursor: "help" }}>
         {memberStatusIcon(member.status)}
       </span>
       <div style={{ display: "flex", gap: 4 }}>
@@ -256,14 +273,17 @@ function AddMemberDialog({ api, existingAgentIds, onAdd, onCancel }: {
 // MissionInput
 // ---------------------------------------------------------------------------
 
-function MissionInput({ onSubmit, disabled, hasLeader, memberCount }: {
+function MissionInput({ onSubmit, disabled, hasLeader, memberCount, existingMission, error, submitting }: {
   onSubmit: (mission: string) => void;
   disabled: boolean;
   hasLeader: boolean;
   memberCount: number;
+  existingMission?: string;
+  error?: string | null;
+  submitting?: boolean;
 }) {
-  const [text, setText] = useState("");
-  const canSubmit = text.trim().length > 0 && hasLeader && memberCount >= 1 && !disabled;
+  const [text, setText] = useState(existingMission ?? "");
+  const canSubmit = text.trim().length > 0 && hasLeader && memberCount >= 1 && !disabled && !submitting;
 
   let hint = "";
   if (memberCount === 0) hint = "Add at least one member before assigning work.";
@@ -272,11 +292,19 @@ function MissionInput({ onSubmit, disabled, hasLeader, memberCount }: {
 
   return (
     <div style={{ marginBottom: 20 }}>
-      <h3 style={{ margin: "0 0 8px 0", fontSize: 13, fontWeight: 600, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.05em", fontFamily: "var(--font-family)" }}>Assign Work</h3>
-      <textarea value={text} onChange={e => setText(e.target.value)} placeholder="Describe what you want this group to accomplish..." rows={4} disabled={disabled} style={{ width: "100%", padding: "10px 12px", fontSize: 13, borderRadius: 6, border: "1px solid var(--border-primary)", background: disabled ? "var(--bg-surface)" : "var(--bg-primary)", color: "var(--text-primary)", fontFamily: "var(--font-family)", resize: "vertical", boxSizing: "border-box", lineHeight: 1.5, opacity: disabled ? 0.6 : 1 }} />
+      <h3 style={{ margin: "0 0 4px 0", fontSize: 13, fontWeight: 600, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.05em", fontFamily: "var(--font-family)" }}>Assign Work</h3>
+      <div style={{ fontSize: 11, color: "var(--text-tertiary)", fontFamily: "var(--font-family)", marginBottom: 8, lineHeight: 1.4 }}>
+        Describe what the group should accomplish. When you start, the group leader will wake up first to create a plan. After you approve the plan, all members will be assigned tasks and begin working.
+      </div>
+      <textarea value={text} onChange={e => setText(e.target.value)} placeholder="Describe what you want this group to accomplish..." rows={4} disabled={disabled || submitting} style={{ width: "100%", padding: "10px 12px", fontSize: 13, borderRadius: 6, border: `1px solid ${error ? "var(--border-error, var(--text-error))" : "var(--border-primary)"}`, background: disabled ? "var(--bg-surface)" : "var(--bg-primary)", color: "var(--text-primary)", fontFamily: "var(--font-family)", resize: "vertical", boxSizing: "border-box", lineHeight: 1.5, opacity: disabled ? 0.6 : 1 }} />
       {hint && <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginTop: 4, fontFamily: "var(--font-family)" }}>{hint}</div>}
+      {error && (
+        <div style={{ fontSize: 12, color: "var(--text-error)", marginTop: 6, fontFamily: "var(--font-family)", padding: "8px 10px", borderRadius: 4, background: "var(--bg-error, rgba(255,0,0,0.06))", border: "1px solid var(--border-error, var(--text-error))" }}>
+          {error}
+        </div>
+      )}
       <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 8 }}>
-        <button onClick={() => { if (canSubmit) { onSubmit(text.trim()); setText(""); } }} disabled={!canSubmit} style={{ padding: "8px 18px", fontSize: 13, fontWeight: 600, borderRadius: 6, border: "1px solid var(--border-accent)", background: canSubmit ? "var(--bg-accent)" : "var(--bg-surface)", color: canSubmit ? "var(--text-accent)" : "var(--text-muted)", cursor: canSubmit ? "pointer" : "not-allowed", fontFamily: "var(--font-family)" }}>Start Mission</button>
+        <button onClick={() => { if (canSubmit) onSubmit(text.trim()); }} disabled={!canSubmit} style={{ padding: "8px 18px", fontSize: 13, fontWeight: 600, borderRadius: 6, border: "1px solid var(--border-accent)", background: canSubmit ? "var(--bg-accent)" : "var(--bg-surface)", color: canSubmit ? "var(--text-accent)" : "var(--text-muted)", cursor: canSubmit ? "pointer" : "not-allowed", fontFamily: "var(--font-family)" }}>{submitting ? "Starting..." : existingMission ? "Retry Mission" : "Start Mission"}</button>
       </div>
     </div>
   );
@@ -340,8 +368,12 @@ function GroupList({ api, groups, onSelect, onCreate, onDelete }: {
       </div>
       <div style={{ flex: 1, overflow: "auto", padding: "8px 12px" }}>
         {groups.length === 0 && (
-          <div style={{ textAlign: "center", padding: "48px 24px", color: "var(--text-tertiary)", fontSize: 14, fontFamily: "var(--font-family)" }}>
-            No buddy groups yet. Create one to get started.
+          <div style={{ textAlign: "center", padding: "48px 24px", color: "var(--text-tertiary)", fontFamily: "var(--font-family)" }}>
+            <div style={{ fontSize: 14, marginBottom: 8 }}>No buddy groups yet.</div>
+            <div style={{ fontSize: 12, lineHeight: 1.5 }}>
+              Buddy groups let you coordinate agents across projects.<br/>
+              Create a group, add agents, and assign a mission to get started.
+            </div>
           </div>
         )}
         {groups.map(group => (
@@ -367,17 +399,20 @@ function GroupList({ api, groups, onSelect, onCreate, onDelete }: {
 // GroupDetail
 // ---------------------------------------------------------------------------
 
-function GroupDetail({ api, group, store, plannerRef, onBack, onGroupUpdated }: {
+function GroupDetail({ api, group, store, plannerRef, sharedDirRef, onBack, onGroupUpdated }: {
   api: PluginAPI;
   group: BuddyGroup;
   store: GroupStore;
   plannerRef: PlannerOrchestrator | null;
+  sharedDirRef: SharedDirectory | null;
   onBack: () => void;
   onGroupUpdated: (g: BuddyGroup) => void;
 }) {
   const [editing, setEditing] = useState(false);
   const [nameInput, setNameInput] = useState(group.name);
   const [showAddMember, setShowAddMember] = useState(false);
+  const [missionError, setMissionError] = useState<string | null>(null);
+  const [missionSubmitting, setMissionSubmitting] = useState(false);
   const isActive = group.status === "planning" || group.status === "executing";
 
   const handleRename = useCallback(async () => {
@@ -410,17 +445,29 @@ function GroupDetail({ api, group, store, plannerRef, onBack, onGroupUpdated }: 
   }, [group.id, store, onGroupUpdated]);
 
   const handleAssignMission = useCallback(async (mission: string) => {
-    if (!plannerRef) { api.ui.showError("Orchestration not available"); return; }
+    if (!plannerRef) {
+      setMissionError("Orchestration not available. Try reopening the panel.");
+      return;
+    }
+    setMissionError(null);
+    setMissionSubmitting(true);
     try {
       group.mission = mission;
       await store.save(group);
       onGroupUpdated({ ...group });
       const updated = await plannerRef.startPlanning(group);
       onGroupUpdated(updated);
-      api.ui.showNotice(`Mission assigned to ${group.name}. Leader is planning...`);
+      api.ui.showNotice(`Leader "${updated.members.find(m => m.isLeader)?.agentName}" is now planning...`);
     } catch (err) {
-      api.logging.error("Failed to start planning", { error: String(err) });
-      api.ui.showError(`Failed to start mission: ${err}`);
+      const msg = err instanceof Error ? err.message : String(err);
+      api.logging.error("Failed to start planning", { error: msg });
+      setMissionError(`Failed to start mission: ${msg}`);
+      // Reset group status so user can retry
+      group.status = "idle";
+      await store.save(group);
+      onGroupUpdated({ ...group });
+    } finally {
+      setMissionSubmitting(false);
     }
   }, [api, group, store, plannerRef, onGroupUpdated]);
 
@@ -431,12 +478,15 @@ function GroupDetail({ api, group, store, plannerRef, onBack, onGroupUpdated }: 
       onGroupUpdated(updated);
       updated = await plannerRef.startExecution(updated);
       onGroupUpdated(updated);
-      api.ui.showNotice(`Execution started for ${group.name}`);
+      api.ui.showNotice(`Execution started — ${updated.members.length} agent(s) are working.`);
     } catch (err) {
-      api.logging.error("Failed to approve plan", { error: String(err) });
-      api.ui.showError(`Failed to start execution: ${err}`);
+      const msg = err instanceof Error ? err.message : String(err);
+      api.logging.error("Failed to approve plan", { error: msg });
+      api.ui.showError(`Failed to start execution: ${msg}`);
     }
   }, [api, group, plannerRef, onGroupUpdated]);
+
+  const leader = group.members.find(m => m.isLeader);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
@@ -447,18 +497,35 @@ function GroupDetail({ api, group, store, plannerRef, onBack, onGroupUpdated }: 
         ) : (
           <h2 onClick={() => { setNameInput(group.name); setEditing(true); }} title="Click to rename" style={{ margin: 0, flex: 1, fontSize: 16, fontWeight: 600, color: "var(--text-primary)", fontFamily: "var(--font-mono)", cursor: "text" }}>{group.name}</h2>
         )}
-        <span style={{ fontSize: 11, fontWeight: 500, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.05em", padding: "3px 8px", borderRadius: 4, background: "var(--bg-surface)" }}>{STATUS_LABELS[group.status] ?? group.status}</span>
+        <span title={STATUS_HINTS[group.status] ?? ""} style={{ fontSize: 11, fontWeight: 500, color: statusColor(group.status), textTransform: "uppercase", letterSpacing: "0.05em", padding: "3px 8px", borderRadius: 4, background: "var(--bg-surface)", cursor: "help" }}>{STATUS_LABELS[group.status] ?? group.status}</span>
       </div>
 
       <div style={{ flex: 1, overflow: "auto", padding: "16px 20px" }}>
+        {/* How it works (idle groups) */}
+        {group.status === "idle" && group.members.length === 0 && (
+          <div style={{ fontSize: 12, color: "var(--text-tertiary)", fontFamily: "var(--font-family)", lineHeight: 1.5, padding: "12px 14px", borderRadius: 6, background: "var(--bg-surface)", marginBottom: 16 }}>
+            <div style={{ fontWeight: 600, color: "var(--text-secondary)", marginBottom: 4 }}>How Buddy Groups work</div>
+            1. Add durable agents from your projects as members<br/>
+            2. Designate one as the group leader (first added is auto-leader)<br/>
+            3. Write a mission describing what the group should accomplish<br/>
+            4. The leader wakes up and creates a plan, then you approve it<br/>
+            5. All members receive assignments and begin working in parallel
+          </div>
+        )}
+
         {/* Members */}
         <div style={{ marginBottom: 20 }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
             <h3 style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.05em", fontFamily: "var(--font-family)" }}>Members ({group.members.length})</h3>
             {!isActive && (
               <button onClick={() => setShowAddMember(true)} style={{ background: "none", border: "1px solid var(--border-primary)", color: "var(--text-secondary)", borderRadius: 4, padding: "4px 10px", fontSize: 12, cursor: "pointer", fontFamily: "var(--font-family)" }}>+ Add</button>
             )}
           </div>
+          {group.members.length > 0 && !isActive && (
+            <div style={{ fontSize: 11, color: "var(--text-tertiary)", fontFamily: "var(--font-family)", marginBottom: 8 }}>
+              Click the star to change the leader. The leader creates the plan; other members execute it.
+            </div>
+          )}
           {showAddMember && <AddMemberDialog api={api} existingAgentIds={group.members.map(m => m.agentId)} onAdd={handleAddMember} onCancel={() => setShowAddMember(false)} />}
           {group.members.length === 0 && !showAddMember && (
             <div style={{ fontSize: 12, color: "var(--text-tertiary)", fontFamily: "var(--font-family)", padding: "12px 0" }}>No members yet. Add durable agents from your projects.</div>
@@ -467,7 +534,17 @@ function GroupDetail({ api, group, store, plannerRef, onBack, onGroupUpdated }: 
         </div>
 
         {/* Mission input (idle only) */}
-        {group.status === "idle" && <MissionInput onSubmit={handleAssignMission} disabled={isActive} hasLeader={!!group.leaderId} memberCount={group.members.length} />}
+        {group.status === "idle" && (
+          <MissionInput
+            onSubmit={handleAssignMission}
+            disabled={isActive}
+            hasLeader={!!group.leaderId}
+            memberCount={group.members.length}
+            existingMission={group.mission}
+            error={missionError}
+            submitting={missionSubmitting}
+          />
+        )}
 
         {/* Active mission */}
         {group.mission && group.status !== "idle" && (
@@ -477,11 +554,23 @@ function GroupDetail({ api, group, store, plannerRef, onBack, onGroupUpdated }: 
           </div>
         )}
 
-        {/* Plan approval */}
+        {/* Planning phase guidance */}
         {group.status === "planning" && !group.plan && (
-          <div style={{ padding: 16, borderRadius: 8, border: "1px solid var(--border-primary)", background: "var(--bg-info)", marginBottom: 20 }}>
-            <div style={{ fontSize: 13, color: "var(--text-primary)", fontFamily: "var(--font-family)", marginBottom: 8 }}>The group leader is creating a plan. Once ready, click below to approve.</div>
-            <button onClick={handleApprovePlan} style={{ padding: "8px 18px", fontSize: 13, fontWeight: 600, borderRadius: 6, border: "1px solid var(--border-accent)", background: "var(--bg-accent)", color: "var(--text-accent)", cursor: "pointer", fontFamily: "var(--font-family)" }}>Check for Plan & Approve</button>
+          <div style={{ padding: 16, borderRadius: 8, border: "1px solid var(--border-primary)", background: "var(--bg-info, var(--bg-surface))", marginBottom: 20 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", fontFamily: "var(--font-family)", marginBottom: 6 }}>Waiting for plan</div>
+            <div style={{ fontSize: 12, color: "var(--text-secondary)", fontFamily: "var(--font-family)", marginBottom: 10, lineHeight: 1.4 }}>
+              The leader ({leader?.agentName ?? "unknown"}) has been woken and is creating a plan.
+              Once the leader writes the plan, click below to review and approve it.
+              After approval, all members will be assigned tasks and woken to begin work.
+            </div>
+            <button onClick={handleApprovePlan} style={{ padding: "8px 18px", fontSize: 13, fontWeight: 600, borderRadius: 6, border: "1px solid var(--border-accent)", background: "var(--bg-accent)", color: "var(--text-accent)", cursor: "pointer", fontFamily: "var(--font-family)" }}>Check for Plan &amp; Approve</button>
+          </div>
+        )}
+
+        {/* Executing phase guidance */}
+        {group.status === "executing" && (
+          <div style={{ fontSize: 12, color: "var(--text-tertiary)", fontFamily: "var(--font-family)", marginBottom: 12, lineHeight: 1.4, padding: "8px 12px", borderRadius: 6, background: "var(--bg-surface)" }}>
+            Members are working on their assignments. Status updates appear automatically as agents check in via the shared directory.
           </div>
         )}
 
@@ -587,9 +676,12 @@ export function MainPanel({ api }: PanelProps) {
 
   const handleDelete = async (groupId: string) => {
     try {
-      const confirmed = await api.ui.showConfirm("Delete this buddy group?");
+      const confirmed = await api.ui.showConfirm("Delete this buddy group and its shared directory?");
       if (!confirmed) return;
       monitor?.stop(groupId);
+      // Clean up shared directory on disk
+      const sd = sharedDir ?? createSharedDirectory(api.files);
+      try { await sd.remove(groupId); } catch { /* may not exist */ }
       await store.remove(groupId);
       setGroups(prev => prev.filter(g => g.id !== groupId));
       if (selectedGroupId === groupId) setSelectedGroupId(null);
@@ -608,7 +700,7 @@ export function MainPanel({ api }: PanelProps) {
   return (
     <div style={{ ...themeStyle, height: "100%", background: "var(--bg-primary)", color: "var(--text-primary)" }}>
       {selectedGroup ? (
-        <GroupDetail api={api} group={selectedGroup} store={store} plannerRef={plannerRef.current} onBack={() => setSelectedGroupId(null)} onGroupUpdated={handleGroupUpdated} />
+        <GroupDetail api={api} group={selectedGroup} store={store} plannerRef={plannerRef.current} sharedDirRef={sharedDir} onBack={() => setSelectedGroupId(null)} onGroupUpdated={handleGroupUpdated} />
       ) : (
         <GroupList api={api} groups={groups} onSelect={g => setSelectedGroupId(g.id)} onCreate={handleCreate} onDelete={handleDelete} />
       )}

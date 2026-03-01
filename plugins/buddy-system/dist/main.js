@@ -178,7 +178,8 @@ function createGroupStore(storage) {
 }
 
 // src/orchestration/shared-dir.ts
-var BUDDY_ROOT = "~/.clubhouse/buddy-system";
+var HOME = process.env.HOME || process.env.USERPROFILE || "/tmp";
+var BUDDY_ROOT = `${HOME}/.clubhouse/buddy-system`;
 function groupDir(groupId) {
   return `${BUDDY_ROOT}/${groupId}`;
 }
@@ -192,6 +193,12 @@ function createSharedDirectory(files) {
     await files.mkdir(`${base}/shared`);
     await files.writeFile(`${base}/shared/decisions.md`, "# Design Decisions\n\n");
     await files.writeFile(`${base}/shared/interfaces.md`, "# Shared Interfaces\n\n");
+  }
+  async function remove(groupId) {
+    try {
+      await files.delete(groupDir(groupId));
+    } catch {
+    }
   }
   async function writePlan(groupId, planContent) {
     await files.writeFile(`${groupDir(groupId)}/plan.md`, planContent);
@@ -242,7 +249,7 @@ This deliverable depends on: ${deliverable.dependencies.join(", ")}
   function groupPath(groupId) {
     return groupDir(groupId);
   }
-  return { create, writePlan, readPlan, writeAssignment, readMemberStatus, watchGlob, groupPath };
+  return { create, remove, writePlan, readPlan, writeAssignment, readMemberStatus, watchGlob, groupPath };
 }
 
 // src/orchestration/plan-parser.ts
@@ -506,7 +513,8 @@ function createGroupMonitor(api, store, sharedDir2, onEvent) {
 }
 
 // src/config/injector.ts
-var BUDDY_ROOT2 = "~/.clubhouse/buddy-system";
+var HOME2 = process.env.HOME || process.env.USERPROFILE || "/tmp";
+var BUDDY_ROOT2 = `${HOME2}/.clubhouse/buddy-system`;
 function buildGroupSkill(group, member) {
   const leader = group.members.find((m) => m.isLeader);
   const groupDir2 = `${BUDDY_ROOT2}/${group.id}`;
@@ -703,6 +711,21 @@ var STATUS_LABELS = {
   complete: "Complete",
   archived: "Archived"
 };
+var MEMBER_STATUS_HINTS = {
+  idle: "Idle \u2014 waiting for assignment",
+  creating: "Creating \u2014 agent is being set up",
+  working: "Working \u2014 actively executing their deliverable",
+  blocked: "Blocked \u2014 waiting on a dependency or another member",
+  done: "Done \u2014 deliverable complete",
+  error: "Error \u2014 something went wrong during execution"
+};
+var STATUS_HINTS = {
+  idle: "Ready to configure. Add members, set a leader, then assign a mission.",
+  planning: "The group leader is awake and creating a plan. Other members are still sleeping.",
+  executing: "All assigned members are awake and working on their deliverables.",
+  complete: "All deliverables are done. The group has finished its mission.",
+  archived: "This group has been archived."
+};
 function statusColor(status) {
   switch (status) {
     case "executing":
@@ -795,7 +818,7 @@ function MemberCard({ api, member, onRemove, onSetLeader }) {
       ] }),
       /* @__PURE__ */ jsx("div", { style: { fontSize: 11, color: "var(--text-tertiary)", fontFamily: "var(--font-family)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }, children: member.projectName })
     ] }),
-    /* @__PURE__ */ jsx("span", { title: member.status, style: { fontSize: 13, color: memberStatusColor(member.status), fontWeight: 600 }, children: memberStatusIcon(member.status) }),
+    /* @__PURE__ */ jsx("span", { title: MEMBER_STATUS_HINTS[member.status] ?? member.status, style: { fontSize: 13, color: memberStatusColor(member.status), fontWeight: 600, cursor: "help" }, children: memberStatusIcon(member.status) }),
     /* @__PURE__ */ jsxs("div", { style: { display: "flex", gap: 4 }, children: [
       !member.isLeader && /* @__PURE__ */ jsx("button", { onClick: () => onSetLeader(member.id), title: "Make leader", style: { background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: 11, padding: "2px 4px", borderRadius: 4 }, children: "\u2605" }),
       /* @__PURE__ */ jsx("button", { onClick: () => onRemove(member.id), title: "Remove member", style: { background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: 12, padding: "2px 4px", borderRadius: 4 }, children: "x" })
@@ -841,23 +864,22 @@ function AddMemberDialog({ api, existingAgentIds, onAdd, onCancel }) {
     ] })
   ] });
 }
-function MissionInput({ onSubmit, disabled, hasLeader, memberCount }) {
-  const [text, setText] = useState("");
-  const canSubmit = text.trim().length > 0 && hasLeader && memberCount >= 1 && !disabled;
+function MissionInput({ onSubmit, disabled, hasLeader, memberCount, existingMission, error, submitting }) {
+  const [text, setText] = useState(existingMission ?? "");
+  const canSubmit = text.trim().length > 0 && hasLeader && memberCount >= 1 && !disabled && !submitting;
   let hint = "";
   if (memberCount === 0) hint = "Add at least one member before assigning work.";
   else if (!hasLeader) hint = "Designate a group leader before assigning work.";
   else if (disabled) hint = "Group is already planning or executing.";
   return /* @__PURE__ */ jsxs("div", { style: { marginBottom: 20 }, children: [
-    /* @__PURE__ */ jsx("h3", { style: { margin: "0 0 8px 0", fontSize: 13, fontWeight: 600, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.05em", fontFamily: "var(--font-family)" }, children: "Assign Work" }),
-    /* @__PURE__ */ jsx("textarea", { value: text, onChange: (e) => setText(e.target.value), placeholder: "Describe what you want this group to accomplish...", rows: 4, disabled, style: { width: "100%", padding: "10px 12px", fontSize: 13, borderRadius: 6, border: "1px solid var(--border-primary)", background: disabled ? "var(--bg-surface)" : "var(--bg-primary)", color: "var(--text-primary)", fontFamily: "var(--font-family)", resize: "vertical", boxSizing: "border-box", lineHeight: 1.5, opacity: disabled ? 0.6 : 1 } }),
+    /* @__PURE__ */ jsx("h3", { style: { margin: "0 0 4px 0", fontSize: 13, fontWeight: 600, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.05em", fontFamily: "var(--font-family)" }, children: "Assign Work" }),
+    /* @__PURE__ */ jsx("div", { style: { fontSize: 11, color: "var(--text-tertiary)", fontFamily: "var(--font-family)", marginBottom: 8, lineHeight: 1.4 }, children: "Describe what the group should accomplish. When you start, the group leader will wake up first to create a plan. After you approve the plan, all members will be assigned tasks and begin working." }),
+    /* @__PURE__ */ jsx("textarea", { value: text, onChange: (e) => setText(e.target.value), placeholder: "Describe what you want this group to accomplish...", rows: 4, disabled: disabled || submitting, style: { width: "100%", padding: "10px 12px", fontSize: 13, borderRadius: 6, border: `1px solid ${error ? "var(--border-error, var(--text-error))" : "var(--border-primary)"}`, background: disabled ? "var(--bg-surface)" : "var(--bg-primary)", color: "var(--text-primary)", fontFamily: "var(--font-family)", resize: "vertical", boxSizing: "border-box", lineHeight: 1.5, opacity: disabled ? 0.6 : 1 } }),
     hint && /* @__PURE__ */ jsx("div", { style: { fontSize: 11, color: "var(--text-tertiary)", marginTop: 4, fontFamily: "var(--font-family)" }, children: hint }),
+    error && /* @__PURE__ */ jsx("div", { style: { fontSize: 12, color: "var(--text-error)", marginTop: 6, fontFamily: "var(--font-family)", padding: "8px 10px", borderRadius: 4, background: "var(--bg-error, rgba(255,0,0,0.06))", border: "1px solid var(--border-error, var(--text-error))" }, children: error }),
     /* @__PURE__ */ jsx("div", { style: { display: "flex", justifyContent: "flex-end", marginTop: 8 }, children: /* @__PURE__ */ jsx("button", { onClick: () => {
-      if (canSubmit) {
-        onSubmit(text.trim());
-        setText("");
-      }
-    }, disabled: !canSubmit, style: { padding: "8px 18px", fontSize: 13, fontWeight: 600, borderRadius: 6, border: "1px solid var(--border-accent)", background: canSubmit ? "var(--bg-accent)" : "var(--bg-surface)", color: canSubmit ? "var(--text-accent)" : "var(--text-muted)", cursor: canSubmit ? "pointer" : "not-allowed", fontFamily: "var(--font-family)" }, children: "Start Mission" }) })
+      if (canSubmit) onSubmit(text.trim());
+    }, disabled: !canSubmit, style: { padding: "8px 18px", fontSize: 13, fontWeight: 600, borderRadius: 6, border: "1px solid var(--border-accent)", background: canSubmit ? "var(--bg-accent)" : "var(--bg-surface)", color: canSubmit ? "var(--text-accent)" : "var(--text-muted)", cursor: canSubmit ? "pointer" : "not-allowed", fontFamily: "var(--font-family)" }, children: submitting ? "Starting..." : existingMission ? "Retry Mission" : "Start Mission" }) })
   ] });
 }
 function PlanView({ group }) {
@@ -898,7 +920,14 @@ function GroupList({ api, groups, onSelect, onCreate, onDelete }) {
       /* @__PURE__ */ jsx("button", { onClick: onCreate, style: { background: "var(--bg-accent)", color: "var(--text-accent)", border: "1px solid var(--border-accent)", borderRadius: 6, padding: "6px 14px", fontSize: 13, fontWeight: 500, cursor: "pointer", fontFamily: "var(--font-family)" }, children: "+ New Group" })
     ] }),
     /* @__PURE__ */ jsxs("div", { style: { flex: 1, overflow: "auto", padding: "8px 12px" }, children: [
-      groups.length === 0 && /* @__PURE__ */ jsx("div", { style: { textAlign: "center", padding: "48px 24px", color: "var(--text-tertiary)", fontSize: 14, fontFamily: "var(--font-family)" }, children: "No buddy groups yet. Create one to get started." }),
+      groups.length === 0 && /* @__PURE__ */ jsxs("div", { style: { textAlign: "center", padding: "48px 24px", color: "var(--text-tertiary)", fontFamily: "var(--font-family)" }, children: [
+        /* @__PURE__ */ jsx("div", { style: { fontSize: 14, marginBottom: 8 }, children: "No buddy groups yet." }),
+        /* @__PURE__ */ jsxs("div", { style: { fontSize: 12, lineHeight: 1.5 }, children: [
+          "Buddy groups let you coordinate agents across projects.",
+          /* @__PURE__ */ jsx("br", {}),
+          "Create a group, add agents, and assign a mission to get started."
+        ] })
+      ] }),
       groups.map((group) => /* @__PURE__ */ jsxs("div", { onClick: () => onSelect(group), style: { padding: "14px 16px", marginBottom: 6, borderRadius: 8, border: "1px solid var(--border-primary)", cursor: "pointer", background: "var(--bg-primary)" }, children: [
         /* @__PURE__ */ jsxs("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between" }, children: [
           /* @__PURE__ */ jsx("span", { style: { fontSize: 14, fontWeight: 600, color: "var(--text-primary)", fontFamily: "var(--font-mono)" }, children: group.name }),
@@ -920,10 +949,12 @@ function GroupList({ api, groups, onSelect, onCreate, onDelete }) {
     ] })
   ] });
 }
-function GroupDetail({ api, group, store, plannerRef, onBack, onGroupUpdated }) {
+function GroupDetail({ api, group, store, plannerRef, sharedDirRef, onBack, onGroupUpdated }) {
   const [editing, setEditing] = useState(false);
   const [nameInput, setNameInput] = useState(group.name);
   const [showAddMember, setShowAddMember] = useState(false);
+  const [missionError, setMissionError] = useState(null);
+  const [missionSubmitting, setMissionSubmitting] = useState(false);
   const isActive = group.status === "planning" || group.status === "executing";
   const handleRename = useCallback(async () => {
     if (nameInput.trim() && nameInput.trim() !== group.name) {
@@ -955,19 +986,27 @@ function GroupDetail({ api, group, store, plannerRef, onBack, onGroupUpdated }) 
   }, [group.id, store, onGroupUpdated]);
   const handleAssignMission = useCallback(async (mission) => {
     if (!plannerRef) {
-      api.ui.showError("Orchestration not available");
+      setMissionError("Orchestration not available. Try reopening the panel.");
       return;
     }
+    setMissionError(null);
+    setMissionSubmitting(true);
     try {
       group.mission = mission;
       await store.save(group);
       onGroupUpdated({ ...group });
       const updated = await plannerRef.startPlanning(group);
       onGroupUpdated(updated);
-      api.ui.showNotice(`Mission assigned to ${group.name}. Leader is planning...`);
+      api.ui.showNotice(`Leader "${updated.members.find((m) => m.isLeader)?.agentName}" is now planning...`);
     } catch (err) {
-      api.logging.error("Failed to start planning", { error: String(err) });
-      api.ui.showError(`Failed to start mission: ${err}`);
+      const msg = err instanceof Error ? err.message : String(err);
+      api.logging.error("Failed to start planning", { error: msg });
+      setMissionError(`Failed to start mission: ${msg}`);
+      group.status = "idle";
+      await store.save(group);
+      onGroupUpdated({ ...group });
+    } finally {
+      setMissionSubmitting(false);
     }
   }, [api, group, store, plannerRef, onGroupUpdated]);
   const handleApprovePlan = useCallback(async () => {
@@ -977,12 +1016,14 @@ function GroupDetail({ api, group, store, plannerRef, onBack, onGroupUpdated }) 
       onGroupUpdated(updated);
       updated = await plannerRef.startExecution(updated);
       onGroupUpdated(updated);
-      api.ui.showNotice(`Execution started for ${group.name}`);
+      api.ui.showNotice(`Execution started \u2014 ${updated.members.length} agent(s) are working.`);
     } catch (err) {
-      api.logging.error("Failed to approve plan", { error: String(err) });
-      api.ui.showError(`Failed to start execution: ${err}`);
+      const msg = err instanceof Error ? err.message : String(err);
+      api.logging.error("Failed to approve plan", { error: msg });
+      api.ui.showError(`Failed to start execution: ${msg}`);
     }
   }, [api, group, plannerRef, onGroupUpdated]);
+  const leader = group.members.find((m) => m.isLeader);
   return /* @__PURE__ */ jsxs("div", { style: { display: "flex", flexDirection: "column", height: "100%" }, children: [
     /* @__PURE__ */ jsxs("div", { style: { display: "flex", alignItems: "center", gap: 10, padding: "16px 20px 12px", borderBottom: "1px solid var(--border-primary)" }, children: [
       /* @__PURE__ */ jsx("button", { onClick: onBack, style: { background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer", fontSize: 16, padding: "0 4px", fontFamily: "var(--font-family)" }, children: "\u2190" }),
@@ -996,11 +1037,23 @@ function GroupDetail({ api, group, store, plannerRef, onBack, onGroupUpdated }) 
         setNameInput(group.name);
         setEditing(true);
       }, title: "Click to rename", style: { margin: 0, flex: 1, fontSize: 16, fontWeight: 600, color: "var(--text-primary)", fontFamily: "var(--font-mono)", cursor: "text" }, children: group.name }),
-      /* @__PURE__ */ jsx("span", { style: { fontSize: 11, fontWeight: 500, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.05em", padding: "3px 8px", borderRadius: 4, background: "var(--bg-surface)" }, children: STATUS_LABELS[group.status] ?? group.status })
+      /* @__PURE__ */ jsx("span", { title: STATUS_HINTS[group.status] ?? "", style: { fontSize: 11, fontWeight: 500, color: statusColor(group.status), textTransform: "uppercase", letterSpacing: "0.05em", padding: "3px 8px", borderRadius: 4, background: "var(--bg-surface)", cursor: "help" }, children: STATUS_LABELS[group.status] ?? group.status })
     ] }),
     /* @__PURE__ */ jsxs("div", { style: { flex: 1, overflow: "auto", padding: "16px 20px" }, children: [
+      group.status === "idle" && group.members.length === 0 && /* @__PURE__ */ jsxs("div", { style: { fontSize: 12, color: "var(--text-tertiary)", fontFamily: "var(--font-family)", lineHeight: 1.5, padding: "12px 14px", borderRadius: 6, background: "var(--bg-surface)", marginBottom: 16 }, children: [
+        /* @__PURE__ */ jsx("div", { style: { fontWeight: 600, color: "var(--text-secondary)", marginBottom: 4 }, children: "How Buddy Groups work" }),
+        "1. Add durable agents from your projects as members",
+        /* @__PURE__ */ jsx("br", {}),
+        "2. Designate one as the group leader (first added is auto-leader)",
+        /* @__PURE__ */ jsx("br", {}),
+        "3. Write a mission describing what the group should accomplish",
+        /* @__PURE__ */ jsx("br", {}),
+        "4. The leader wakes up and creates a plan, then you approve it",
+        /* @__PURE__ */ jsx("br", {}),
+        "5. All members receive assignments and begin working in parallel"
+      ] }),
       /* @__PURE__ */ jsxs("div", { style: { marginBottom: 20 }, children: [
-        /* @__PURE__ */ jsxs("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }, children: [
+        /* @__PURE__ */ jsxs("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }, children: [
           /* @__PURE__ */ jsxs("h3", { style: { margin: 0, fontSize: 13, fontWeight: 600, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.05em", fontFamily: "var(--font-family)" }, children: [
             "Members (",
             group.members.length,
@@ -1008,19 +1061,37 @@ function GroupDetail({ api, group, store, plannerRef, onBack, onGroupUpdated }) 
           ] }),
           !isActive && /* @__PURE__ */ jsx("button", { onClick: () => setShowAddMember(true), style: { background: "none", border: "1px solid var(--border-primary)", color: "var(--text-secondary)", borderRadius: 4, padding: "4px 10px", fontSize: 12, cursor: "pointer", fontFamily: "var(--font-family)" }, children: "+ Add" })
         ] }),
+        group.members.length > 0 && !isActive && /* @__PURE__ */ jsx("div", { style: { fontSize: 11, color: "var(--text-tertiary)", fontFamily: "var(--font-family)", marginBottom: 8 }, children: "Click the star to change the leader. The leader creates the plan; other members execute it." }),
         showAddMember && /* @__PURE__ */ jsx(AddMemberDialog, { api, existingAgentIds: group.members.map((m) => m.agentId), onAdd: handleAddMember, onCancel: () => setShowAddMember(false) }),
         group.members.length === 0 && !showAddMember && /* @__PURE__ */ jsx("div", { style: { fontSize: 12, color: "var(--text-tertiary)", fontFamily: "var(--font-family)", padding: "12px 0" }, children: "No members yet. Add durable agents from your projects." }),
         group.members.map((m) => /* @__PURE__ */ jsx(MemberCard, { api, member: m, onRemove: handleRemoveMember, onSetLeader: handleSetLeader }, m.id))
       ] }),
-      group.status === "idle" && /* @__PURE__ */ jsx(MissionInput, { onSubmit: handleAssignMission, disabled: isActive, hasLeader: !!group.leaderId, memberCount: group.members.length }),
+      group.status === "idle" && /* @__PURE__ */ jsx(
+        MissionInput,
+        {
+          onSubmit: handleAssignMission,
+          disabled: isActive,
+          hasLeader: !!group.leaderId,
+          memberCount: group.members.length,
+          existingMission: group.mission,
+          error: missionError,
+          submitting: missionSubmitting
+        }
+      ),
       group.mission && group.status !== "idle" && /* @__PURE__ */ jsxs("div", { style: { marginBottom: 20 }, children: [
         /* @__PURE__ */ jsx("h3", { style: { margin: "0 0 8px 0", fontSize: 13, fontWeight: 600, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.05em", fontFamily: "var(--font-family)" }, children: "Mission" }),
         /* @__PURE__ */ jsx("div", { style: { fontSize: 13, color: "var(--text-primary)", fontFamily: "var(--font-family)", background: "var(--bg-surface)", padding: "12px 14px", borderRadius: 6, lineHeight: 1.5 }, children: group.mission })
       ] }),
-      group.status === "planning" && !group.plan && /* @__PURE__ */ jsxs("div", { style: { padding: 16, borderRadius: 8, border: "1px solid var(--border-primary)", background: "var(--bg-info)", marginBottom: 20 }, children: [
-        /* @__PURE__ */ jsx("div", { style: { fontSize: 13, color: "var(--text-primary)", fontFamily: "var(--font-family)", marginBottom: 8 }, children: "The group leader is creating a plan. Once ready, click below to approve." }),
+      group.status === "planning" && !group.plan && /* @__PURE__ */ jsxs("div", { style: { padding: 16, borderRadius: 8, border: "1px solid var(--border-primary)", background: "var(--bg-info, var(--bg-surface))", marginBottom: 20 }, children: [
+        /* @__PURE__ */ jsx("div", { style: { fontSize: 13, fontWeight: 600, color: "var(--text-primary)", fontFamily: "var(--font-family)", marginBottom: 6 }, children: "Waiting for plan" }),
+        /* @__PURE__ */ jsxs("div", { style: { fontSize: 12, color: "var(--text-secondary)", fontFamily: "var(--font-family)", marginBottom: 10, lineHeight: 1.4 }, children: [
+          "The leader (",
+          leader?.agentName ?? "unknown",
+          ") has been woken and is creating a plan. Once the leader writes the plan, click below to review and approve it. After approval, all members will be assigned tasks and woken to begin work."
+        ] }),
         /* @__PURE__ */ jsx("button", { onClick: handleApprovePlan, style: { padding: "8px 18px", fontSize: 13, fontWeight: 600, borderRadius: 6, border: "1px solid var(--border-accent)", background: "var(--bg-accent)", color: "var(--text-accent)", cursor: "pointer", fontFamily: "var(--font-family)" }, children: "Check for Plan & Approve" })
       ] }),
+      group.status === "executing" && /* @__PURE__ */ jsx("div", { style: { fontSize: 12, color: "var(--text-tertiary)", fontFamily: "var(--font-family)", marginBottom: 12, lineHeight: 1.4, padding: "8px 12px", borderRadius: 6, background: "var(--bg-surface)" }, children: "Members are working on their assignments. Status updates appear automatically as agents check in via the shared directory." }),
       /* @__PURE__ */ jsx(PlanView, { group })
     ] })
   ] });
@@ -1110,9 +1181,14 @@ function MainPanel({ api }) {
   };
   const handleDelete = async (groupId) => {
     try {
-      const confirmed = await api.ui.showConfirm("Delete this buddy group?");
+      const confirmed = await api.ui.showConfirm("Delete this buddy group and its shared directory?");
       if (!confirmed) return;
       monitor?.stop(groupId);
+      const sd = sharedDir ?? createSharedDirectory(api.files);
+      try {
+        await sd.remove(groupId);
+      } catch {
+      }
       await store.remove(groupId);
       setGroups((prev) => prev.filter((g) => g.id !== groupId));
       if (selectedGroupId === groupId) setSelectedGroupId(null);
@@ -1125,7 +1201,7 @@ function MainPanel({ api }) {
     if (updated.status === "planning" || updated.status === "executing") monitor?.start(updated.id);
   };
   const selectedGroup = groups.find((g) => g.id === selectedGroupId);
-  return /* @__PURE__ */ jsx("div", { style: { ...themeStyle, height: "100%", background: "var(--bg-primary)", color: "var(--text-primary)" }, children: selectedGroup ? /* @__PURE__ */ jsx(GroupDetail, { api, group: selectedGroup, store, plannerRef: plannerRef.current, onBack: () => setSelectedGroupId(null), onGroupUpdated: handleGroupUpdated }) : /* @__PURE__ */ jsx(GroupList, { api, groups, onSelect: (g) => setSelectedGroupId(g.id), onCreate: handleCreate, onDelete: handleDelete }) });
+  return /* @__PURE__ */ jsx("div", { style: { ...themeStyle, height: "100%", background: "var(--bg-primary)", color: "var(--text-primary)" }, children: selectedGroup ? /* @__PURE__ */ jsx(GroupDetail, { api, group: selectedGroup, store, plannerRef: plannerRef.current, sharedDirRef: sharedDir, onBack: () => setSelectedGroupId(null), onGroupUpdated: handleGroupUpdated }) : /* @__PURE__ */ jsx(GroupList, { api, groups, onSelect: (g) => setSelectedGroupId(g.id), onCreate: handleCreate, onDelete: handleDelete }) });
 }
 export {
   MainPanel,

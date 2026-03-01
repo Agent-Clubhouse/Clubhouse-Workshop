@@ -5,7 +5,8 @@
 import type { AgentConfigAPI } from "@clubhouse/plugin-types";
 import type { BuddyGroup, GroupMember } from "../types";
 
-const BUDDY_ROOT = "~/.clubhouse/buddy-system";
+const HOME = process.env.HOME || process.env.USERPROFILE || "/tmp";
+const BUDDY_ROOT = `${HOME}/.clubhouse/buddy-system`;
 
 function buildGroupSkill(group: BuddyGroup, member: GroupMember): string {
   const leader = group.members.find(m => m.isLeader);

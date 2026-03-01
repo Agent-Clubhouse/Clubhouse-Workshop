@@ -5,7 +5,8 @@
 import type { FilesAPI } from "@clubhouse/plugin-types";
 import type { BuddyGroup, GroupMember, Deliverable } from "../types";
 
-const BUDDY_ROOT = "~/.clubhouse/buddy-system";
+const HOME = process.env.HOME || process.env.USERPROFILE || "/tmp";
+const BUDDY_ROOT = `${HOME}/.clubhouse/buddy-system`;
 
 function groupDir(groupId: string): string {
   return `${BUDDY_ROOT}/${groupId}`;
@@ -14,6 +15,8 @@ function groupDir(groupId: string): string {
 export interface SharedDirectory {
   /** Create the full shared directory structure for a group. */
   create(group: BuddyGroup): Promise<void>;
+  /** Remove the shared directory for a group. */
+  remove(groupId: string): Promise<void>;
   /** Write the leader's plan to the shared directory. */
   writePlan(groupId: string, planContent: string): Promise<void>;
   /** Read the plan from the shared directory. */
@@ -47,6 +50,14 @@ export function createSharedDirectory(files: FilesAPI): SharedDirectory {
     // Seed shared files
     await files.writeFile(`${base}/shared/decisions.md`, "# Design Decisions\n\n");
     await files.writeFile(`${base}/shared/interfaces.md`, "# Shared Interfaces\n\n");
+  }
+
+  async function remove(groupId: string): Promise<void> {
+    try {
+      await files.delete(groupDir(groupId));
+    } catch {
+      // Directory may not exist; ignore
+    }
   }
 
   async function writePlan(groupId: string, planContent: string): Promise<void> {
@@ -108,5 +119,5 @@ export function createSharedDirectory(files: FilesAPI): SharedDirectory {
     return groupDir(groupId);
   }
 
-  return { create, writePlan, readPlan, writeAssignment, readMemberStatus, watchGlob, groupPath };
+  return { create, remove, writePlan, readPlan, writeAssignment, readMemberStatus, watchGlob, groupPath };
 }
