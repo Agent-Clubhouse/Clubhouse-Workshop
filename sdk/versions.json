@@ -1,5 +1,5 @@
 {
-  "latest": "0.6",
+  "latest": "0.7",
   "minimum": "0.6",
   "versions": {
     "0.6": {
@@ -9,6 +9,14 @@
       "removalTarget": null,
       "sdkPath": "sdk/v0.6",
       "notes": "Adds ThemeAPI for reading the active theme and subscribing to theme changes. Adds SoundsAPI for custom notification sound packs. Adds AgentConfigAPI for plugin-driven agent configuration (skills, templates, instructions, permissions, MCP servers). Extends CommandsAPI with keyboard binding support. Extends NavigationAPI with popOutAgent, toggleSidebar, and toggleAccessoryPanel. Adds orchestrator support to AgentsAPI (listOrchestrators, checkOrchestratorAvailability, orchestrator/freeAgentMode options on runQuick). Adds agents.free-agent-mode permission."
+    },
+    "0.7": {
+      "status": "active",
+      "released": "2026-02-28",
+      "deprecated": null,
+      "removalTarget": null,
+      "sdkPath": "sdk/v0.7",
+      "notes": "Adds plugin themes (contributes.themes), global dialog actions (contributes.globalDialog, DialogPanel), manifest-declared agent config (contributes.agentConfig), file watching (files.watch permission, FilesAPI.watch), pack plugin kind, and 'creating' agent status. Removes HubAPI.refresh()."
     }
   }
 }
