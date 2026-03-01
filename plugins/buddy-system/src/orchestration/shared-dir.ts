@@ -5,14 +5,17 @@
 import type { FilesAPI } from "@clubhouse/plugin-types";
 import type { BuddyGroup, GroupMember, Deliverable } from "../types";
 
-const HOME = process.env.HOME || process.env.USERPROFILE || "/tmp";
-const BUDDY_ROOT = `${HOME}/.clubhouse/buddy-system`;
+const FALLBACK_ROOT = `${process.env.HOME || process.env.USERPROFILE || "/tmp"}/.clubhouse/buddy-system`;
 
-function groupDir(groupId: string): string {
-  return `${BUDDY_ROOT}/${groupId}`;
+function resolveRoot(files: FilesAPI): string {
+  // Prefer the plugin's own data directory (auto-cleaned on uninstall).
+  // Falls back to ~/.clubhouse/buddy-system/ if dataDir is not yet available.
+  return files.dataDir ? `${files.dataDir}/groups` : FALLBACK_ROOT;
 }
 
 export interface SharedDirectory {
+  /** The absolute root path where group directories are stored. */
+  readonly root: string;
   /** Create the full shared directory structure for a group. */
   create(group: BuddyGroup): Promise<void>;
   /** Remove the shared directory for a group. */
@@ -40,8 +43,14 @@ export interface MemberStatusFile {
 }
 
 export function createSharedDirectory(files: FilesAPI): SharedDirectory {
+  const root = resolveRoot(files);
+
+  function gdir(groupId: string): string {
+    return `${root}/${groupId}`;
+  }
+
   async function create(group: BuddyGroup): Promise<void> {
-    const base = groupDir(group.id);
+    const base = gdir(group.id);
     await files.mkdir(base);
     await files.mkdir(`${base}/assignments`);
     await files.mkdir(`${base}/status`);
@@ -54,19 +63,19 @@ export function createSharedDirectory(files: FilesAPI): SharedDirectory {
 
   async function remove(groupId: string): Promise<void> {
     try {
-      await files.delete(groupDir(groupId));
+      await files.delete(gdir(groupId));
     } catch {
       // Directory may not exist; ignore
     }
   }
 
   async function writePlan(groupId: string, planContent: string): Promise<void> {
-    await files.writeFile(`${groupDir(groupId)}/plan.md`, planContent);
+    await files.writeFile(`${gdir(groupId)}/plan.md`, planContent);
   }
 
   async function readPlan(groupId: string): Promise<string | null> {
     try {
-      return await files.readFile(`${groupDir(groupId)}/plan.md`);
+      return await files.readFile(`${gdir(groupId)}/plan.md`);
     } catch {
       return null;
     }
@@ -77,6 +86,7 @@ export function createSharedDirectory(files: FilesAPI): SharedDirectory {
     member: GroupMember,
     deliverable: Deliverable,
   ): Promise<void> {
+    const base = gdir(groupId);
     const content = [
       `# Assignment: ${deliverable.title}`,
       "",
@@ -93,18 +103,18 @@ export function createSharedDirectory(files: FilesAPI): SharedDirectory {
         : "",
       "## Communication",
       "",
-      `Update your status at: ${groupDir(groupId)}/status/${member.id}.json`,
-      `Write comms to: ${groupDir(groupId)}/comms/`,
-      `Check shared decisions: ${groupDir(groupId)}/shared/decisions.md`,
-      `Check shared interfaces: ${groupDir(groupId)}/shared/interfaces.md`,
+      `Update your status at: ${base}/status/${member.id}.json`,
+      `Write comms to: ${base}/comms/`,
+      `Check shared decisions: ${base}/shared/decisions.md`,
+      `Check shared interfaces: ${base}/shared/interfaces.md`,
     ].join("\n");
 
-    await files.writeFile(`${groupDir(groupId)}/assignments/${member.id}.md`, content);
+    await files.writeFile(`${base}/assignments/${member.id}.md`, content);
   }
 
   async function readMemberStatus(groupId: string, memberId: string): Promise<MemberStatusFile | null> {
     try {
-      const raw = await files.readFile(`${groupDir(groupId)}/status/${memberId}.json`);
+      const raw = await files.readFile(`${gdir(groupId)}/status/${memberId}.json`);
       return JSON.parse(raw) as MemberStatusFile;
     } catch {
       return null;
@@ -112,12 +122,12 @@ export function createSharedDirectory(files: FilesAPI): SharedDirectory {
   }
 
   function watchGlob(groupId: string): string {
-    return `${groupDir(groupId)}/**/*`;
+    return `${gdir(groupId)}/**/*`;
   }
 
   function groupPath(groupId: string): string {
-    return groupDir(groupId);
+    return gdir(groupId);
   }
 
-  return { create, remove, writePlan, readPlan, writeAssignment, readMemberStatus, watchGlob, groupPath };
+  return { root, create, remove, writePlan, readPlan, writeAssignment, readMemberStatus, watchGlob, groupPath };
 }

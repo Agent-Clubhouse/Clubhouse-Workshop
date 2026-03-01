@@ -25,7 +25,7 @@ describe("PlannerOrchestrator", () => {
     });
     store = createGroupStore(api.storage.global);
     sharedDir = createSharedDirectory(api.files);
-    injector = createConfigInjector(api.agentConfig);
+    injector = createConfigInjector(api.agentConfig, sharedDir.root);
     planner = createPlanner(api, store, sharedDir, injector);
   });
 
@@ -213,7 +213,7 @@ describe("ConfigInjector", () => {
 
   beforeEach(() => {
     api = createMockAPI();
-    injector = createConfigInjector(api.agentConfig);
+    injector = createConfigInjector(api.agentConfig, "/tmp/test-buddy-system");
   });
 
   it("injects skill, instructions, and permissions", async () => {

@@ -434,6 +434,13 @@ export interface StorageAPI {
 }
 
 export interface FilesAPI {
+  /**
+   * The absolute filesystem path to this plugin's data directory.
+   * All relative paths used in other FilesAPI methods resolve against this root.
+   * Plugins can pass this path to agents so they know where to read/write shared files.
+   * The directory is created automatically and cleaned up on plugin uninstall.
+   */
+  readonly dataDir: string;
   readTree(relativePath?: string, options?: { includeHidden?: boolean; depth?: number }): Promise<FileNode[]>;
   readFile(relativePath: string): Promise<string>;
   readBinary(relativePath: string): Promise<string>;

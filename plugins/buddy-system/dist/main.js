@@ -178,14 +178,17 @@ function createGroupStore(storage) {
 }
 
 // src/orchestration/shared-dir.ts
-var HOME = process.env.HOME || process.env.USERPROFILE || "/tmp";
-var BUDDY_ROOT = `${HOME}/.clubhouse/buddy-system`;
-function groupDir(groupId) {
-  return `${BUDDY_ROOT}/${groupId}`;
+var FALLBACK_ROOT = `${process.env.HOME || process.env.USERPROFILE || "/tmp"}/.clubhouse/buddy-system`;
+function resolveRoot(files) {
+  return files.dataDir ? `${files.dataDir}/groups` : FALLBACK_ROOT;
 }
 function createSharedDirectory(files) {
+  const root = resolveRoot(files);
+  function gdir(groupId) {
+    return `${root}/${groupId}`;
+  }
   async function create(group) {
-    const base = groupDir(group.id);
+    const base = gdir(group.id);
     await files.mkdir(base);
     await files.mkdir(`${base}/assignments`);
     await files.mkdir(`${base}/status`);
@@ -196,21 +199,22 @@ function createSharedDirectory(files) {
   }
   async function remove(groupId) {
     try {
-      await files.delete(groupDir(groupId));
+      await files.delete(gdir(groupId));
     } catch {
     }
   }
   async function writePlan(groupId, planContent) {
-    await files.writeFile(`${groupDir(groupId)}/plan.md`, planContent);
+    await files.writeFile(`${gdir(groupId)}/plan.md`, planContent);
   }
   async function readPlan(groupId) {
     try {
-      return await files.readFile(`${groupDir(groupId)}/plan.md`);
+      return await files.readFile(`${gdir(groupId)}/plan.md`);
     } catch {
       return null;
     }
   }
   async function writeAssignment(groupId, member, deliverable) {
+    const base = gdir(groupId);
     const content = [
       `# Assignment: ${deliverable.title}`,
       "",
@@ -228,28 +232,28 @@ This deliverable depends on: ${deliverable.dependencies.join(", ")}
 ` : "",
       "## Communication",
       "",
-      `Update your status at: ${groupDir(groupId)}/status/${member.id}.json`,
-      `Write comms to: ${groupDir(groupId)}/comms/`,
-      `Check shared decisions: ${groupDir(groupId)}/shared/decisions.md`,
-      `Check shared interfaces: ${groupDir(groupId)}/shared/interfaces.md`
+      `Update your status at: ${base}/status/${member.id}.json`,
+      `Write comms to: ${base}/comms/`,
+      `Check shared decisions: ${base}/shared/decisions.md`,
+      `Check shared interfaces: ${base}/shared/interfaces.md`
     ].join("\n");
-    await files.writeFile(`${groupDir(groupId)}/assignments/${member.id}.md`, content);
+    await files.writeFile(`${base}/assignments/${member.id}.md`, content);
   }
   async function readMemberStatus(groupId, memberId) {
     try {
-      const raw = await files.readFile(`${groupDir(groupId)}/status/${memberId}.json`);
+      const raw = await files.readFile(`${gdir(groupId)}/status/${memberId}.json`);
       return JSON.parse(raw);
     } catch {
       return null;
     }
   }
   function watchGlob(groupId) {
-    return `${groupDir(groupId)}/**/*`;
+    return `${gdir(groupId)}/**/*`;
   }
   function groupPath(groupId) {
-    return groupDir(groupId);
+    return gdir(groupId);
   }
-  return { create, remove, writePlan, readPlan, writeAssignment, readMemberStatus, watchGlob, groupPath };
+  return { root, create, remove, writePlan, readPlan, writeAssignment, readMemberStatus, watchGlob, groupPath };
 }
 
 // src/orchestration/plan-parser.ts
@@ -513,11 +517,8 @@ function createGroupMonitor(api, store, sharedDir2, onEvent) {
 }
 
 // src/config/injector.ts
-var HOME2 = process.env.HOME || process.env.USERPROFILE || "/tmp";
-var BUDDY_ROOT2 = `${HOME2}/.clubhouse/buddy-system`;
-function buildGroupSkill(group, member) {
+function buildGroupSkill(group, member, groupDir) {
   const leader = group.members.find((m) => m.isLeader);
-  const groupDir2 = `${BUDDY_ROOT2}/${group.id}`;
   return `# Buddy System Member
 
 You are part of a buddy group: **${group.name}**.
@@ -525,16 +526,16 @@ You are part of a buddy group: **${group.name}**.
 ## Your Role
 - Member ID: ${member.id}
 - Group Leader: ${leader?.agentName ?? "unassigned"} (${leader?.projectName ?? "unknown"})
-- Your Assignment: See \`${groupDir2}/assignments/${member.id}.md\`
+- Your Assignment: See \`${groupDir}/assignments/${member.id}.md\`
 
 ## Work Loop
 
 Follow this loop for every unit of work (a function, a file, a logical step):
 
-1. **Read** \u2014 Check \`${groupDir2}/comms/\` and \`shared/\` for updates from other members. Look for new decisions, interface changes, or messages that affect your work.
+1. **Read** \u2014 Check \`${groupDir}/comms/\` and \`shared/\` for updates from other members. Look for new decisions, interface changes, or messages that affect your work.
 2. **Work** \u2014 Implement the next piece of your assignment. Commit your code frequently with clear, descriptive messages.
 3. **Write status** \u2014 After each commit, update your status file:
-   \`${groupDir2}/status/${member.id}.json\`
+   \`${groupDir}/status/${member.id}.json\`
 4. **Share** \u2014 If you made a decision, discovered something, or changed an interface that affects other members, write it to the appropriate shared file before continuing.
 5. **Repeat** \u2014 Go back to step 1.
 
@@ -542,7 +543,7 @@ Do NOT batch large amounts of work before checking in. The loop should be tight:
 
 ## Status Format
 
-Write to \`${groupDir2}/status/${member.id}.json\`:
+Write to \`${groupDir}/status/${member.id}.json\`:
 \`\`\`json
 {
   "status": "working",
@@ -557,13 +558,13 @@ Write to \`${groupDir2}/status/${member.id}.json\`:
 
 | Action | Path |
 |--------|------|
-| Read your assignment | \`${groupDir2}/assignments/${member.id}.md\` |
-| Update your status | \`${groupDir2}/status/${member.id}.json\` |
-| Read others' status | \`${groupDir2}/status/\` |
-| Read comms | \`${groupDir2}/comms/\` |
-| Write a message | \`${groupDir2}/comms/{timestamp}-${member.id}.md\` |
-| Log a design decision | Append to \`${groupDir2}/shared/decisions.md\` |
-| Update shared interfaces | \`${groupDir2}/shared/interfaces.md\` |
+| Read your assignment | \`${groupDir}/assignments/${member.id}.md\` |
+| Update your status | \`${groupDir}/status/${member.id}.json\` |
+| Read others' status | \`${groupDir}/status/\` |
+| Read comms | \`${groupDir}/comms/\` |
+| Write a message | \`${groupDir}/comms/{timestamp}-${member.id}.md\` |
+| Log a design decision | Append to \`${groupDir}/shared/decisions.md\` |
+| Update shared interfaces | \`${groupDir}/shared/interfaces.md\` |
 
 ## Rules
 - **Always** read the shared directory before starting a new unit of work
@@ -574,25 +575,26 @@ Write to \`${groupDir2}/status/${member.id}.json\`:
 - When all deliverables assigned to you are complete, set status to \`done\`
 `;
 }
-function buildInstructions(group, member) {
-  return `You are participating in a Buddy System group "${group.name}". Check your assignment at ~/.clubhouse/buddy-system/${group.id}/assignments/${member.id}.md and follow the buddy-system-mission skill for communication protocols.`;
+function buildInstructions(group, member, groupDir) {
+  return `You are participating in a Buddy System group "${group.name}". Check your assignment at ${groupDir}/assignments/${member.id}.md and follow the buddy-system-mission skill for communication protocols.`;
 }
-function buildPermissionRules(groupId) {
+function buildPermissionRules(groupDir, root) {
   return [
-    `Bash(read:~/.clubhouse/buddy-system/**)`,
-    `Bash(write:~/.clubhouse/buddy-system/${groupId}/**)`
+    `Bash(read:${root}/**)`,
+    `Bash(write:${groupDir}/**)`
   ];
 }
-function createConfigInjector(agentConfig) {
+function createConfigInjector(agentConfig, sharedRoot) {
   async function injectMemberConfig(group, member) {
+    const groupDir = `${sharedRoot}/${group.id}`;
     const opts = { projectId: member.projectId };
     await agentConfig.injectSkill(
       "buddy-system-mission",
-      buildGroupSkill(group, member),
+      buildGroupSkill(group, member, groupDir),
       opts
     );
-    await agentConfig.appendInstructions(buildInstructions(group, member), opts);
-    await agentConfig.addPermissionAllowRules(buildPermissionRules(group.id), opts);
+    await agentConfig.appendInstructions(buildInstructions(group, member, groupDir), opts);
+    await agentConfig.addPermissionAllowRules(buildPermissionRules(groupDir, sharedRoot), opts);
   }
   async function removeMemberConfig(member) {
     const opts = { projectId: member.projectId };
@@ -676,7 +678,7 @@ function activate(ctx, api) {
   api.logging.info("Buddy System plugin activated");
   groupStore = createGroupStore(api.storage.global);
   sharedDir = createSharedDirectory(api.files);
-  injector = createConfigInjector(api.agentConfig);
+  injector = createConfigInjector(api.agentConfig, sharedDir.root);
   planner = createPlanner(api, groupStore, sharedDir, injector);
   monitor = createGroupMonitor(api, groupStore, sharedDir, onMonitorEvent);
   const createCmd = api.commands.register("buddy-system.new-group", async () => {
@@ -1109,7 +1111,7 @@ function MainPanel({ api }) {
     }
     if (!plannerRef.current && storeRef.current) {
       const sd = sharedDir ?? createSharedDirectory(api.files);
-      const inj = injector ?? createConfigInjector(api.agentConfig);
+      const inj = injector ?? createConfigInjector(api.agentConfig, sd.root);
       plannerRef.current = createPlanner(api, storeRef.current, sd, inj);
     }
   }, [api]);

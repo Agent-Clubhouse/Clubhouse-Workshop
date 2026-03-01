@@ -48,7 +48,7 @@ export function activate(ctx: PluginContext, api: PluginAPI): void {
 
   groupStore = createGroupStore(api.storage.global);
   sharedDir = createSharedDirectory(api.files);
-  injector = createConfigInjector(api.agentConfig);
+  injector = createConfigInjector(api.agentConfig, sharedDir.root);
   planner = createPlanner(api, groupStore, sharedDir, injector);
   monitor = createGroupMonitor(api, groupStore, sharedDir, onMonitorEvent);
 
@@ -598,7 +598,7 @@ export function MainPanel({ api }: PanelProps) {
     }
     if (!plannerRef.current && storeRef.current) {
       const sd = sharedDir ?? createSharedDirectory(api.files);
-      const inj = injector ?? createConfigInjector(api.agentConfig);
+      const inj = injector ?? createConfigInjector(api.agentConfig, sd.root);
       plannerRef.current = createPlanner(api, storeRef.current, sd, inj);
     }
   }, [api]);

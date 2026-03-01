@@ -121,6 +121,7 @@ function createMockStorageAPI(): StorageAPI {
 
 function createMockFiles(): FilesAPI {
   const filesApi: FilesAPI = {
+    dataDir: "/tmp/test-plugin-data",
     readTree: createMockFn().mockResolvedValue([]) as unknown as FilesAPI["readTree"],
     readFile: createMockFn().mockResolvedValue("") as unknown as FilesAPI["readFile"],
     readBinary: createMockFn().mockResolvedValue("") as unknown as FilesAPI["readBinary"],

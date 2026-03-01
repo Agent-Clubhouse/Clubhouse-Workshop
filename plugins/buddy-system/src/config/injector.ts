@@ -5,12 +5,8 @@
 import type { AgentConfigAPI } from "@clubhouse/plugin-types";
 import type { BuddyGroup, GroupMember } from "../types";
 
-const HOME = process.env.HOME || process.env.USERPROFILE || "/tmp";
-const BUDDY_ROOT = `${HOME}/.clubhouse/buddy-system`;
-
-function buildGroupSkill(group: BuddyGroup, member: GroupMember): string {
+function buildGroupSkill(group: BuddyGroup, member: GroupMember, groupDir: string): string {
   const leader = group.members.find(m => m.isLeader);
-  const groupDir = `${BUDDY_ROOT}/${group.id}`;
 
   return `# Buddy System Member
 
@@ -69,14 +65,14 @@ Write to \`${groupDir}/status/${member.id}.json\`:
 `;
 }
 
-function buildInstructions(group: BuddyGroup, member: GroupMember): string {
-  return `You are participating in a Buddy System group "${group.name}". Check your assignment at ~/.clubhouse/buddy-system/${group.id}/assignments/${member.id}.md and follow the buddy-system-mission skill for communication protocols.`;
+function buildInstructions(group: BuddyGroup, member: GroupMember, groupDir: string): string {
+  return `You are participating in a Buddy System group "${group.name}". Check your assignment at ${groupDir}/assignments/${member.id}.md and follow the buddy-system-mission skill for communication protocols.`;
 }
 
-function buildPermissionRules(groupId: string): string[] {
+function buildPermissionRules(groupDir: string, root: string): string[] {
   return [
-    `Bash(read:~/.clubhouse/buddy-system/**)`,
-    `Bash(write:~/.clubhouse/buddy-system/${groupId}/**)`,
+    `Bash(read:${root}/**)`,
+    `Bash(write:${groupDir}/**)`,
   ];
 }
 
@@ -87,16 +83,17 @@ export interface ConfigInjector {
   removeMemberConfig(member: GroupMember): Promise<void>;
 }
 
-export function createConfigInjector(agentConfig: AgentConfigAPI): ConfigInjector {
+export function createConfigInjector(agentConfig: AgentConfigAPI, sharedRoot: string): ConfigInjector {
   async function injectMemberConfig(group: BuddyGroup, member: GroupMember): Promise<void> {
+    const groupDir = `${sharedRoot}/${group.id}`;
     const opts = { projectId: member.projectId };
     await agentConfig.injectSkill(
       "buddy-system-mission",
-      buildGroupSkill(group, member),
+      buildGroupSkill(group, member, groupDir),
       opts,
     );
-    await agentConfig.appendInstructions(buildInstructions(group, member), opts);
-    await agentConfig.addPermissionAllowRules(buildPermissionRules(group.id), opts);
+    await agentConfig.appendInstructions(buildInstructions(group, member, groupDir), opts);
+    await agentConfig.addPermissionAllowRules(buildPermissionRules(groupDir, sharedRoot), opts);
   }
 
   async function removeMemberConfig(member: GroupMember): Promise<void> {
