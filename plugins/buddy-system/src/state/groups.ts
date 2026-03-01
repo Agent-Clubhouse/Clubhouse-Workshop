@@ -10,7 +10,7 @@ const INDEX_KEY = "groups/index";
 function groupKey(id: string): string { return `groups/${id}`; }
 
 function uuid(): string {
-  return crypto.randomUUID();
+  return `${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
 export interface GroupStore {

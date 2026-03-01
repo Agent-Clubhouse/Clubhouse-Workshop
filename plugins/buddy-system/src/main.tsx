@@ -88,19 +88,29 @@ export function MainPanel({ api }: PanelProps) {
   }
 
   const handleCreate = async () => {
-    const group = await store.create();
-    setGroups(prev => [...prev, group]);
-    setSelectedGroupId(group.id);
-    api.logging.info("Group created", { groupId: group.id, name: group.name });
+    try {
+      const group = await store.create();
+      setGroups(prev => [...prev, group]);
+      setSelectedGroupId(group.id);
+      api.logging.info("Group created", { groupId: group.id, name: group.name });
+    } catch (err) {
+      api.logging.error("Failed to create group", { error: String(err) });
+      api.ui.showError(`Failed to create group: ${err}`);
+    }
   };
 
   const handleDelete = async (groupId: string) => {
-    const confirmed = await api.ui.showConfirm("Delete this buddy group?");
-    if (!confirmed) return;
-    await store.remove(groupId);
-    setGroups(prev => prev.filter(g => g.id !== groupId));
-    if (selectedGroupId === groupId) setSelectedGroupId(null);
-    api.logging.info("Group deleted", { groupId });
+    try {
+      const confirmed = await api.ui.showConfirm("Delete this buddy group?");
+      if (!confirmed) return;
+      await store.remove(groupId);
+      setGroups(prev => prev.filter(g => g.id !== groupId));
+      if (selectedGroupId === groupId) setSelectedGroupId(null);
+      api.logging.info("Group deleted", { groupId });
+    } catch (err) {
+      api.logging.error("Failed to delete group", { error: String(err) });
+      api.ui.showError(`Failed to delete group: ${err}`);
+    }
   };
 
   const handleGroupUpdated = (updated: BuddyGroup) => {
