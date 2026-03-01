@@ -18,7 +18,8 @@
   ],
   "scripts": {
     "build": "tsup src/index.ts --format cjs,esm --dts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {
     "@clubhouse/plugin-types": "file:../plugin-types"
@@ -35,7 +36,8 @@
   "devDependencies": {
     "typescript": "^5.7.0",
     "tsup": "^8.0.0",
-    "@types/react": "^19.0.0"
+    "@types/react": "^19.0.0",
+    "vitest": "^3.0.0"
   },
   "keywords": [
     "clubhouse",
