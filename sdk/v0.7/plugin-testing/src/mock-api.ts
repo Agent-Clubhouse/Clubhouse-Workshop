@@ -20,6 +20,7 @@ import type {
   AgentConfigAPI,
   WorkspaceAPI,
   SoundsAPI,
+  SoundEvent,
   ThemeAPI,
   ThemeInfo,
   ScopedStorage,
@@ -309,6 +310,22 @@ function createMockWorkspace(): WorkspaceAPI {
   return wsApi;
 }
 
+/**
+ * All recognised sound events. Kept in sync with the `SoundEvent` type from
+ * `@clubhouse/plugin-types` so tests can iterate over the full set.
+ */
+const ALL_SOUND_EVENTS: readonly SoundEvent[] = [
+  "agent-done",
+  "error",
+  "permission",
+  "permission-granted",
+  "permission-denied",
+  "agent-wake",
+  "agent-sleep",
+  "agent-focus",
+  "notification",
+] as const;
+
 function createMockSounds(): SoundsAPI {
   return {
     registerPack: createMockFn().mockResolvedValue(undefined) as unknown as SoundsAPI["registerPack"],
@@ -316,6 +333,9 @@ function createMockSounds(): SoundsAPI {
     listPacks: createMockFn().mockResolvedValue([]) as unknown as SoundsAPI["listPacks"],
   };
 }
+
+/** Convenience: returns the full list of sound events for use in tests. */
+export { ALL_SOUND_EVENTS };
 
 const DEFAULT_MOCK_THEME: ThemeInfo = {
   id: "catppuccin-mocha",
