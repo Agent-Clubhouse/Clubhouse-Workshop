@@ -23,6 +23,31 @@
       "agent-config.mcp",
       "sounds",
       "theme"
+    ],
+    "0.7": [
+      "files",
+      "files.external",
+      "files.watch",
+      "git",
+      "terminal",
+      "agents",
+      "notifications",
+      "storage",
+      "navigation",
+      "projects",
+      "commands",
+      "events",
+      "widgets",
+      "logging",
+      "process",
+      "badges",
+      "agent-config",
+      "agent-config.cross-project",
+      "agent-config.permissions",
+      "agents.free-agent-mode",
+      "agent-config.mcp",
+      "sounds",
+      "theme"
     ]
   },
   "sensitive": [
