@@ -2,7 +2,7 @@
 // Monitor — Watches the shared directory for plan + status updates
 // ---------------------------------------------------------------------------
 
-import type { PluginAPI, Disposable, FileEvent } from "@clubhouse/plugin-types";
+import type { PluginAPI, Disposable, FileEvent, WorkspaceAPI } from "@clubhouse/plugin-types";
 import type { BuddyGroup, MemberStatus } from "../types";
 import type { GroupStore } from "../state/groups";
 import type { SharedDirectory, MemberStatusFile } from "./shared-dir";
@@ -36,7 +36,7 @@ export function createGroupMonitor(
     if (watchers.has(groupId)) return; // already watching
 
     const glob = sharedDir.watchGlob(groupId);
-    const disposable = api.files.watch(glob, (events: FileEvent[]) => {
+    const disposable = api.workspace.watch(glob, (events: FileEvent[]) => {
       handleFileEvents(groupId, events);
     });
     watchers.set(groupId, disposable);

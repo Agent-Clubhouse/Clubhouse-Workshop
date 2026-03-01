@@ -63,7 +63,6 @@ function createMockStorageAPI() {
 }
 function createMockFiles() {
   const filesApi = {
-    dataDir: "/tmp/test-plugin-data",
     readTree: createMockFn().mockResolvedValue([]),
     readFile: createMockFn().mockResolvedValue(""),
     readBinary: createMockFn().mockResolvedValue(""),
@@ -216,6 +215,23 @@ function createMockAgentConfig() {
     getInjectedMcpServers: createMockFn().mockResolvedValue({})
   };
 }
+function createMockWorkspace() {
+  const wsApi = {
+    root: "/tmp/test-plugin-workspace",
+    readFile: createMockFn().mockResolvedValue(""),
+    writeFile: createMockFn().mockResolvedValue(void 0),
+    mkdir: createMockFn().mockResolvedValue(void 0),
+    delete: createMockFn().mockResolvedValue(void 0),
+    stat: createMockFn().mockResolvedValue({ size: 0, isDirectory: false, isFile: true, modifiedAt: 0 }),
+    exists: createMockFn().mockResolvedValue(false),
+    listDir: createMockFn().mockResolvedValue([]),
+    readTree: createMockFn().mockResolvedValue([]),
+    watch: createMockFn().mockReturnValue(noop),
+    forPlugin: createMockFn().mockReturnValue(null),
+    forProject: createMockFn().mockReturnValue(null)
+  };
+  return wsApi;
+}
 function createMockSounds() {
   return {
     registerPack: createMockFn().mockResolvedValue(void 0),
@@ -343,6 +359,7 @@ function createMockAPI(overrides) {
     hub: createMockHub(),
     badges: createMockBadges(),
     agentConfig: createMockAgentConfig(),
+    workspace: createMockWorkspace(),
     sounds: createMockSounds(),
     theme: createMockTheme(),
     context: createMockContextInfo()

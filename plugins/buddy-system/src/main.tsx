@@ -47,7 +47,7 @@ export function activate(ctx: PluginContext, api: PluginAPI): void {
   api.logging.info("Buddy System plugin activated");
 
   groupStore = createGroupStore(api.storage.global);
-  sharedDir = createSharedDirectory(api.files);
+  sharedDir = createSharedDirectory(api.workspace);
   injector = createConfigInjector(api.agentConfig, sharedDir.root);
   planner = createPlanner(api, groupStore, sharedDir, injector);
   monitor = createGroupMonitor(api, groupStore, sharedDir, onMonitorEvent);
@@ -597,7 +597,7 @@ export function MainPanel({ api }: PanelProps) {
       storeRef.current = createGroupStore(api.storage.global);
     }
     if (!plannerRef.current && storeRef.current) {
-      const sd = sharedDir ?? createSharedDirectory(api.files);
+      const sd = sharedDir ?? createSharedDirectory(api.workspace);
       const inj = injector ?? createConfigInjector(api.agentConfig, sd.root);
       plannerRef.current = createPlanner(api, storeRef.current, sd, inj);
     }
@@ -680,7 +680,7 @@ export function MainPanel({ api }: PanelProps) {
       if (!confirmed) return;
       monitor?.stop(groupId);
       // Clean up shared directory on disk
-      const sd = sharedDir ?? createSharedDirectory(api.files);
+      const sd = sharedDir ?? createSharedDirectory(api.workspace);
       try { await sd.remove(groupId); } catch { /* may not exist */ }
       await store.remove(groupId);
       setGroups(prev => prev.filter(g => g.id !== groupId));

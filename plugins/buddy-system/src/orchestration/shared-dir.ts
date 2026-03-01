@@ -2,13 +2,8 @@
 // Shared Directory — Creates and manages the filesystem-based comms directory
 // ---------------------------------------------------------------------------
 
-import type { FilesAPI } from "@clubhouse/plugin-types";
+import type { WorkspaceAPI } from "@clubhouse/plugin-types";
 import type { BuddyGroup, GroupMember, Deliverable } from "../types";
-
-function resolveRoot(files: FilesAPI): string {
-  if (!files.dataDir) throw new Error("FilesAPI.dataDir is required (v0.7+)");
-  return `${files.dataDir}/groups`;
-}
 
 export interface SharedDirectory {
   /** The absolute root path where group directories are stored. */
@@ -39,40 +34,44 @@ export interface MemberStatusFile {
   lastCheckin: string;
 }
 
-export function createSharedDirectory(files: FilesAPI): SharedDirectory {
-  const root = resolveRoot(files);
+export function createSharedDirectory(workspace: WorkspaceAPI): SharedDirectory {
+  const root = `${workspace.root}/groups`;
 
   function gdir(groupId: string): string {
     return `${root}/${groupId}`;
   }
 
+  // Relative path within workspace for a group
+  function wrel(groupId: string, ...parts: string[]): string {
+    return `groups/${groupId}${parts.length ? "/" + parts.join("/") : ""}`;
+  }
+
   async function create(group: BuddyGroup): Promise<void> {
-    const base = gdir(group.id);
-    await files.mkdir(base);
-    await files.mkdir(`${base}/assignments`);
-    await files.mkdir(`${base}/status`);
-    await files.mkdir(`${base}/comms`);
-    await files.mkdir(`${base}/shared`);
+    await workspace.mkdir(wrel(group.id));
+    await workspace.mkdir(wrel(group.id, "assignments"));
+    await workspace.mkdir(wrel(group.id, "status"));
+    await workspace.mkdir(wrel(group.id, "comms"));
+    await workspace.mkdir(wrel(group.id, "shared"));
     // Seed shared files
-    await files.writeFile(`${base}/shared/decisions.md`, "# Design Decisions\n\n");
-    await files.writeFile(`${base}/shared/interfaces.md`, "# Shared Interfaces\n\n");
+    await workspace.writeFile(wrel(group.id, "shared", "decisions.md"), "# Design Decisions\n\n");
+    await workspace.writeFile(wrel(group.id, "shared", "interfaces.md"), "# Shared Interfaces\n\n");
   }
 
   async function remove(groupId: string): Promise<void> {
     try {
-      await files.delete(gdir(groupId));
+      await workspace.delete(wrel(groupId));
     } catch {
       // Directory may not exist; ignore
     }
   }
 
   async function writePlan(groupId: string, planContent: string): Promise<void> {
-    await files.writeFile(`${gdir(groupId)}/plan.md`, planContent);
+    await workspace.writeFile(wrel(groupId, "plan.md"), planContent);
   }
 
   async function readPlan(groupId: string): Promise<string | null> {
     try {
-      return await files.readFile(`${gdir(groupId)}/plan.md`);
+      return await workspace.readFile(wrel(groupId, "plan.md"));
     } catch {
       return null;
     }
@@ -106,12 +105,12 @@ export function createSharedDirectory(files: FilesAPI): SharedDirectory {
       `Check shared interfaces: ${base}/shared/interfaces.md`,
     ].join("\n");
 
-    await files.writeFile(`${base}/assignments/${member.id}.md`, content);
+    await workspace.writeFile(wrel(groupId, "assignments", `${member.id}.md`), content);
   }
 
   async function readMemberStatus(groupId: string, memberId: string): Promise<MemberStatusFile | null> {
     try {
-      const raw = await files.readFile(`${gdir(groupId)}/status/${memberId}.json`);
+      const raw = await workspace.readFile(wrel(groupId, "status", `${memberId}.json`));
       return JSON.parse(raw) as MemberStatusFile;
     } catch {
       return null;
@@ -119,7 +118,7 @@ export function createSharedDirectory(files: FilesAPI): SharedDirectory {
   }
 
   function watchGlob(groupId: string): string {
-    return `${gdir(groupId)}/**/*`;
+    return `${wrel(groupId)}/**/*`;
   }
 
   function groupPath(groupId: string): string {

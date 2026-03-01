@@ -10,8 +10,8 @@
   "permissions": [
     "logging",
     "storage",
-    "files",
-    "files.watch",
+    "workspace",
+    "workspace.watch",
     "agents",
     "projects",
     "notifications",
@@ -42,7 +42,7 @@
     },
     "agentConfig": {
       "skills": {
-        "buddy-system-mission": "# Buddy System Member\n\nYou may be added to a buddy group. When activated, check ~/.clubhouse/buddy-system/ for your assignment and follow the communication protocol described there."
+        "buddy-system-mission": "# Buddy System Member\n\nYou may be added to a buddy group. When activated, check your assignment file in the workspace shared directory and follow the communication protocol described there."
       }
     },
     "help": {
@@ -55,7 +55,7 @@
         {
           "id": "permissions",
           "title": "Permissions",
-          "content": "## Permissions\n\n| Permission | Why it's needed |\n|------------|----------------|\n| **logging** | Debug plugin operations |\n| **storage** | Persist group data globally |\n| **files / files.watch** | Monitor shared communication directory |\n| **agents** | List and resume agents across projects |\n| **projects** | Enumerate projects for agent discovery |\n| **notifications** | Alert on group events |\n| **commands** | Register group management commands |\n| **widgets** | Display agent avatars and status |\n| **badges** | Show unread communication count |\n| **navigation** | Focus on agents in the UI |\n| **theme** | Consistent styling |\n| **agent-config** | Inject skills and instructions into group members |\n| **agent-config.cross-project** | Configure agents in other projects |\n| **agent-config.permissions** | Grant filesystem access to group members |"
+          "content": "## Permissions\n\n| Permission | Why it's needed |\n|------------|----------------|\n| **logging** | Debug plugin operations |\n| **storage** | Persist group data globally |\n| **workspace / workspace.watch** | Managed filesystem for group communication |\n| **agents** | List and resume agents across projects |\n| **projects** | Enumerate projects for agent discovery |\n| **notifications** | Alert on group events |\n| **commands** | Register group management commands |\n| **widgets** | Display agent avatars and status |\n| **badges** | Show unread communication count |\n| **navigation** | Focus on agents in the UI |\n| **theme** | Consistent styling |\n| **agent-config** | Inject skills and instructions into group members |\n| **agent-config.cross-project** | Configure agents in other projects |\n| **agent-config.permissions** | Grant filesystem access to group members |"
         }
       ]
     }

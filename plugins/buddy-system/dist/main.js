@@ -178,37 +178,35 @@ function createGroupStore(storage) {
 }
 
 // src/orchestration/shared-dir.ts
-function resolveRoot(files) {
-  if (!files.dataDir) throw new Error("FilesAPI.dataDir is required (v0.7+)");
-  return `${files.dataDir}/groups`;
-}
-function createSharedDirectory(files) {
-  const root = resolveRoot(files);
+function createSharedDirectory(workspace) {
+  const root = `${workspace.root}/groups`;
   function gdir(groupId) {
     return `${root}/${groupId}`;
   }
+  function wrel(groupId, ...parts) {
+    return `groups/${groupId}${parts.length ? "/" + parts.join("/") : ""}`;
+  }
   async function create(group) {
-    const base = gdir(group.id);
-    await files.mkdir(base);
-    await files.mkdir(`${base}/assignments`);
-    await files.mkdir(`${base}/status`);
-    await files.mkdir(`${base}/comms`);
-    await files.mkdir(`${base}/shared`);
-    await files.writeFile(`${base}/shared/decisions.md`, "# Design Decisions\n\n");
-    await files.writeFile(`${base}/shared/interfaces.md`, "# Shared Interfaces\n\n");
+    await workspace.mkdir(wrel(group.id));
+    await workspace.mkdir(wrel(group.id, "assignments"));
+    await workspace.mkdir(wrel(group.id, "status"));
+    await workspace.mkdir(wrel(group.id, "comms"));
+    await workspace.mkdir(wrel(group.id, "shared"));
+    await workspace.writeFile(wrel(group.id, "shared", "decisions.md"), "# Design Decisions\n\n");
+    await workspace.writeFile(wrel(group.id, "shared", "interfaces.md"), "# Shared Interfaces\n\n");
   }
   async function remove(groupId) {
     try {
-      await files.delete(gdir(groupId));
+      await workspace.delete(wrel(groupId));
     } catch {
     }
   }
   async function writePlan(groupId, planContent) {
-    await files.writeFile(`${gdir(groupId)}/plan.md`, planContent);
+    await workspace.writeFile(wrel(groupId, "plan.md"), planContent);
   }
   async function readPlan(groupId) {
     try {
-      return await files.readFile(`${gdir(groupId)}/plan.md`);
+      return await workspace.readFile(wrel(groupId, "plan.md"));
     } catch {
       return null;
     }
@@ -237,18 +235,18 @@ This deliverable depends on: ${deliverable.dependencies.join(", ")}
       `Check shared decisions: ${base}/shared/decisions.md`,
       `Check shared interfaces: ${base}/shared/interfaces.md`
     ].join("\n");
-    await files.writeFile(`${base}/assignments/${member.id}.md`, content);
+    await workspace.writeFile(wrel(groupId, "assignments", `${member.id}.md`), content);
   }
   async function readMemberStatus(groupId, memberId) {
     try {
-      const raw = await files.readFile(`${gdir(groupId)}/status/${memberId}.json`);
+      const raw = await workspace.readFile(wrel(groupId, "status", `${memberId}.json`));
       return JSON.parse(raw);
     } catch {
       return null;
     }
   }
   function watchGlob(groupId) {
-    return `${gdir(groupId)}/**/*`;
+    return `${wrel(groupId)}/**/*`;
   }
   function groupPath(groupId) {
     return gdir(groupId);
@@ -331,7 +329,7 @@ function finishDeliverable(partial) {
 }
 
 // src/orchestration/planner.ts
-function buildPlanningPrompt(group) {
+function buildPlanningPrompt(group, groupDir) {
   const memberList = group.members.map((m) => `- **${m.agentName}** (${m.projectName}): ${m.context}${m.isLeader ? " [LEADER \u2014 that's you]" : ""}`).join("\n");
   return `You are the leader of buddy group "${group.name}". You have been given the following mission:
 
@@ -346,7 +344,7 @@ Create a plan that:
 3. Identifies dependencies between deliverables
 4. Defines shared interfaces or contracts where cross-project integration is needed
 
-Write your plan to: ~/.clubhouse/buddy-system/${group.id}/plan.md
+Write your plan to: ${groupDir}/plan.md
 
 Format the plan as markdown with YAML frontmatter containing structured assignment data:
 ---
@@ -372,7 +370,7 @@ IMPORTANT: Use the exact member IDs listed above as assignee values. Each delive
 Member IDs:
 ${group.members.map((m) => `- ${m.id}: ${m.agentName} (${m.projectName})`).join("\n")}`;
 }
-function buildAssignmentPrompt(group, member, deliverable) {
+function buildAssignmentPrompt(group, member, deliverable, groupDir) {
   return `You have been assigned work as part of buddy group "${group.name}".
 
 Your deliverable: **${deliverable.title}**
@@ -380,7 +378,7 @@ ${deliverable.description}
 
 ${deliverable.dependencies?.length ? `This depends on: ${deliverable.dependencies.join(", ")}. Check the shared directory for status on those items before starting.` : ""}
 
-Read your full assignment at: ~/.clubhouse/buddy-system/${group.id}/assignments/${member.id}.md
+Read your full assignment at: ${groupDir}/assignments/${member.id}.md
 
 Follow the buddy-system-mission skill for the work loop and communication protocol.`;
 }
@@ -395,7 +393,7 @@ function createPlanner(api, store, sharedDir2, injector2) {
     group.status = "planning";
     leader.status = "working";
     await store.save(group);
-    const prompt = buildPlanningPrompt(group);
+    const prompt = buildPlanningPrompt(group, sharedDir2.groupPath(group.id));
     await api.agents.resume(leader.agentId, { mission: prompt });
     api.logging.info("Planning started", { groupId: group.id, leaderId: leader.agentId });
     return group;
@@ -443,7 +441,7 @@ function createPlanner(api, store, sharedDir2, injector2) {
         continue;
       }
       member.status = "working";
-      const prompt = buildAssignmentPrompt(group, member, deliverable);
+      const prompt = buildAssignmentPrompt(group, member, deliverable, sharedDir2.groupPath(group.id));
       await api.agents.resume(member.agentId, { mission: prompt });
     }
     await store.save(group);
@@ -459,7 +457,7 @@ function createGroupMonitor(api, store, sharedDir2, onEvent) {
   function start(groupId) {
     if (watchers.has(groupId)) return;
     const glob = sharedDir2.watchGlob(groupId);
-    const disposable = api.files.watch(glob, (events) => {
+    const disposable = api.workspace.watch(glob, (events) => {
       handleFileEvents(groupId, events);
     });
     watchers.set(groupId, disposable);
@@ -677,7 +675,7 @@ function onMonitorEvent(groupId, event) {
 function activate(ctx, api) {
   api.logging.info("Buddy System plugin activated");
   groupStore = createGroupStore(api.storage.global);
-  sharedDir = createSharedDirectory(api.files);
+  sharedDir = createSharedDirectory(api.workspace);
   injector = createConfigInjector(api.agentConfig, sharedDir.root);
   planner = createPlanner(api, groupStore, sharedDir, injector);
   monitor = createGroupMonitor(api, groupStore, sharedDir, onMonitorEvent);
@@ -1110,7 +1108,7 @@ function MainPanel({ api }) {
       storeRef.current = createGroupStore(api.storage.global);
     }
     if (!plannerRef.current && storeRef.current) {
-      const sd = sharedDir ?? createSharedDirectory(api.files);
+      const sd = sharedDir ?? createSharedDirectory(api.workspace);
       const inj = injector ?? createConfigInjector(api.agentConfig, sd.root);
       plannerRef.current = createPlanner(api, storeRef.current, sd, inj);
     }
@@ -1186,7 +1184,7 @@ function MainPanel({ api }) {
       const confirmed = await api.ui.showConfirm("Delete this buddy group and its shared directory?");
       if (!confirmed) return;
       monitor?.stop(groupId);
-      const sd = sharedDir ?? createSharedDirectory(api.files);
+      const sd = sharedDir ?? createSharedDirectory(api.workspace);
       try {
         await sd.remove(groupId);
       } catch {

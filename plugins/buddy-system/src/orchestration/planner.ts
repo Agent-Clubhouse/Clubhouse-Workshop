@@ -9,7 +9,7 @@ import type { SharedDirectory } from "./shared-dir";
 import type { ConfigInjector } from "../config/injector";
 import { parsePlan } from "./plan-parser";
 
-function buildPlanningPrompt(group: BuddyGroup): string {
+function buildPlanningPrompt(group: BuddyGroup, groupDir: string): string {
   const memberList = group.members
     .map(m => `- **${m.agentName}** (${m.projectName}): ${m.context}${m.isLeader ? " [LEADER — that's you]" : ""}`)
     .join("\n");
@@ -27,7 +27,7 @@ Create a plan that:
 3. Identifies dependencies between deliverables
 4. Defines shared interfaces or contracts where cross-project integration is needed
 
-Write your plan to: ~/.clubhouse/buddy-system/${group.id}/plan.md
+Write your plan to: ${groupDir}/plan.md
 
 Format the plan as markdown with YAML frontmatter containing structured assignment data:
 ---
@@ -54,7 +54,7 @@ Member IDs:
 ${group.members.map(m => `- ${m.id}: ${m.agentName} (${m.projectName})`).join("\n")}`;
 }
 
-function buildAssignmentPrompt(group: BuddyGroup, member: GroupMember, deliverable: Deliverable): string {
+function buildAssignmentPrompt(group: BuddyGroup, member: GroupMember, deliverable: Deliverable, groupDir: string): string {
   return `You have been assigned work as part of buddy group "${group.name}".
 
 Your deliverable: **${deliverable.title}**
@@ -62,7 +62,7 @@ ${deliverable.description}
 
 ${deliverable.dependencies?.length ? `This depends on: ${deliverable.dependencies.join(", ")}. Check the shared directory for status on those items before starting.` : ""}
 
-Read your full assignment at: ~/.clubhouse/buddy-system/${group.id}/assignments/${member.id}.md
+Read your full assignment at: ${groupDir}/assignments/${member.id}.md
 
 Follow the buddy-system-mission skill for the work loop and communication protocol.`;
 }
@@ -102,7 +102,7 @@ export function createPlanner(
     await store.save(group);
 
     // Resume the leader agent with the planning prompt
-    const prompt = buildPlanningPrompt(group);
+    const prompt = buildPlanningPrompt(group, sharedDir.groupPath(group.id));
     await api.agents.resume(leader.agentId, { mission: prompt });
 
     api.logging.info("Planning started", { groupId: group.id, leaderId: leader.agentId });
@@ -169,7 +169,7 @@ export function createPlanner(
 
       // Resume the agent with their assignment
       member.status = "working";
-      const prompt = buildAssignmentPrompt(group, member, deliverable);
+      const prompt = buildAssignmentPrompt(group, member, deliverable, sharedDir.groupPath(group.id));
       await api.agents.resume(member.agentId, { mission: prompt });
     }
 

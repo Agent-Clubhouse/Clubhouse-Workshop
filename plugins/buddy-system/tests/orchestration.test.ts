@@ -24,7 +24,7 @@ describe("PlannerOrchestrator", () => {
       },
     });
     store = createGroupStore(api.storage.global);
-    sharedDir = createSharedDirectory(api.files);
+    sharedDir = createSharedDirectory(api.workspace);
     injector = createConfigInjector(api.agentConfig, sharedDir.root);
     planner = createPlanner(api, store, sharedDir, injector);
   });
@@ -66,7 +66,7 @@ describe("PlannerOrchestrator", () => {
       const group = await createGroupWithMembers();
       await planner.startPlanning(group);
 
-      expect(api.files.mkdir).toHaveBeenCalled();
+      expect(api.workspace.mkdir).toHaveBeenCalled();
     });
 
     it("injects config into leader project", async () => {
@@ -99,7 +99,7 @@ describe("PlannerOrchestrator", () => {
       const memberId = group.members[0].id;
 
       // Mock the plan file existing
-      (api.files.readFile as ReturnType<typeof vi.fn>).mockResolvedValueOnce(`---
+      (api.workspace.readFile as ReturnType<typeof vi.fn>).mockResolvedValueOnce(`---
 deliverables:
   - id: d1
     title: "Auth API"
@@ -119,7 +119,7 @@ Build auth system.`);
     it("throws when no plan file found", async () => {
       const group = await createGroupWithMembers();
       // readFile returns empty by default in mock
-      (api.files.readFile as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error("not found"));
+      (api.workspace.readFile as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error("not found"));
       await expect(planner.processPlan(group)).rejects.toThrow();
     });
   });
@@ -165,7 +165,7 @@ Build auth system.`);
 
       await planner.startExecution(group);
 
-      expect(api.files.writeFile).toHaveBeenCalledWith(
+      expect(api.workspace.writeFile).toHaveBeenCalledWith(
         expect.stringContaining(`/assignments/${m1.id}.md`),
         expect.stringContaining("Task"),
       );

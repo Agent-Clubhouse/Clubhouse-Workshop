@@ -18,6 +18,7 @@ import type {
   HubAPI,
   BadgesAPI,
   AgentConfigAPI,
+  WorkspaceAPI,
   SoundsAPI,
   ThemeAPI,
   ThemeInfo,
@@ -121,7 +122,6 @@ function createMockStorageAPI(): StorageAPI {
 
 function createMockFiles(): FilesAPI {
   const filesApi: FilesAPI = {
-    dataDir: "/tmp/test-plugin-data",
     readTree: createMockFn().mockResolvedValue([]) as unknown as FilesAPI["readTree"],
     readFile: createMockFn().mockResolvedValue("") as unknown as FilesAPI["readFile"],
     readBinary: createMockFn().mockResolvedValue("") as unknown as FilesAPI["readBinary"],
@@ -291,6 +291,24 @@ function createMockAgentConfig(): AgentConfigAPI {
   };
 }
 
+function createMockWorkspace(): WorkspaceAPI {
+  const wsApi: WorkspaceAPI = {
+    root: "/tmp/test-plugin-workspace",
+    readFile: createMockFn().mockResolvedValue("") as unknown as WorkspaceAPI["readFile"],
+    writeFile: createMockFn().mockResolvedValue(undefined) as unknown as WorkspaceAPI["writeFile"],
+    mkdir: createMockFn().mockResolvedValue(undefined) as unknown as WorkspaceAPI["mkdir"],
+    delete: createMockFn().mockResolvedValue(undefined) as unknown as WorkspaceAPI["delete"],
+    stat: createMockFn().mockResolvedValue({ size: 0, isDirectory: false, isFile: true, modifiedAt: 0 }) as unknown as WorkspaceAPI["stat"],
+    exists: createMockFn().mockResolvedValue(false) as unknown as WorkspaceAPI["exists"],
+    listDir: createMockFn().mockResolvedValue([]) as unknown as WorkspaceAPI["listDir"],
+    readTree: createMockFn().mockResolvedValue([]) as unknown as WorkspaceAPI["readTree"],
+    watch: createMockFn().mockReturnValue(noop) as unknown as WorkspaceAPI["watch"],
+    forPlugin: createMockFn().mockReturnValue(null) as unknown as WorkspaceAPI["forPlugin"],
+    forProject: createMockFn().mockReturnValue(null) as unknown as WorkspaceAPI["forProject"],
+  };
+  return wsApi;
+}
+
 function createMockSounds(): SoundsAPI {
   return {
     registerPack: createMockFn().mockResolvedValue(undefined) as unknown as SoundsAPI["registerPack"],
@@ -450,6 +468,7 @@ export function createMockAPI(overrides?: DeepPartial<PluginAPI>): PluginAPI {
     hub: createMockHub(),
     badges: createMockBadges(),
     agentConfig: createMockAgentConfig(),
+    workspace: createMockWorkspace(),
     sounds: createMockSounds(),
     theme: createMockTheme(),
     context: createMockContextInfo(),
