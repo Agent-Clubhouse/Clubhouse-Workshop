@@ -100,7 +100,7 @@ export const PRIORITY_CONFIG: Record<Priority, { label: string; color: string; h
   none:     { label: 'None',     color: '', hidden: true },
   low:      { label: 'Low',      color: 'var(--text-info, #3b82f6)' },
   medium:   { label: 'Medium',   color: 'var(--text-warning, #eab308)' },
-  high:     { label: 'High',     color: '#f97316' },
+  high:     { label: 'High',     color: 'var(--text-warning-high, #f97316)' },
   critical: { label: 'Critical', color: 'var(--text-error, #ef4444)' },
 };
 

@@ -3,6 +3,7 @@ import type {
   PluginAPI,
   PanelProps,
 } from "@clubhouse/plugin-types";
+import { useTheme } from './use-theme';
 
 const React = globalThis.React;
 const { useState, useEffect, useCallback } = React;
@@ -44,6 +45,32 @@ async function saveReview(api: PluginAPI, entry: ReviewEntry): Promise<void> {
   history.unshift(entry);
   if (history.length > MAX_HISTORY) history.length = MAX_HISTORY;
   await api.storage.projectLocal.write(HISTORY_KEY, history);
+}
+
+// ---------------------------------------------------------------------------
+// Default branch detection
+// ---------------------------------------------------------------------------
+
+export async function detectDefaultBranch(api: PluginAPI): Promise<string> {
+  // 1. Check user-configured setting
+  const configured = api.settings.get<string>("defaultBranch");
+  if (configured) return configured;
+
+  // 2. Auto-detect via git rev-parse
+  try {
+    const result = await api.process.exec("git", [
+      "rev-parse",
+      "--abbrev-ref",
+      "origin/HEAD",
+    ]);
+    const branch = result.stdout.trim().replace(/^origin\//, "");
+    if (branch && branch !== "HEAD") return branch;
+  } catch {
+    // rev-parse can fail if origin/HEAD is not set — fall through
+  }
+
+  // 3. Fallback
+  return "main";
 }
 
 // ---------------------------------------------------------------------------
@@ -94,6 +121,7 @@ export function deactivate(): void {}
 // ---------------------------------------------------------------------------
 
 export function MainPanel({ api }: PanelProps) {
+  const { style: themeStyle } = useTheme(api.theme);
   const [history, setHistory] = useState<ReviewEntry[]>([]);
   const [running, setRunning] = useState(false);
   const [selectedReview, setSelectedReview] = useState<ReviewEntry | null>(null);
@@ -102,7 +130,7 @@ export function MainPanel({ api }: PanelProps) {
   // Load history on mount
   useEffect(() => {
     loadHistory(api).then(setHistory);
-  }, []);
+  }, [api]);
 
   const runReview = useCallback(
     async (mode: "staged" | "branch") => {
@@ -124,10 +152,19 @@ export function MainPanel({ api }: PanelProps) {
           }
         } else {
           branch = await api.git.currentBranch();
-          const result = await api.process.exec("git", ["diff", "main...HEAD"]);
+          const baseBranch = await detectDefaultBranch(api);
+          const mergeBase = await api.process.exec("git", [
+            "merge-base",
+            "HEAD",
+            `origin/${baseBranch}`,
+          ]);
+          const base = mergeBase.stdout.trim();
+          const result = await api.process.exec("git", ["diff", `${base}...HEAD`]);
           diff = result.stdout;
           if (!diff.trim()) {
-            setError(`No changes found on branch "${branch}" relative to main.`);
+            setError(
+              `No changes found on branch "${branch}" relative to ${baseBranch}.`
+            );
             setRunning(false);
             return;
           }
@@ -169,7 +206,7 @@ export function MainPanel({ api }: PanelProps) {
         setRunning(false);
       }
     },
-    []
+    [api]
   );
 
   // -- Render ---------------------------------------------------------------
@@ -185,7 +222,7 @@ export function MainPanel({ api }: PanelProps) {
   };
 
   return (
-    <div style={styles.container}>
+    <div style={{ ...themeStyle, ...styles.container }}>
       <h2 style={{ marginTop: 0 }}>Code Review</h2>
 
       <div style={styles.header}>

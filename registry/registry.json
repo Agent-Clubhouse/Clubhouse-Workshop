@@ -1,134 +1,189 @@
 {
   "version": 1,
-  "updated": "2026-02-22T07:50:07.344Z",
+  "updated": "2026-02-25T07:05:42.267Z",
   "supportedApis": {
     "latest": "0.6",
-    "minimum": "0.5",
+    "minimum": "0.6",
     "versions": [
-      "0.5",
       "0.6"
     ]
   },
   "plugins": [
     {
-      "id": "example-hello-world",
-      "name": "Hello World",
-      "description": "A minimal example plugin for Clubhouse.",
+      "id": "bug-report",
+      "name": "Bug Report",
+      "description": "File bug reports and feature requests for Clubhouse with structured severity and label support",
       "author": "Clubhouse Workshop",
       "official": true,
       "repo": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop",
-      "path": "plugins/example-hello-world",
+      "path": "plugins/bug-report",
       "tags": [
-        "example",
-        "starter"
+        "github",
+        "issues",
+        "bug-tracking"
       ],
-      "latest": "0.1.0",
+      "latest": "1.0.0",
       "releases": {
-        "0.1.0": {
-          "api": 0.5,
-          "asset": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop/releases/download/example-hello-world-v0.1.0/example-hello-world-v0.1.0.zip",
-          "sha256": "e772faf55bf613252c69b7d072776a0d60cb285d8ccf980bb5e4d678c062c743",
+        "1.0.0": {
+          "api": 0.6,
+          "asset": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop/releases/download/bug-report-v1.0.0/bug-report-v1.0.0.zip",
+          "sha256": "d20a23a8c474c881d2ab56dbbbe03d3ed8ee7b5b789b6963aa0b8f6df20ea055",
           "permissions": [
             "logging",
             "storage",
             "notifications",
-            "commands"
+            "commands",
+            "process",
+            "theme"
           ],
-          "size": 3116
+          "size": 13329
         }
       }
     },
     {
-      "id": "code-review",
-      "name": "Code Review",
-      "description": "AI-powered code review for your staged changes.",
+      "id": "automations",
+      "name": "Automations",
+      "description": "Schedule recurring quick-agent tasks with cron expressions. Create automations with orchestrator selection, model selection, free agent mode, and prompt configuration. Track run history with status indicators and summaries.",
       "author": "Clubhouse Workshop",
       "official": true,
       "repo": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop",
-      "path": "plugins/code-review",
+      "path": "plugins/automations",
       "tags": [
-        "ai",
-        "code-review",
-        "git"
+        "automation",
+        "cron",
+        "agents"
       ],
-      "latest": "0.1.0",
+      "latest": "1.1.0",
       "releases": {
         "0.1.0": {
           "api": 0.5,
-          "asset": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop/releases/download/code-review-v0.1.0/code-review-v0.1.0.zip",
-          "sha256": "f4a0a01ae1929a86f7a69e0699f045f7da057212b5e1262ab04a4d42ae5a9587",
+          "asset": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop/releases/download/automations-v0.1.0/automations-v0.1.0.zip",
+          "sha256": "cefb8c642d16536b48e075424823161936b2a6e8b579b10e6a8e39f410204345",
+          "permissions": [
+            "storage",
+            "agents",
+            "commands",
+            "notifications",
+            "navigation",
+            "widgets"
+          ],
+          "size": 7786
+        },
+        "1.0.0": {
+          "api": 0.5,
+          "asset": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop/releases/download/automations-v1.0.0/automations-v1.0.0.zip",
+          "sha256": "fc1e80cc1e3373dcf65ee89e91e03f37d2016c12e2fd055ee66461b04c06d3e6",
+          "permissions": [
+            "storage",
+            "agents",
+            "commands",
+            "notifications",
+            "navigation",
+            "widgets"
+          ],
+          "size": 8364
+        },
+        "1.1.0": {
+          "api": 0.6,
+          "asset": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop/releases/download/automations-v1.1.0/automations-v1.1.0.zip",
+          "sha256": "7ce94dd1b09a66e8b7fb742ffdb2e6acc31abc19cb201388b8baad40d9e2828e",
+          "permissions": [
+            "storage",
+            "agents",
+            "agents.free-agent-mode",
+            "commands",
+            "notifications",
+            "navigation",
+            "widgets",
+            "theme"
+          ],
+          "size": 11065
+        }
+      }
+    },
+    {
+      "id": "github-issues",
+      "name": "GitHub Issue Tracker",
+      "description": "Create and manage GitHub issues with template support, label validation, and agent assignment",
+      "author": "Clubhouse Workshop",
+      "official": true,
+      "repo": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop",
+      "path": "plugins/github-issues",
+      "tags": [
+        "github",
+        "issues",
+        "project-management"
+      ],
+      "latest": "1.1.0",
+      "releases": {
+        "0.1.0": {
+          "api": 0.5,
+          "asset": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop/releases/download/github-issues-v0.1.0/github-issues-v0.1.0.zip",
+          "sha256": "127edd3b752d1a552a58ff9ba75a2a1414ca56b90492b95393a721a37c8fc108",
           "permissions": [
             "logging",
             "storage",
             "notifications",
             "files",
-            "git",
             "agents",
             "commands",
-            "process"
-          ],
-          "size": 4654
-        }
-      }
-    },
-    {
-      "id": "standup",
-      "name": "Standup",
-      "description": "AI-generated daily standup summaries across all your projects.",
-      "author": "Clubhouse Workshop",
-      "official": true,
-      "repo": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop",
-      "path": "plugins/standup",
-      "tags": [
-        "ai",
-        "standup",
-        "productivity"
-      ],
-      "latest": "0.1.0",
-      "releases": {
-        "0.1.0": {
-          "api": 0.5,
-          "asset": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop/releases/download/standup-v0.1.0/standup-v0.1.0.zip",
-          "sha256": "644306c64e34e8268d1d3ccd4e0cbf5d07ffaf1cbb7ac27cc3e2d8b9260174ae",
-          "permissions": [
-            "logging",
-            "storage",
-            "notifications",
-            "agents",
-            "projects",
+            "process",
             "git",
-            "commands"
-          ],
-          "size": 3851
-        }
-      }
-    },
-    {
-      "id": "pomodoro",
-      "name": "Pomodoro",
-      "description": "A simple Pomodoro timer to keep your work sessions focused.",
-      "author": "Clubhouse Workshop",
-      "official": true,
-      "repo": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop",
-      "path": "plugins/pomodoro",
-      "tags": [
-        "productivity",
-        "timer"
-      ],
-      "latest": "0.1.0",
-      "releases": {
-        "0.1.0": {
-          "api": 0.5,
-          "asset": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop/releases/download/pomodoro-v0.1.0/pomodoro-v0.1.0.zip",
-          "sha256": "f7a7ece9c90e2830ec8458f32d7190b6aa70dfb8e71ec9c10120c2dc527f014b",
-          "permissions": [
-            "logging",
-            "storage",
-            "notifications",
-            "commands",
             "widgets"
           ],
-          "size": 3713
+          "size": 12795
+        },
+        "0.1.1": {
+          "api": 0.5,
+          "asset": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop/releases/download/github-issues-v0.1.1/github-issues-v0.1.1.zip",
+          "sha256": "402c6423421d35520355d1bd2337f015bdadb240961307e269c2e42893649e3e",
+          "permissions": [
+            "logging",
+            "storage",
+            "notifications",
+            "files",
+            "agents",
+            "commands",
+            "process",
+            "git",
+            "widgets"
+          ],
+          "size": 14235
+        },
+        "1.0.0": {
+          "api": 0.5,
+          "asset": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop/releases/download/github-issues-v1.0.0/github-issues-v1.0.0.zip",
+          "sha256": "7415f6630a35a5ca984ad1ea9e24fd80ee169d0109fcff6a09de20c383d7e190",
+          "permissions": [
+            "logging",
+            "storage",
+            "notifications",
+            "files",
+            "agents",
+            "commands",
+            "process",
+            "git",
+            "widgets"
+          ],
+          "size": 14475
+        },
+        "1.1.0": {
+          "api": 0.6,
+          "asset": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop/releases/download/github-issues-v1.1.0/github-issues-v1.1.0.zip",
+          "sha256": "5badd256c3c4f648153e7f4eaa57d1a405b9f955d69907ac787094e8150c1b4d",
+          "permissions": [
+            "logging",
+            "storage",
+            "notifications",
+            "files",
+            "agents",
+            "commands",
+            "process",
+            "git",
+            "widgets",
+            "theme"
+          ],
+          "size": 15030
         }
       }
     },
@@ -140,8 +195,12 @@
       "official": true,
       "repo": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop",
       "path": "plugins/kanboss",
-      "tags": [],
-      "latest": "0.1.0",
+      "tags": [
+        "kanban",
+        "ai",
+        "project-management"
+      ],
+      "latest": "1.1.0",
       "releases": {
         "0.1.0": {
           "api": 0.5,
@@ -157,37 +216,222 @@
             "widgets"
           ],
           "size": 19966
+        },
+        "1.0.0": {
+          "api": 0.5,
+          "asset": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop/releases/download/kanboss-v1.0.0/kanboss-v1.0.0.zip",
+          "sha256": "45be940a000def618fd2bd98a8f66e0c571e02c4cb16aa1691b5b1afd0192b40",
+          "permissions": [
+            "logging",
+            "storage",
+            "agents",
+            "commands",
+            "notifications",
+            "navigation",
+            "widgets"
+          ],
+          "size": 20956
+        },
+        "1.1.0": {
+          "api": 0.6,
+          "asset": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop/releases/download/kanboss-v1.1.0/kanboss-v1.1.0.zip",
+          "sha256": "7892191b500cb5641707d83118cfa76b695a599a0c29b1aec1df0f15658239cc",
+          "permissions": [
+            "logging",
+            "storage",
+            "agents",
+            "commands",
+            "notifications",
+            "navigation",
+            "widgets",
+            "theme"
+          ],
+          "size": 21780
         }
       }
     },
     {
-      "id": "github-issues",
-      "name": "GitHub Issue Tracker",
-      "description": "Create and manage GitHub issues with template support, label validation, and agent assignment",
+      "id": "ado-work-items",
+      "name": "Azure DevOps Work Items",
+      "description": "Browse, create, and manage Azure DevOps work items with WIQL query support and agent assignment",
       "author": "Clubhouse Workshop",
       "official": true,
       "repo": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop",
-      "path": "plugins/github-issues",
-      "tags": [],
-      "latest": "0.1.0",
+      "path": "plugins/ado-work-items",
+      "tags": [
+        "azure-devops",
+        "work-items",
+        "project-management"
+      ],
+      "latest": "1.1.0",
       "releases": {
         "0.1.0": {
           "api": 0.5,
-          "asset": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop/releases/download/github-issues-v0.1.0/github-issues-v0.1.0.zip",
-          "sha256": "127edd3b752d1a552a58ff9ba75a2a1414ca56b90492b95393a721a37c8fc108",
+          "asset": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop/releases/download/ado-work-items-v0.1.0/ado-work-items-v0.1.0.zip",
+          "sha256": "867cfb3dae26fa1d54b9c6e1ef55e17246848655a645ede91c9241c1f98e10c8",
           "permissions": [
             "logging",
             "storage",
             "notifications",
-            "files",
             "agents",
             "commands",
             "process",
-            "settings",
-            "git",
             "widgets"
           ],
-          "size": 12795
+          "size": 13986
+        },
+        "1.0.0": {
+          "api": 0.5,
+          "asset": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop/releases/download/ado-work-items-v1.0.0/ado-work-items-v1.0.0.zip",
+          "sha256": "33442aea18a827013c48679e9bfe9ba63d7e3f0b548132579cb564cb4bd1921c",
+          "permissions": [
+            "logging",
+            "storage",
+            "notifications",
+            "agents",
+            "commands",
+            "process",
+            "widgets"
+          ],
+          "size": 14385
+        },
+        "1.1.0": {
+          "api": 0.6,
+          "asset": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop/releases/download/ado-work-items-v1.1.0/ado-work-items-v1.1.0.zip",
+          "sha256": "66b76c907bb261e854899c7777544b8a7ce13b568ed205011d6a370fa584d08d",
+          "permissions": [
+            "logging",
+            "storage",
+            "notifications",
+            "agents",
+            "commands",
+            "process",
+            "widgets",
+            "theme"
+          ],
+          "size": 16264
+        }
+      }
+    },
+    {
+      "id": "wiki",
+      "name": "Wiki",
+      "description": "Browse and edit markdown wikis stored in external directories.",
+      "author": "Clubhouse Workshop",
+      "official": true,
+      "repo": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop",
+      "path": "plugins/wiki",
+      "tags": [
+        "wiki",
+        "markdown",
+        "documentation"
+      ],
+      "latest": "1.2.0",
+      "releases": {
+        "1.0.0": {
+          "api": 0.5,
+          "asset": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop/releases/download/wiki-v1.0.0/wiki-v1.0.0.zip",
+          "sha256": "cd907e7dc1a4b6ad4e8fa5711488cd625d86af0518034c18f69bdf09c2cfcbd9",
+          "permissions": [
+            "files",
+            "files.external",
+            "commands",
+            "notifications",
+            "agents",
+            "navigation",
+            "storage",
+            "widgets"
+          ],
+          "size": 14364
+        },
+        "1.1.0": {
+          "api": 0.5,
+          "asset": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop/releases/download/wiki-v1.1.0/wiki-v1.1.0.zip",
+          "sha256": "f5eb1a1173fe53de74830d1b6a8b689cfc4e28f4d91f9415e395cf34a80f4039",
+          "permissions": [
+            "files",
+            "files.external",
+            "commands",
+            "notifications",
+            "agents",
+            "navigation",
+            "storage",
+            "widgets"
+          ],
+          "size": 26808
+        },
+        "1.2.0": {
+          "api": 0.6,
+          "asset": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop/releases/download/wiki-v1.2.0/wiki-v1.2.0.zip",
+          "sha256": "4799762e9f82fca0b3f987f4722ca9b5153f7a3899b81254b0523022ab263d3a",
+          "permissions": [
+            "files",
+            "files.external",
+            "commands",
+            "notifications",
+            "agents",
+            "navigation",
+            "storage",
+            "widgets",
+            "theme"
+          ],
+          "size": 87449
+        }
+      }
+    },
+    {
+      "id": "pomodoro",
+      "name": "Pomodoro",
+      "description": "A visual Pomodoro timer with configurable durations, long break cycles, and session tracking.",
+      "author": "Clubhouse Workshop",
+      "official": true,
+      "repo": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop",
+      "path": "plugins/pomodoro",
+      "tags": [
+        "productivity",
+        "timer"
+      ],
+      "latest": "1.1.0",
+      "releases": {
+        "0.1.0": {
+          "api": 0.5,
+          "asset": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop/releases/download/pomodoro-v0.1.0/pomodoro-v0.1.0.zip",
+          "sha256": "f7a7ece9c90e2830ec8458f32d7190b6aa70dfb8e71ec9c10120c2dc527f014b",
+          "permissions": [
+            "logging",
+            "storage",
+            "notifications",
+            "commands",
+            "widgets"
+          ],
+          "size": 3713
+        },
+        "1.0.0": {
+          "api": 0.5,
+          "asset": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop/releases/download/pomodoro-v1.0.0/pomodoro-v1.0.0.zip",
+          "sha256": "49837c812e8ae768c32fea48a482593e07dac166f9db40d98075f4ffb1405e13",
+          "permissions": [
+            "logging",
+            "storage",
+            "notifications",
+            "commands",
+            "widgets"
+          ],
+          "size": 4031
+        },
+        "1.1.0": {
+          "api": 0.6,
+          "asset": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop/releases/download/pomodoro-v1.1.0/pomodoro-v1.1.0.zip",
+          "sha256": "c88c514120c2cfbb4ae6b3bccaa8be17540a07ebbd18716557c964d4584e95b7",
+          "permissions": [
+            "logging",
+            "storage",
+            "notifications",
+            "commands",
+            "widgets",
+            "theme"
+          ],
+          "size": 7483
         }
       }
     }

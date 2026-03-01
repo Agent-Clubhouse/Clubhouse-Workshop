@@ -1,14 +1,13 @@
 {
   "id": "example-hello-world",
   "name": "Hello World",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "A minimal example plugin for Clubhouse.",
   "author": "Clubhouse Workshop",
-  "official": true,
-  "engine": { "api": 0.5 },
+  "engine": { "api": 0.6 },
   "scope": "project",
   "main": "./dist/main.js",
-  "permissions": ["logging", "storage", "notifications", "commands"],
+  "permissions": ["logging", "storage", "notifications", "commands", "theme"],
   "contributes": {
     "tab": {
       "label": "Hello",
@@ -25,8 +24,23 @@
       "topics": [
         {
           "id": "overview",
-          "title": "Hello World",
-          "content": "# Hello World Plugin\n\nA minimal example plugin from the Clubhouse Workshop.\n\n## Features\n\n- Displays a greeting with a persistent counter\n- Demonstrates storage, logging, and notification APIs\n- Registers a command that triggers a notification\n\n## Usage\n\nOpen the **Hello** tab in any project to see the plugin in action. Click the button to increment the counter and trigger a notification."
+          "title": "Overview",
+          "content": "## Hello World\n\nA minimal example plugin demonstrating core Clubhouse plugin APIs. Use this as a starting point for building your own plugins."
+        },
+        {
+          "id": "features",
+          "title": "Key Features",
+          "content": "## Key Features\n\n**Persistent Counter** — Click the button to increment a counter. The value is stored in project-local storage and survives restarts.\n\n**Notifications** — Each increment triggers a notification, demonstrating the notification API.\n\n**Logging** — Actions are logged to the plugin console for debugging."
+        },
+        {
+          "id": "commands",
+          "title": "Commands",
+          "content": "## Commands\n\nAvailable from the command palette:\n\n| Command | Description |\n|---------|-------------|\n| **Say Hello** | Triggers a greeting notification |"
+        },
+        {
+          "id": "permissions",
+          "title": "Permissions",
+          "content": "## Permissions\n\n| Permission | Why it's needed |\n|------------|----------------|\n| **logging** | Demonstrate the logging API |\n| **storage** | Persist the counter value across sessions |\n| **notifications** | Show greeting notifications |\n| **commands** | Register the Say Hello command |\n| **theme** | Adapt colors and styles to the current theme |"
         }
       ]
     }

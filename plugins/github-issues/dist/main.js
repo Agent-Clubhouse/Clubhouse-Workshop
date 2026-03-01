@@ -1,89 +1,4 @@
-// src/main.tsx
-import { Fragment, jsx, jsxs } from "react/jsx-runtime";
-var React = globalThis.React;
-var { useState, useEffect, useCallback, useRef, useMemo } = React;
-var issueState = {
-  selectedIssueNumber: null,
-  creatingNew: false,
-  issues: [],
-  page: 1,
-  hasMore: false,
-  loading: false,
-  needsRefresh: false,
-  stateFilter: "open",
-  searchQuery: "",
-  listeners: /* @__PURE__ */ new Set(),
-  setSelectedIssue(num) {
-    this.selectedIssueNumber = num;
-    this.creatingNew = false;
-    this.notify();
-  },
-  setCreatingNew(val) {
-    this.creatingNew = val;
-    if (val) this.selectedIssueNumber = null;
-    this.notify();
-  },
-  setIssues(issues) {
-    this.issues = issues;
-    this.notify();
-  },
-  appendIssues(issues) {
-    this.issues = [...this.issues, ...issues];
-    this.notify();
-  },
-  setLoading(loading) {
-    this.loading = loading;
-    this.notify();
-  },
-  setStateFilter(filter) {
-    this.stateFilter = filter;
-    this.page = 1;
-    this.issues = [];
-    this.requestRefresh();
-  },
-  setSearchQuery(query) {
-    this.searchQuery = query;
-    this.notify();
-  },
-  // Command-triggered actions (consumed by MainPanel)
-  pendingAction: null,
-  triggerAction(action) {
-    if (this.selectedIssueNumber === null) return;
-    this.pendingAction = action;
-    this.notify();
-  },
-  consumeAction() {
-    const action = this.pendingAction;
-    this.pendingAction = null;
-    return action;
-  },
-  requestRefresh() {
-    this.needsRefresh = true;
-    this.notify();
-  },
-  subscribe(fn) {
-    this.listeners.add(fn);
-    return () => {
-      this.listeners.delete(fn);
-    };
-  },
-  notify() {
-    for (const fn of this.listeners) fn();
-  },
-  reset() {
-    this.selectedIssueNumber = null;
-    this.creatingNew = false;
-    this.issues = [];
-    this.page = 1;
-    this.hasMore = false;
-    this.loading = false;
-    this.needsRefresh = false;
-    this.pendingAction = null;
-    this.stateFilter = "open";
-    this.searchQuery = "";
-    this.listeners.clear();
-  }
-};
+// src/helpers.ts
 function relativeTime(dateStr) {
   const now = Date.now();
   const then = new Date(dateStr).getTime();
@@ -99,8 +14,429 @@ function relativeTime(dateStr) {
   return `${diffMo}mo ago`;
 }
 function labelColor(hex) {
-  if (!hex) return "#888";
+  if (!hex) return "var(--text-tertiary, #888888)";
   return hex.startsWith("#") ? hex : `#${hex}`;
+}
+function labelColorAlpha(hex, alpha) {
+  if (!hex) return `#888888${alpha}`;
+  const color = hex.startsWith("#") ? hex : `#${hex}`;
+  return `${color}${alpha}`;
+}
+function extractYamlValue(yaml, key) {
+  const match = yaml.match(new RegExp(`^${key}:\\s*["']?(.+?)["']?\\s*$`, "m"));
+  return match ? match[1] : null;
+}
+function isSafeUrl(url) {
+  return /^https?:\/\//i.test(url);
+}
+
+// src/state.ts
+function createIssueState() {
+  const state = {
+    repoIdentity: null,
+    selectedIssueNumber: null,
+    creatingNew: false,
+    issues: [],
+    page: 1,
+    hasMore: false,
+    loading: false,
+    needsRefresh: false,
+    stateFilter: "open",
+    searchQuery: "",
+    listeners: /* @__PURE__ */ new Set(),
+    pendingAction: null,
+    setRepoIdentity(identity) {
+      if (state.repoIdentity !== identity) {
+        const listeners = new Set(state.listeners);
+        state.reset();
+        state.listeners = listeners;
+        state.repoIdentity = identity;
+        state.notify();
+      }
+    },
+    setSelectedIssue(num) {
+      state.selectedIssueNumber = num;
+      state.creatingNew = false;
+      state.notify();
+    },
+    setCreatingNew(val) {
+      state.creatingNew = val;
+      if (val) state.selectedIssueNumber = null;
+      state.notify();
+    },
+    setIssues(issues) {
+      state.issues = issues;
+      state.notify();
+    },
+    appendIssues(issues) {
+      state.issues = [...state.issues, ...issues];
+      state.notify();
+    },
+    setLoading(loading) {
+      state.loading = loading;
+      state.notify();
+    },
+    setStateFilter(filter) {
+      state.stateFilter = filter;
+      state.page = 1;
+      state.issues = [];
+      state.requestRefresh();
+    },
+    setSearchQuery(query) {
+      state.searchQuery = query;
+      state.notify();
+    },
+    triggerAction(action) {
+      if (state.selectedIssueNumber === null) return;
+      state.pendingAction = action;
+      state.notify();
+    },
+    consumeAction() {
+      const action = state.pendingAction;
+      state.pendingAction = null;
+      return action;
+    },
+    requestRefresh() {
+      state.needsRefresh = true;
+      state.notify();
+    },
+    subscribe(fn) {
+      state.listeners.add(fn);
+      return () => {
+        state.listeners.delete(fn);
+      };
+    },
+    notify() {
+      for (const fn of state.listeners) fn();
+    },
+    reset() {
+      state.repoIdentity = null;
+      state.selectedIssueNumber = null;
+      state.creatingNew = false;
+      state.issues = [];
+      state.page = 1;
+      state.hasMore = false;
+      state.loading = false;
+      state.needsRefresh = false;
+      state.pendingAction = null;
+      state.stateFilter = "open";
+      state.searchQuery = "";
+      state.listeners.clear();
+    }
+  };
+  return state;
+}
+
+// src/use-theme.ts
+function hexToRgba(hex, alpha) {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+function mapThemeToCSS(theme) {
+  const c = theme.colors;
+  const onAccent = theme.type === "dark" ? "#ffffff" : "#000000";
+  return {
+    // Text
+    "--text-primary": c.text,
+    "--text-secondary": c.subtext1,
+    "--text-tertiary": c.subtext0,
+    "--text-muted": c.surface2,
+    "--text-error": c.error,
+    "--text-success": c.success,
+    "--text-warning": c.warning,
+    "--text-info": c.info,
+    "--text-accent": c.accent,
+    "--text-on-badge": onAccent,
+    "--text-on-accent": onAccent,
+    // Backgrounds
+    "--bg-primary": c.base,
+    "--bg-secondary": c.mantle,
+    "--bg-tertiary": c.crust,
+    "--bg-surface": c.surface0,
+    "--bg-surface-hover": c.surface1,
+    "--bg-surface-raised": c.surface2,
+    "--bg-active": c.surface1,
+    "--bg-error": hexToRgba(c.error, 0.1),
+    "--bg-error-subtle": hexToRgba(c.error, 0.05),
+    "--bg-success": hexToRgba(c.success, 0.15),
+    "--bg-warning": hexToRgba(c.warning, 0.15),
+    "--bg-info": hexToRgba(c.info, 0.1),
+    "--bg-accent": hexToRgba(c.accent, 0.15),
+    "--bg-overlay": "rgba(0, 0, 0, 0.5)",
+    // Borders
+    "--border-primary": c.surface0,
+    "--border-secondary": c.surface1,
+    "--border-error": hexToRgba(c.error, 0.3),
+    "--border-info": hexToRgba(c.info, 0.3),
+    "--border-accent": hexToRgba(c.accent, 0.3),
+    // Shadows & overlays
+    "--shadow": "rgba(0, 0, 0, 0.3)",
+    "--shadow-light": "rgba(0, 0, 0, 0.15)",
+    "--shadow-heavy": "rgba(0, 0, 0, 0.5)",
+    "--shadow-menu": "rgba(0, 0, 0, 0.3)",
+    "--shadow-color": "rgba(0, 0, 0, 0.5)",
+    "--overlay": "rgba(0, 0, 0, 0.5)",
+    "--glow-error": hexToRgba(c.error, 0.3),
+    "--glow-accent": hexToRgba(c.accent, 0.3),
+    // Fonts
+    "--font-family": "system-ui, -apple-system, sans-serif",
+    "--font-mono": "ui-monospace, monospace",
+    // Color aliases (file icons, labels, etc.)
+    "--color-blue": c.info,
+    "--color-green": c.success,
+    "--color-yellow": c.warning,
+    "--color-orange": c.warning,
+    "--color-red": c.error,
+    "--color-purple": c.accent,
+    "--color-cyan": c.info
+  };
+}
+function useTheme(themeApi) {
+  const React2 = globalThis.React;
+  const [theme, setTheme] = React2.useState(() => themeApi.getCurrent());
+  React2.useEffect(() => {
+    setTheme(themeApi.getCurrent());
+    const disposable = themeApi.onDidChange((t) => setTheme(t));
+    return () => disposable.dispose();
+  }, [themeApi]);
+  const style = React2.useMemo(
+    () => mapThemeToCSS(theme),
+    [theme]
+  );
+  return { style, themeType: theme.type };
+}
+
+// src/main.tsx
+import { Fragment, jsx, jsxs } from "react/jsx-runtime";
+var React = globalThis.React;
+var { useState, useEffect, useCallback, useRef, useMemo } = React;
+var issueState = createIssueState();
+function renderInline(text) {
+  const nodes = [];
+  const inlineRe = /!\[([^\]]*)\]\(([^)]+)\)|(\[([^\]]+)\]\(([^)]+)\))|(`[^`]+`)|(\*\*[^*]+\*\*)|(__[^_]+__)|(\*[^*]+\*)|(_[^_]+_)|(~~[^~]+~~)/g;
+  let last = 0;
+  let match;
+  while ((match = inlineRe.exec(text)) !== null) {
+    if (match.index > last) nodes.push(text.slice(last, match.index));
+    const m = match[0];
+    if (m.startsWith("![")) {
+      const alt = match[1];
+      const src = match[2];
+      if (isSafeUrl(src)) {
+        nodes.push(
+          /* @__PURE__ */ jsx("img", { src, alt, style: { maxWidth: "100%", borderRadius: "4px", margin: "4px 0" } }, match.index)
+        );
+      } else {
+        nodes.push(
+          /* @__PURE__ */ jsx("span", { style: { color: "var(--text-secondary, #a1a1aa)", fontSize: "12px" }, children: "[image blocked: unsafe URL]" }, match.index)
+        );
+      }
+    } else if (m.startsWith("[")) {
+      const linkText = match[4];
+      const href = match[5];
+      if (isSafeUrl(href)) {
+        nodes.push(
+          /* @__PURE__ */ jsx(
+            "a",
+            {
+              href,
+              target: "_blank",
+              rel: "noopener noreferrer",
+              style: { color: "var(--text-accent, #8b5cf6)", textDecoration: "underline" },
+              children: linkText
+            },
+            match.index
+          )
+        );
+      } else {
+        nodes.push(/* @__PURE__ */ jsx("span", { children: linkText }, match.index));
+      }
+    } else if (m.startsWith("`")) {
+      nodes.push(
+        /* @__PURE__ */ jsx(
+          "code",
+          {
+            style: {
+              background: "var(--bg-secondary, #27272a)",
+              padding: "1px 5px",
+              borderRadius: "3px",
+              fontFamily: "var(--font-mono, ui-monospace, monospace)",
+              fontSize: "0.9em"
+            },
+            children: m.slice(1, -1)
+          },
+          match.index
+        )
+      );
+    } else if (m.startsWith("**") || m.startsWith("__")) {
+      nodes.push(/* @__PURE__ */ jsx("strong", { children: renderInline(m.slice(2, -2)) }, match.index));
+    } else if (m.startsWith("~~")) {
+      nodes.push(/* @__PURE__ */ jsx("del", { children: renderInline(m.slice(2, -2)) }, match.index));
+    } else if (m.startsWith("*") || m.startsWith("_")) {
+      nodes.push(/* @__PURE__ */ jsx("em", { children: renderInline(m.slice(1, -1)) }, match.index));
+    }
+    last = match.index + m.length;
+  }
+  if (last < text.length) nodes.push(text.slice(last));
+  return nodes;
+}
+function Markdown({ source }) {
+  const elements = useMemo(() => {
+    const lines = source.split("\n");
+    const result = [];
+    let i = 0;
+    const codeBlockStyle = {
+      background: "var(--bg-secondary, #27272a)",
+      border: "1px solid var(--border-primary, #3f3f46)",
+      borderRadius: "6px",
+      padding: "10px 12px",
+      overflowX: "auto",
+      fontFamily: "var(--font-mono, ui-monospace, monospace)",
+      fontSize: "12px",
+      lineHeight: 1.5,
+      margin: "8px 0",
+      whiteSpace: "pre",
+      color: "var(--text-primary, #e4e4e7)"
+    };
+    const blockquoteStyle = {
+      borderLeft: "3px solid var(--border-primary, #3f3f46)",
+      paddingLeft: "12px",
+      margin: "8px 0",
+      color: "var(--text-secondary, #a1a1aa)"
+    };
+    while (i < lines.length) {
+      const line = lines[i];
+      if (line.startsWith("```")) {
+        const codeLines = [];
+        i++;
+        while (i < lines.length && !lines[i].startsWith("```")) {
+          codeLines.push(lines[i]);
+          i++;
+        }
+        i++;
+        result.push(
+          /* @__PURE__ */ jsx("pre", { style: codeBlockStyle, children: /* @__PURE__ */ jsx("code", { children: codeLines.join("\n") }) }, result.length)
+        );
+        continue;
+      }
+      if (!line.trim()) {
+        i++;
+        continue;
+      }
+      const headingMatch = line.match(/^(#{1,6})\s+(.+)/);
+      if (headingMatch) {
+        const level = headingMatch[1].length;
+        const sizes = { 1: "1.5em", 2: "1.3em", 3: "1.15em", 4: "1em", 5: "0.95em", 6: "0.9em" };
+        result.push(
+          /* @__PURE__ */ jsx(
+            "div",
+            {
+              style: {
+                fontSize: sizes[level] || "1em",
+                fontWeight: 600,
+                margin: "12px 0 6px",
+                color: "var(--text-primary, #e4e4e7)",
+                borderBottom: level <= 2 ? "1px solid var(--border-primary, #3f3f46)" : void 0,
+                paddingBottom: level <= 2 ? "4px" : void 0
+              },
+              children: renderInline(headingMatch[2])
+            },
+            result.length
+          )
+        );
+        i++;
+        continue;
+      }
+      if (/^[-*_]{3,}\s*$/.test(line)) {
+        result.push(
+          /* @__PURE__ */ jsx(
+            "hr",
+            {
+              style: { border: "none", borderTop: "1px solid var(--border-primary, #3f3f46)", margin: "12px 0" }
+            },
+            result.length
+          )
+        );
+        i++;
+        continue;
+      }
+      if (line.startsWith("> ") || line === ">") {
+        const quoteLines = [];
+        while (i < lines.length && (lines[i].startsWith("> ") || lines[i] === ">")) {
+          quoteLines.push(lines[i].replace(/^>\s?/, ""));
+          i++;
+        }
+        result.push(
+          /* @__PURE__ */ jsx("blockquote", { style: blockquoteStyle, children: /* @__PURE__ */ jsx(Markdown, { source: quoteLines.join("\n") }) }, result.length)
+        );
+        continue;
+      }
+      if (/^\s*[-*+]\s/.test(line)) {
+        const items = [];
+        while (i < lines.length && /^\s*[-*+]\s/.test(lines[i])) {
+          items.push(lines[i].replace(/^\s*[-*+]\s+/, ""));
+          i++;
+        }
+        result.push(
+          /* @__PURE__ */ jsx("ul", { style: { margin: "6px 0", paddingLeft: "20px" }, children: items.map((item, idx) => /* @__PURE__ */ jsx("li", { style: { marginBottom: "2px" }, children: renderInline(item) }, idx)) }, result.length)
+        );
+        continue;
+      }
+      if (/^\s*\d+[.)]\s/.test(line)) {
+        const items = [];
+        while (i < lines.length && /^\s*\d+[.)]\s/.test(lines[i])) {
+          items.push(lines[i].replace(/^\s*\d+[.)]\s+/, ""));
+          i++;
+        }
+        result.push(
+          /* @__PURE__ */ jsx("ol", { style: { margin: "6px 0", paddingLeft: "20px" }, children: items.map((item, idx) => /* @__PURE__ */ jsx("li", { style: { marginBottom: "2px" }, children: renderInline(item) }, idx)) }, result.length)
+        );
+        continue;
+      }
+      if (/^\s*[-*]\s\[[ x]\]/.test(line)) {
+        const items = [];
+        while (i < lines.length && /^\s*[-*]\s\[[ x]\]/.test(lines[i])) {
+          const checked = lines[i].includes("[x]");
+          const text = lines[i].replace(/^\s*[-*]\s\[[ x]\]\s*/, "");
+          items.push({ checked, text });
+          i++;
+        }
+        result.push(
+          /* @__PURE__ */ jsx("ul", { style: { margin: "6px 0", paddingLeft: "20px", listStyle: "none" }, children: items.map((item, idx) => /* @__PURE__ */ jsxs("li", { style: { marginBottom: "2px" }, children: [
+            /* @__PURE__ */ jsx("input", { type: "checkbox", checked: item.checked, readOnly: true, style: { marginRight: "6px" } }),
+            renderInline(item.text)
+          ] }, idx)) }, result.length)
+        );
+        continue;
+      }
+      const paraLines = [];
+      while (i < lines.length && lines[i].trim() && !lines[i].startsWith("```") && !lines[i].match(/^#{1,6}\s/) && !/^[-*_]{3,}\s*$/.test(lines[i]) && !lines[i].startsWith("> ") && lines[i] !== ">" && !/^\s*[-*+]\s/.test(lines[i]) && !/^\s*\d+[.)]\s/.test(lines[i])) {
+        paraLines.push(lines[i]);
+        i++;
+      }
+      if (paraLines.length > 0) {
+        result.push(
+          /* @__PURE__ */ jsx("p", { style: { margin: "6px 0", lineHeight: 1.6 }, children: renderInline(paraLines.join("\n")) }, result.length)
+        );
+      }
+    }
+    return result;
+  }, [source]);
+  return /* @__PURE__ */ jsx(
+    "div",
+    {
+      style: {
+        fontSize: "13px",
+        color: "var(--text-primary, #e4e4e7)",
+        fontFamily: "var(--font-family, system-ui, -apple-system, sans-serif)",
+        wordWrap: "break-word",
+        overflowWrap: "break-word"
+      },
+      children: elements
+    }
+  );
 }
 async function detectRepo(api) {
   try {
@@ -172,10 +508,6 @@ function parseTemplate(content, filename) {
     labels: [],
     filename
   };
-}
-function extractYamlValue(yaml, key) {
-  const match = yaml.match(new RegExp(`^${key}:\\s*["']?(.+?)["']?\\s*$`, "m"));
-  return match ? match[1] : null;
 }
 var pluginApi = null;
 function activate(ctx, api) {
@@ -250,9 +582,9 @@ function LabelPicker({
           flexWrap: "wrap",
           gap: "4px",
           padding: "4px 8px",
-          border: "1px solid var(--border-color, #333)",
+          border: "1px solid var(--border-primary, #3f3f46)",
           borderRadius: "6px",
-          background: "var(--input-bg, #1a1a2e)",
+          background: "var(--bg-secondary, #27272a)",
           minHeight: "30px",
           cursor: "text",
           alignItems: "center"
@@ -268,8 +600,8 @@ function LabelPicker({
                 gap: "4px",
                 padding: "1px 6px",
                 borderRadius: "10px",
-                background: "var(--accent-bg, #2a2a4a)",
-                color: "var(--text-primary, #e0e0e0)",
+                background: "var(--bg-accent, rgba(139,92,246,0.15))",
+                color: "var(--text-primary, #e4e4e7)",
                 fontSize: "11px"
               },
               children: [
@@ -303,11 +635,11 @@ function LabelPicker({
                 border: "none",
                 outline: "none",
                 background: "transparent",
-                color: "var(--text-primary, #e0e0e0)",
+                color: "var(--text-primary, #e4e4e7)",
                 fontSize: "12px",
                 flex: 1,
                 minWidth: "60px",
-                fontFamily: "var(--font-family)"
+                fontFamily: "var(--font-family, system-ui, -apple-system, sans-serif)"
               }
             }
           )
@@ -335,13 +667,13 @@ function LabelPicker({
             right: 0,
             maxHeight: "180px",
             overflowY: "auto",
-            border: "1px solid var(--border-color, #333)",
+            border: "1px solid var(--border-primary, #3f3f46)",
             borderRadius: "6px",
-            background: "var(--dropdown-bg, #1e1e3a)",
+            background: "var(--bg-primary, #18181b)",
             zIndex: 100,
             marginTop: "2px"
           },
-          children: filtered.length === 0 ? /* @__PURE__ */ jsx("div", { style: { padding: "6px 10px", color: "var(--text-secondary, #888)", fontSize: "12px" }, children: filter ? "No matching labels" : "No labels available" }) : filtered.map((label) => /* @__PURE__ */ jsxs(
+          children: filtered.length === 0 ? /* @__PURE__ */ jsx("div", { style: { padding: "6px 10px", color: "var(--text-secondary, #a1a1aa)", fontSize: "12px" }, children: filter ? "No matching labels" : "No labels available" }) : filtered.map((label) => /* @__PURE__ */ jsxs(
             "div",
             {
               onClick: () => toggle(label),
@@ -349,11 +681,11 @@ function LabelPicker({
                 padding: "4px 10px",
                 cursor: "pointer",
                 fontSize: "12px",
-                color: "var(--text-primary, #e0e0e0)",
+                color: "var(--text-primary, #e4e4e7)",
                 display: "flex",
                 alignItems: "center",
                 gap: "6px",
-                background: selected.includes(label) ? "var(--accent-bg, #2a2a4a)" : "transparent"
+                background: selected.includes(label) ? "var(--bg-accent, rgba(139,92,246,0.15))" : "transparent"
               },
               children: [
                 /* @__PURE__ */ jsx("span", { style: { width: "14px", textAlign: "center", fontSize: "10px" }, children: selected.includes(label) ? "\u2713" : "" }),
@@ -390,11 +722,11 @@ function statusBadgeStyle(status) {
   };
   switch (status) {
     case "sleeping":
-      return { ...base, background: "rgba(64,200,100,0.15)", color: "#4ade80" };
+      return { ...base, background: "var(--bg-success, rgba(64,200,100,0.15))", color: "var(--text-success, #4ade80)" };
     case "running":
-      return { ...base, background: "rgba(234,179,8,0.15)", color: "#facc15" };
+      return { ...base, background: "var(--bg-warning, rgba(234,179,8,0.15))", color: "var(--text-warning, #facc15)" };
     case "error":
-      return { ...base, background: "rgba(239,68,68,0.15)", color: "#f87171" };
+      return { ...base, background: "var(--bg-error, rgba(239,68,68,0.15))", color: "var(--text-error, #f87171)" };
     default:
       return base;
   }
@@ -482,24 +814,24 @@ ${instructions.trim()}`;
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        background: "rgba(0,0,0,0.5)"
+        background: "var(--bg-overlay, rgba(0,0,0,0.5))"
       },
       children: /* @__PURE__ */ jsxs(
         "div",
         {
           style: {
-            background: "var(--panel-bg, #1e1e2e)",
-            border: "1px solid var(--border-color, #333)",
+            background: "var(--bg-primary, #18181b)",
+            border: "1px solid var(--border-primary, #3f3f46)",
             borderRadius: "8px",
             padding: "16px",
             width: "320px",
             maxHeight: "80vh",
             overflow: "auto",
-            boxShadow: "0 8px 32px rgba(0,0,0,0.4)"
+            boxShadow: "0 8px 32px var(--shadow-heavy, rgba(0,0,0,0.4))"
           },
           children: [
-            /* @__PURE__ */ jsx("div", { style: { fontSize: "14px", fontWeight: 500, color: "var(--text-primary, #e0e0e0)", marginBottom: "4px" }, children: "Assign to Agent" }),
-            /* @__PURE__ */ jsxs("div", { style: { fontSize: "10px", color: "var(--text-secondary, #888)", marginBottom: "12px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }, children: [
+            /* @__PURE__ */ jsx("div", { style: { fontSize: "14px", fontWeight: 500, color: "var(--text-primary, #e4e4e7)", marginBottom: "4px" }, children: "Assign to Agent" }),
+            /* @__PURE__ */ jsxs("div", { style: { fontSize: "10px", color: "var(--text-secondary, #a1a1aa)", marginBottom: "12px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }, children: [
               "#",
               issue.number,
               " ",
@@ -517,17 +849,17 @@ ${instructions.trim()}`;
                   width: "100%",
                   padding: "6px 8px",
                   fontSize: "12px",
-                  background: "var(--input-bg, #1a1a2e)",
-                  border: "1px solid var(--border-color, #333)",
+                  background: "var(--bg-secondary, #27272a)",
+                  border: "1px solid var(--border-primary, #3f3f46)",
                   borderRadius: "4px",
-                  color: "var(--text-primary, #e0e0e0)",
+                  color: "var(--text-primary, #e4e4e7)",
                   resize: "none",
-                  fontFamily: "var(--font-family)",
+                  fontFamily: "var(--font-family, system-ui, -apple-system, sans-serif)",
                   boxSizing: "border-box"
                 }
               }
             ),
-            /* @__PURE__ */ jsx("div", { style: { marginTop: "12px", display: "flex", flexDirection: "column", gap: "4px" }, children: durableAgents.length === 0 ? /* @__PURE__ */ jsx("div", { style: { fontSize: "12px", color: "var(--text-secondary, #888)", textAlign: "center", padding: "16px 0" }, children: "No durable agents found" }) : durableAgents.map((agent) => {
+            /* @__PURE__ */ jsx("div", { style: { marginTop: "12px", display: "flex", flexDirection: "column", gap: "4px" }, children: durableAgents.length === 0 ? /* @__PURE__ */ jsx("div", { style: { fontSize: "12px", color: "var(--text-secondary, #a1a1aa)", textAlign: "center", padding: "16px 0" }, children: "No durable agents found" }) : durableAgents.map((agent) => {
               const isSelected = selectedAgentId === agent.id;
               return /* @__PURE__ */ jsxs(
                 "button",
@@ -538,12 +870,12 @@ ${instructions.trim()}`;
                     textAlign: "left",
                     padding: "8px 10px",
                     fontSize: "12px",
-                    color: "var(--text-primary, #e0e0e0)",
+                    color: "var(--text-primary, #e4e4e7)",
                     borderRadius: "4px",
-                    border: isSelected ? "1px solid var(--accent-color, #4a6cf7)" : "1px solid transparent",
-                    background: isSelected ? "rgba(74,108,247,0.1)" : "transparent",
+                    border: isSelected ? "1px solid var(--text-accent, #8b5cf6)" : "1px solid transparent",
+                    background: isSelected ? "var(--bg-accent, rgba(74,108,247,0.1))" : "transparent",
                     cursor: "pointer",
-                    fontFamily: "var(--font-family)"
+                    fontFamily: "var(--font-family, system-ui, -apple-system, sans-serif)"
                   },
                   children: [
                     /* @__PURE__ */ jsxs("div", { style: { display: "flex", alignItems: "center", gap: "6px" }, children: [
@@ -551,7 +883,7 @@ ${instructions.trim()}`;
                       /* @__PURE__ */ jsx("span", { style: { fontWeight: 500 }, children: agent.name }),
                       /* @__PURE__ */ jsx("span", { style: statusBadgeStyle(agent.status), children: agent.status })
                     ] }),
-                    /* @__PURE__ */ jsx("div", { style: { fontSize: "10px", color: "var(--text-secondary, #888)", marginTop: "2px", paddingLeft: "22px" }, children: agent.status === "running" ? "Will interrupt current work" : "Assign issue to this agent" })
+                    /* @__PURE__ */ jsx("div", { style: { fontSize: "10px", color: "var(--text-secondary, #a1a1aa)", marginTop: "2px", paddingLeft: "22px" }, children: agent.status === "running" ? "Will interrupt current work" : "Assign issue to this agent" })
                   ]
                 },
                 agent.id
@@ -563,7 +895,7 @@ ${instructions.trim()}`;
                 style: {
                   marginTop: "12px",
                   paddingTop: "12px",
-                  borderTop: "1px solid var(--border-color, #333)",
+                  borderTop: "1px solid var(--border-primary, #3f3f46)",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "space-between"
@@ -588,7 +920,7 @@ ${instructions.trim()}`;
                             onChange: (e) => setSaveAsDefault(e.target.checked)
                           }
                         ),
-                        /* @__PURE__ */ jsx("span", { style: { fontSize: "10px", color: "var(--text-secondary, #888)" }, children: "Save as default" })
+                        /* @__PURE__ */ jsx("span", { style: { fontSize: "10px", color: "var(--text-secondary, #a1a1aa)" }, children: "Save as default" })
                       ]
                     }
                   ),
@@ -618,6 +950,7 @@ ${instructions.trim()}`;
   );
 }
 function SidebarPanel({ api }) {
+  const { style: themeStyle } = useTheme(api.theme);
   const [issues, setIssues] = useState(issueState.issues);
   const [selected, setSelected] = useState(issueState.selectedIssueNumber);
   const [loading, setLoading] = useState(false);
@@ -648,6 +981,11 @@ function SidebarPanel({ api }) {
     issueState.setLoading(true);
     setError(null);
     try {
+      const repo = await detectRepo(api);
+      if (!mountedRef.current) return;
+      if (repo) {
+        issueState.setRepoIdentity(repo);
+      }
       const perPage = 30;
       const fetchCount = page * perPage + 1;
       const fields = "number,title,labels,createdAt,updatedAt,author,url,state";
@@ -686,7 +1024,7 @@ function SidebarPanel({ api }) {
     }
   }, [api]);
   useEffect(() => {
-    if (issueState.issues.length === 0) fetchIssues(1, false);
+    fetchIssues(1, false);
   }, [fetchIssues]);
   useEffect(() => {
     if (needsRefresh) {
@@ -698,7 +1036,7 @@ function SidebarPanel({ api }) {
     if (!searchQuery.trim()) return issues;
     const q = searchQuery.toLowerCase();
     return issues.filter(
-      (i) => i.title.toLowerCase().includes(q) || `#${i.number}`.includes(q)
+      (i) => i.title.toLowerCase().includes(q) || `#${i.number}`.includes(q) || i.labels.some((l) => l.name.toLowerCase().includes(q))
     );
   }, [issues, searchQuery]);
   const handleSearchChange = useCallback((val) => {
@@ -708,15 +1046,15 @@ function SidebarPanel({ api }) {
     issueState.setStateFilter(val);
   }, []);
   if (error) {
-    return /* @__PURE__ */ jsx("div", { style: { ...sidebarContainer, justifyContent: "center", alignItems: "center" }, children: /* @__PURE__ */ jsxs("div", { style: { padding: "16px", textAlign: "center" }, children: [
+    return /* @__PURE__ */ jsx("div", { style: { ...themeStyle, ...sidebarContainer, justifyContent: "center", alignItems: "center" }, children: /* @__PURE__ */ jsxs("div", { style: { padding: "16px", textAlign: "center" }, children: [
       /* @__PURE__ */ jsx("div", { style: { fontSize: "12px", color: "var(--text-error, #f87171)", marginBottom: "8px" }, children: "Could not load issues" }),
-      /* @__PURE__ */ jsx("div", { style: { fontSize: "11px", color: "var(--text-secondary, #888)", marginBottom: "12px" }, children: error }),
+      /* @__PURE__ */ jsx("div", { style: { fontSize: "11px", color: "var(--text-secondary, #a1a1aa)", marginBottom: "12px" }, children: error }),
       /* @__PURE__ */ jsx("button", { onClick: () => fetchIssues(1, false), style: btnSecondarySmall, children: "Retry" })
     ] }) });
   }
-  return /* @__PURE__ */ jsxs("div", { style: sidebarContainer, children: [
+  return /* @__PURE__ */ jsxs("div", { style: { ...themeStyle, ...sidebarContainer }, children: [
     /* @__PURE__ */ jsxs("div", { style: sidebarHeader, children: [
-      /* @__PURE__ */ jsx("span", { style: { fontSize: "12px", fontWeight: 500, color: "var(--text-primary, #e0e0e0)" }, children: "Issues" }),
+      /* @__PURE__ */ jsx("span", { style: { fontSize: "12px", fontWeight: 500, color: "var(--text-primary, #e4e4e7)" }, children: "Issues" }),
       /* @__PURE__ */ jsxs("div", { style: { display: "flex", alignItems: "center", gap: "4px" }, children: [
         /* @__PURE__ */ jsx(
           "button",
@@ -739,23 +1077,23 @@ function SidebarPanel({ api }) {
         )
       ] })
     ] }),
-    /* @__PURE__ */ jsxs("div", { style: { padding: "6px 8px", borderBottom: "1px solid var(--border-color, #222)", display: "flex", gap: "6px", alignItems: "center" }, children: [
+    /* @__PURE__ */ jsxs("div", { style: { padding: "6px 8px", borderBottom: "1px solid var(--border-primary, #3f3f46)", display: "flex", gap: "6px", alignItems: "center" }, children: [
       /* @__PURE__ */ jsx(
         "input",
         {
           type: "text",
           value: searchQuery,
           onChange: (e) => handleSearchChange(e.target.value),
-          placeholder: "Filter\\u2026",
+          placeholder: "Filter...",
           style: {
             flex: 1,
             padding: "4px 6px",
             fontSize: "11px",
-            border: "1px solid var(--border-color, #333)",
+            border: "1px solid var(--border-primary, #3f3f46)",
             borderRadius: "4px",
-            background: "var(--input-bg, #1a1a2e)",
-            color: "var(--text-primary, #e0e0e0)",
-            fontFamily: "var(--font-family)",
+            background: "var(--bg-secondary, #27272a)",
+            color: "var(--text-primary, #e4e4e7)",
+            fontFamily: "var(--font-family, system-ui, -apple-system, sans-serif)",
             outline: "none"
           }
         }
@@ -768,11 +1106,11 @@ function SidebarPanel({ api }) {
           style: {
             padding: "4px 4px",
             fontSize: "11px",
-            border: "1px solid var(--border-color, #333)",
+            border: "1px solid var(--border-primary, #3f3f46)",
             borderRadius: "4px",
-            background: "var(--input-bg, #1a1a2e)",
-            color: "var(--text-primary, #e0e0e0)",
-            fontFamily: "var(--font-family)",
+            background: "var(--bg-secondary, #27272a)",
+            color: "var(--text-primary, #e4e4e7)",
+            fontFamily: "var(--font-family, system-ui, -apple-system, sans-serif)",
             cursor: "pointer"
           },
           children: [
@@ -782,10 +1120,10 @@ function SidebarPanel({ api }) {
         }
       )
     ] }),
-    /* @__PURE__ */ jsx("div", { style: { flex: 1, overflowY: "auto" }, children: loading && issues.length === 0 ? /* @__PURE__ */ jsxs("div", { style: { padding: "16px", textAlign: "center", fontSize: "12px", color: "var(--text-secondary, #888)" }, children: [
+    /* @__PURE__ */ jsx("div", { style: { flex: 1, overflowY: "auto" }, children: loading && issues.length === 0 ? /* @__PURE__ */ jsxs("div", { style: { padding: "16px", textAlign: "center", fontSize: "12px", color: "var(--text-secondary, #a1a1aa)" }, children: [
       "Loading issues",
       "\u2026"
-    ] }) : filteredIssues.length === 0 ? /* @__PURE__ */ jsx("div", { style: { padding: "16px", textAlign: "center", fontSize: "12px", color: "var(--text-secondary, #888)" }, children: searchQuery ? "No matching issues" : `No ${stateFilter} issues` }) : /* @__PURE__ */ jsxs("div", { style: { padding: "2px 0" }, children: [
+    ] }) : filteredIssues.length === 0 ? /* @__PURE__ */ jsx("div", { style: { padding: "16px", textAlign: "center", fontSize: "12px", color: "var(--text-secondary, #a1a1aa)" }, children: searchQuery ? "No matching issues" : `No ${stateFilter} issues` }) : /* @__PURE__ */ jsxs("div", { style: { padding: "2px 0" }, children: [
       filteredIssues.map((issue) => /* @__PURE__ */ jsxs(
         "div",
         {
@@ -793,15 +1131,15 @@ function SidebarPanel({ api }) {
           style: {
             padding: "8px 10px",
             cursor: "pointer",
-            background: issue.number === selected ? "var(--item-active-bg, #2a2a4a)" : "transparent"
+            background: issue.number === selected ? "var(--bg-active, #3f3f46)" : "transparent"
           },
           children: [
             /* @__PURE__ */ jsxs("div", { style: { display: "flex", alignItems: "center", gap: "6px", minWidth: 0 }, children: [
-              /* @__PURE__ */ jsxs("span", { style: { fontSize: "10px", color: "var(--text-secondary, #888)", flexShrink: 0 }, children: [
+              /* @__PURE__ */ jsxs("span", { style: { fontSize: "10px", color: "var(--text-secondary, #a1a1aa)", flexShrink: 0 }, children: [
                 "#",
                 issue.number
               ] }),
-              /* @__PURE__ */ jsx("span", { style: { fontSize: "12px", color: "var(--text-primary, #e0e0e0)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }, children: issue.title })
+              /* @__PURE__ */ jsx("span", { style: { fontSize: "12px", color: "var(--text-primary, #e4e4e7)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }, children: issue.title })
             ] }),
             /* @__PURE__ */ jsxs("div", { style: { display: "flex", alignItems: "center", gap: "4px", marginTop: "4px", flexWrap: "wrap" }, children: [
               issue.labels.slice(0, 3).map((label) => /* @__PURE__ */ jsx(
@@ -811,16 +1149,16 @@ function SidebarPanel({ api }) {
                     fontSize: "9px",
                     padding: "0 5px",
                     borderRadius: "10px",
-                    backgroundColor: `${labelColor(label.color)}22`,
+                    backgroundColor: labelColorAlpha(label.color, "22"),
                     color: labelColor(label.color),
-                    border: `1px solid ${labelColor(label.color)}44`,
+                    border: `1px solid ${labelColorAlpha(label.color, "44")}`,
                     flexShrink: 0
                   },
                   children: label.name
                 },
                 label.name
               )),
-              /* @__PURE__ */ jsx("span", { style: { fontSize: "10px", color: "var(--text-secondary, #888)", marginLeft: "auto", flexShrink: 0 }, children: relativeTime(issue.updatedAt) })
+              /* @__PURE__ */ jsx("span", { style: { fontSize: "10px", color: "var(--text-secondary, #a1a1aa)", marginLeft: "auto", flexShrink: 0 }, children: relativeTime(issue.updatedAt) })
             ] })
           ]
         },
@@ -839,6 +1177,7 @@ function SidebarPanel({ api }) {
   ] });
 }
 function MainPanel({ api }) {
+  const { style: themeStyle } = useTheme(api.theme);
   const [selected, setSelected] = useState(issueState.selectedIssueNumber);
   const [creatingNew, setCreatingNew] = useState(issueState.creatingNew);
   const [detail, setDetail] = useState(null);
@@ -1054,7 +1393,7 @@ function MainPanel({ api }) {
   }, []);
   if (creatingNew) {
     return /* @__PURE__ */ jsxs("div", { style: mainContainer, children: [
-      /* @__PURE__ */ jsx("div", { style: mainHeader, children: /* @__PURE__ */ jsx("span", { style: { fontSize: "13px", fontWeight: 500, color: "var(--text-primary, #e0e0e0)" }, children: "New Issue" }) }),
+      /* @__PURE__ */ jsx("div", { style: mainHeader, children: /* @__PURE__ */ jsx("span", { style: { fontSize: "13px", fontWeight: 500, color: "var(--text-primary, #e4e4e7)" }, children: "New Issue" }) }),
       /* @__PURE__ */ jsx("div", { style: { flex: 1, overflowY: "auto", padding: "16px" }, children: /* @__PURE__ */ jsxs("div", { style: { display: "flex", flexDirection: "column", gap: "14px" }, children: [
         templates.length > 0 && /* @__PURE__ */ jsxs("div", { children: [
           /* @__PURE__ */ jsx("label", { style: formLabel, children: "Template" }),
@@ -1140,16 +1479,16 @@ function MainPanel({ api }) {
     ] });
   }
   if (selected === null) {
-    return /* @__PURE__ */ jsx("div", { style: { ...mainContainer, justifyContent: "center", alignItems: "center" }, children: /* @__PURE__ */ jsx("span", { style: { fontSize: "12px", color: "var(--text-secondary, #888)" }, children: "Select an issue to view details" }) });
+    return /* @__PURE__ */ jsx("div", { style: { ...mainContainer, justifyContent: "center", alignItems: "center" }, children: /* @__PURE__ */ jsx("span", { style: { fontSize: "12px", color: "var(--text-secondary, #a1a1aa)" }, children: "Select an issue to view details" }) });
   }
   if (loading) {
-    return /* @__PURE__ */ jsx("div", { style: { ...mainContainer, justifyContent: "center", alignItems: "center" }, children: /* @__PURE__ */ jsxs("span", { style: { fontSize: "12px", color: "var(--text-secondary, #888)" }, children: [
+    return /* @__PURE__ */ jsx("div", { style: { ...mainContainer, justifyContent: "center", alignItems: "center" }, children: /* @__PURE__ */ jsxs("span", { style: { fontSize: "12px", color: "var(--text-secondary, #a1a1aa)" }, children: [
       "Loading issue",
       "\u2026"
     ] }) });
   }
   if (!detail) {
-    return /* @__PURE__ */ jsx("div", { style: { ...mainContainer, justifyContent: "center", alignItems: "center" }, children: /* @__PURE__ */ jsx("span", { style: { fontSize: "12px", color: "var(--text-secondary, #888)" }, children: "Failed to load issue details" }) });
+    return /* @__PURE__ */ jsx("div", { style: { ...mainContainer, justifyContent: "center", alignItems: "center" }, children: /* @__PURE__ */ jsx("span", { style: { fontSize: "12px", color: "var(--text-secondary, #a1a1aa)" }, children: "Failed to load issue details" }) });
   }
   const isOpen = detail.state === "OPEN" || detail.state === "open";
   const stateBadge = {
@@ -1158,9 +1497,9 @@ function MainPanel({ api }) {
     borderRadius: "10px",
     cursor: "pointer",
     border: "1px solid",
-    ...isOpen ? { background: "rgba(64,200,100,0.1)", color: "#4ade80", borderColor: "rgba(64,200,100,0.3)" } : { background: "rgba(168,85,247,0.1)", color: "#c084fc", borderColor: "rgba(168,85,247,0.3)" }
+    ...isOpen ? { background: "var(--bg-success, rgba(64,200,100,0.1))", color: "var(--text-success, #4ade80)", borderColor: "var(--border-info, rgba(64,200,100,0.3))" } : { background: "var(--bg-accent, rgba(168,85,247,0.1))", color: "var(--text-accent, #c084fc)", borderColor: "var(--border-accent, rgba(168,85,247,0.3))" }
   };
-  return /* @__PURE__ */ jsxs("div", { style: { ...mainContainer, position: "relative" }, children: [
+  return /* @__PURE__ */ jsxs("div", { style: { ...themeStyle, ...mainContainer, position: "relative" }, children: [
     /* @__PURE__ */ jsxs("div", { style: { ...mainHeader, gap: "8px" }, children: [
       editing ? /* @__PURE__ */ jsx("div", { style: { flex: 1, minWidth: 0 }, children: /* @__PURE__ */ jsx(
         "input",
@@ -1171,11 +1510,11 @@ function MainPanel({ api }) {
           style: { ...formInput, fontSize: "13px" }
         }
       ) }) : /* @__PURE__ */ jsxs("div", { style: { flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: "6px" }, children: [
-        /* @__PURE__ */ jsxs("span", { style: { fontSize: "12px", color: "var(--text-secondary, #888)", flexShrink: 0 }, children: [
+        /* @__PURE__ */ jsxs("span", { style: { fontSize: "12px", color: "var(--text-secondary, #a1a1aa)", flexShrink: 0 }, children: [
           "#",
           detail.number
         ] }),
-        /* @__PURE__ */ jsx("span", { style: { fontSize: "13px", fontWeight: 500, color: "var(--text-primary, #e0e0e0)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }, children: detail.title })
+        /* @__PURE__ */ jsx("span", { style: { fontSize: "13px", fontWeight: 500, color: "var(--text-primary, #e4e4e7)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }, children: detail.title })
       ] }),
       editing ? /* @__PURE__ */ jsxs(Fragment, { children: [
         /* @__PURE__ */ jsx("button", { onClick: saveEdit, style: { ...btnPrimarySmall, flexShrink: 0 }, children: "Save" }),
@@ -1186,13 +1525,13 @@ function MainPanel({ api }) {
         /* @__PURE__ */ jsx("button", { onClick: () => setShowAgentDialog(true), style: { ...btnPrimarySmall, flexShrink: 0 }, children: "Assign to Agent" })
       ] })
     ] }),
-    /* @__PURE__ */ jsxs("div", { style: { display: "flex", alignItems: "center", flexWrap: "wrap", gap: "6px", padding: "8px 16px", borderBottom: "1px solid var(--border-color, #222)", background: "var(--panel-bg-alt, rgba(0,0,0,0.15))" }, children: [
+    /* @__PURE__ */ jsxs("div", { style: { display: "flex", alignItems: "center", flexWrap: "wrap", gap: "6px", padding: "8px 16px", borderBottom: "1px solid var(--border-primary, #3f3f46)", background: "var(--bg-secondary, #27272a)" }, children: [
       /* @__PURE__ */ jsx("button", { onClick: handleToggleState, style: stateBadge, title: isOpen ? "Close issue" : "Reopen issue", children: detail.state }),
-      /* @__PURE__ */ jsxs("span", { style: { fontSize: "10px", color: "var(--text-secondary, #888)" }, children: [
+      /* @__PURE__ */ jsxs("span", { style: { fontSize: "10px", color: "var(--text-secondary, #a1a1aa)" }, children: [
         "by ",
         detail.author.login
       ] }),
-      /* @__PURE__ */ jsxs("span", { style: { fontSize: "10px", color: "var(--text-secondary, #888)" }, children: [
+      /* @__PURE__ */ jsxs("span", { style: { fontSize: "10px", color: "var(--text-secondary, #a1a1aa)" }, children: [
         "opened ",
         relativeTime(detail.createdAt)
       ] }),
@@ -1203,7 +1542,7 @@ function MainPanel({ api }) {
           value: editLabels,
           onChange: (e) => setEditLabels(e.target.value),
           placeholder: "Labels (comma separated)",
-          style: { fontSize: "10px", padding: "2px 6px", background: "var(--input-bg, #1a1a2e)", border: "1px solid var(--border-color, #333)", borderRadius: "4px", color: "var(--text-primary, #e0e0e0)", fontFamily: "var(--font-family)", outline: "none" }
+          style: { fontSize: "10px", padding: "2px 6px", background: "var(--bg-secondary, #27272a)", border: "1px solid var(--border-primary, #3f3f46)", borderRadius: "4px", color: "var(--text-primary, #e4e4e7)", fontFamily: "var(--font-family, system-ui, -apple-system, sans-serif)", outline: "none" }
         }
       ) : detail.labels.map((label) => /* @__PURE__ */ jsx(
         "span",
@@ -1212,9 +1551,9 @@ function MainPanel({ api }) {
             fontSize: "9px",
             padding: "0 5px",
             borderRadius: "10px",
-            backgroundColor: `${labelColor(label.color)}22`,
+            backgroundColor: labelColorAlpha(label.color, "22"),
             color: labelColor(label.color),
-            border: `1px solid ${labelColor(label.color)}44`
+            border: `1px solid ${labelColorAlpha(label.color, "44")}`
           },
           children: label.name
         },
@@ -1226,8 +1565,8 @@ function MainPanel({ api }) {
           style: {
             fontSize: "10px",
             padding: "1px 6px",
-            background: "var(--item-active-bg, #2a2a4a)",
-            color: "var(--text-secondary, #aaa)",
+            background: "var(--bg-active, #3f3f46)",
+            color: "var(--text-secondary, #a1a1aa)",
             borderRadius: "4px",
             display: "inline-flex",
             alignItems: "center",
@@ -1251,7 +1590,7 @@ function MainPanel({ api }) {
       /* @__PURE__ */ jsx("button", { onClick: handleAddAssignee, style: { ...btnSecondarySmall, fontSize: "10px", padding: "1px 6px" }, children: "+ Assignee" })
     ] }),
     /* @__PURE__ */ jsxs("div", { style: { flex: 1, overflowY: "auto" }, children: [
-      editing ? /* @__PURE__ */ jsx("div", { style: { padding: "12px 16px", borderBottom: "1px solid var(--border-color, #222)" }, children: /* @__PURE__ */ jsx(
+      editing ? /* @__PURE__ */ jsx("div", { style: { padding: "12px 16px", borderBottom: "1px solid var(--border-primary, #3f3f46)" }, children: /* @__PURE__ */ jsx(
         "textarea",
         {
           value: editBody,
@@ -1260,9 +1599,9 @@ function MainPanel({ api }) {
           rows: 10,
           style: { ...formInput, resize: "vertical" }
         }
-      ) }) : detail.body ? /* @__PURE__ */ jsx("div", { style: { padding: "12px 16px", borderBottom: "1px solid var(--border-color, #222)" }, children: /* @__PURE__ */ jsx("pre", { style: preStyle, children: detail.body }) }) : /* @__PURE__ */ jsx("div", { style: { padding: "12px 16px", fontSize: "12px", color: "var(--text-secondary, #888)", fontStyle: "italic", borderBottom: "1px solid var(--border-color, #222)" }, children: "No description provided." }),
-      detail.comments.length > 0 && /* @__PURE__ */ jsxs("div", { style: { padding: "12px 16px", borderBottom: "1px solid var(--border-color, #222)" }, children: [
-        /* @__PURE__ */ jsxs("div", { style: { fontSize: "12px", fontWeight: 500, color: "var(--text-primary, #e0e0e0)", marginBottom: "12px" }, children: [
+      ) }) : detail.body ? /* @__PURE__ */ jsx("div", { style: { padding: "12px 16px", borderBottom: "1px solid var(--border-primary, #3f3f46)" }, children: /* @__PURE__ */ jsx(Markdown, { source: detail.body }) }) : /* @__PURE__ */ jsx("div", { style: { padding: "12px 16px", fontSize: "12px", color: "var(--text-secondary, #a1a1aa)", fontStyle: "italic", borderBottom: "1px solid var(--border-primary, #3f3f46)" }, children: "No description provided." }),
+      detail.comments.length > 0 && /* @__PURE__ */ jsxs("div", { style: { padding: "12px 16px", borderBottom: "1px solid var(--border-primary, #3f3f46)" }, children: [
+        /* @__PURE__ */ jsxs("div", { style: { fontSize: "12px", fontWeight: 500, color: "var(--text-primary, #e4e4e7)", marginBottom: "12px" }, children: [
           detail.comments.length,
           " comment",
           detail.comments.length === 1 ? "" : "s"
@@ -1271,23 +1610,23 @@ function MainPanel({ api }) {
           "div",
           {
             style: {
-              border: "1px solid var(--border-color, #222)",
+              border: "1px solid var(--border-primary, #3f3f46)",
               borderRadius: "6px",
               overflow: "hidden"
             },
             children: [
-              /* @__PURE__ */ jsxs("div", { style: { display: "flex", alignItems: "center", gap: "8px", padding: "6px 10px", background: "var(--panel-bg-alt, rgba(0,0,0,0.15))", borderBottom: "1px solid var(--border-color, #222)" }, children: [
-                /* @__PURE__ */ jsx("span", { style: { fontSize: "12px", fontWeight: 500, color: "var(--text-primary, #e0e0e0)" }, children: comment.author.login }),
-                /* @__PURE__ */ jsx("span", { style: { fontSize: "10px", color: "var(--text-secondary, #888)" }, children: relativeTime(comment.createdAt) })
+              /* @__PURE__ */ jsxs("div", { style: { display: "flex", alignItems: "center", gap: "8px", padding: "6px 10px", background: "var(--bg-secondary, #27272a)", borderBottom: "1px solid var(--border-primary, #3f3f46)" }, children: [
+                /* @__PURE__ */ jsx("span", { style: { fontSize: "12px", fontWeight: 500, color: "var(--text-primary, #e4e4e7)" }, children: comment.author.login }),
+                /* @__PURE__ */ jsx("span", { style: { fontSize: "10px", color: "var(--text-secondary, #a1a1aa)" }, children: relativeTime(comment.createdAt) })
               ] }),
-              /* @__PURE__ */ jsx("div", { style: { padding: "8px 10px" }, children: /* @__PURE__ */ jsx("pre", { style: preStyle, children: comment.body }) })
+              /* @__PURE__ */ jsx("div", { style: { padding: "8px 10px" }, children: /* @__PURE__ */ jsx(Markdown, { source: comment.body }) })
             ]
           },
           i
         )) })
       ] }),
       /* @__PURE__ */ jsxs("div", { style: { padding: "12px 16px" }, children: [
-        /* @__PURE__ */ jsx("div", { style: { fontSize: "12px", fontWeight: 500, color: "var(--text-primary, #e0e0e0)", marginBottom: "8px" }, children: "Add a comment" }),
+        /* @__PURE__ */ jsx("div", { style: { fontSize: "12px", fontWeight: 500, color: "var(--text-primary, #e4e4e7)", marginBottom: "8px" }, children: "Add a comment" }),
         /* @__PURE__ */ jsx(
           "textarea",
           {
@@ -1326,39 +1665,39 @@ var sidebarContainer = {
   display: "flex",
   flexDirection: "column",
   height: "100%",
-  fontFamily: "var(--font-family)",
-  background: "var(--sidebar-bg, #181825)"
+  fontFamily: "var(--font-family, system-ui, -apple-system, sans-serif)",
+  background: "var(--bg-primary, #18181b)"
 };
 var sidebarHeader = {
   display: "flex",
   alignItems: "center",
   justifyContent: "space-between",
   padding: "8px 10px",
-  borderBottom: "1px solid var(--border-color, #222)"
+  borderBottom: "1px solid var(--border-primary, #3f3f46)"
 };
 var sidebarHeaderBtn = {
   padding: "2px 8px",
   fontSize: "12px",
-  color: "var(--text-secondary, #888)",
+  color: "var(--text-secondary, #a1a1aa)",
   background: "transparent",
   border: "none",
   borderRadius: "4px",
   cursor: "pointer",
-  fontFamily: "var(--font-family)"
+  fontFamily: "var(--font-family, system-ui, -apple-system, sans-serif)"
 };
 var mainContainer = {
   display: "flex",
   flexDirection: "column",
   height: "100%",
-  fontFamily: "var(--font-family)",
-  background: "var(--panel-bg, #1e1e2e)"
+  fontFamily: "var(--font-family, system-ui, -apple-system, sans-serif)",
+  background: "var(--bg-primary, #18181b)"
 };
 var mainHeader = {
   display: "flex",
   alignItems: "center",
   padding: "8px 16px",
-  borderBottom: "1px solid var(--border-color, #222)",
-  background: "var(--sidebar-bg, #181825)",
+  borderBottom: "1px solid var(--border-primary, #3f3f46)",
+  background: "var(--bg-primary, #18181b)",
   flexShrink: 0
 };
 var mainFooter = {
@@ -1367,37 +1706,28 @@ var mainFooter = {
   justifyContent: "flex-end",
   gap: "8px",
   padding: "10px 16px",
-  borderTop: "1px solid var(--border-color, #222)",
-  background: "var(--sidebar-bg, #181825)",
+  borderTop: "1px solid var(--border-primary, #3f3f46)",
+  background: "var(--bg-primary, #18181b)",
   flexShrink: 0
 };
 var formLabel = {
   display: "block",
   fontSize: "12px",
   fontWeight: 500,
-  color: "var(--text-secondary, #aaa)",
+  color: "var(--text-secondary, #a1a1aa)",
   marginBottom: "4px"
 };
 var formInput = {
   width: "100%",
   padding: "6px 10px",
   borderRadius: "6px",
-  border: "1px solid var(--border-color, #333)",
-  background: "var(--input-bg, #1a1a2e)",
-  color: "var(--text-primary, #e0e0e0)",
+  border: "1px solid var(--border-primary, #3f3f46)",
+  background: "var(--bg-secondary, #27272a)",
+  color: "var(--text-primary, #e4e4e7)",
   fontSize: "13px",
-  fontFamily: "var(--font-family)",
+  fontFamily: "var(--font-family, system-ui, -apple-system, sans-serif)",
   boxSizing: "border-box",
   outline: "none"
-};
-var preStyle = {
-  whiteSpace: "pre-wrap",
-  wordWrap: "break-word",
-  fontFamily: "var(--font-mono, monospace)",
-  fontSize: "13px",
-  lineHeight: 1.6,
-  color: "var(--text-primary, #e0e0e0)",
-  margin: 0
 };
 var btnPrimarySmall = {
   padding: "4px 12px",
@@ -1405,20 +1735,20 @@ var btnPrimarySmall = {
   fontWeight: 500,
   borderRadius: "4px",
   border: "none",
-  background: "var(--accent-color, #4a6cf7)",
-  color: "#fff",
+  background: "var(--text-accent, #8b5cf6)",
+  color: "var(--text-on-accent, #fff)",
   cursor: "pointer",
-  fontFamily: "var(--font-family)"
+  fontFamily: "var(--font-family, system-ui, -apple-system, sans-serif)"
 };
 var btnSecondarySmall = {
   padding: "4px 12px",
   fontSize: "12px",
   borderRadius: "4px",
-  border: "1px solid var(--border-color, #333)",
+  border: "1px solid var(--border-primary, #3f3f46)",
   background: "transparent",
-  color: "var(--text-primary, #e0e0e0)",
+  color: "var(--text-primary, #e4e4e7)",
   cursor: "pointer",
-  fontFamily: "var(--font-family)"
+  fontFamily: "var(--font-family, system-ui, -apple-system, sans-serif)"
 };
 export {
   MainPanel,

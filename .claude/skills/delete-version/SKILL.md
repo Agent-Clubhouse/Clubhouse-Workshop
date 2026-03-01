@@ -15,7 +15,7 @@ You are removing a deprecated SDK version's files from the repository. This is a
 
 ```
 Deprecated SDK versions:
-  v0.5  — Deprecated 2026-03-01, removal target 2026-06-01
+  v0.6  — Deprecated 2026-06-01, removal target 2026-09-01
 ```
 
 If no versions are deprecated, inform the user and suggest `/deprecate-version` first.

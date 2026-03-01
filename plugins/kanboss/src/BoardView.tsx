@@ -4,12 +4,13 @@ const { useEffect, useState, useCallback, useRef } = React;
 import type { PluginAPI } from '@clubhouse/plugin-types';
 import type { Board, Card } from './types';
 import { BOARDS_KEY, cardsKey, isCardStuck } from './types';
-import { kanBossState, type FilterState } from './state';
+import { kanBossState, filtersEqual, type FilterState } from './state';
 import { CardCell } from './CardCell';
 import { CardDialog } from './CardDialog';
 import { BoardConfigDialog } from './BoardConfigDialog';
 import { FilterBar } from './FilterBar';
 import { triggerAutomation } from './AutomationEngine';
+import { mutateStorage } from './storageQueue';
 import * as S from './styles';
 
 function cardsStorage(api: PluginAPI, board: Board) {
@@ -59,28 +60,17 @@ export function BoardView({ api }: { api: PluginAPI }) {
   const [zoomLevel, setZoomLevel] = useState(1.0);
   const [filter, setFilter] = useState<FilterState>(kanBossState.filter);
 
-  // ── Subscribe to state ────────────────────────────────────────────────
-  useEffect(() => {
-    const unsub = kanBossState.subscribe(() => {
-      setSelectedBoardId(kanBossState.selectedBoardId);
-      setShowCardDialog(kanBossState.editingCardId !== null);
-      setShowConfigDialog(kanBossState.configuringBoard);
-      setFilter({ ...kanBossState.filter });
-    });
-    setSelectedBoardId(kanBossState.selectedBoardId);
-    return unsub;
-  }, []);
-
-  // ── Load board + cards ────────────────────────────────────────────────
+  // ── Load board + cards (stable — uses refs, no re-subscribe cascade) ─
   const loadBoard = useCallback(async () => {
-    if (!selectedBoardId) {
+    const boardId = kanBossState.selectedBoardId;
+    if (!boardId) {
       setBoard(null);
       setCards([]);
       return;
     }
     const raw = await boardsStorage.read(BOARDS_KEY);
     const boards: Board[] = Array.isArray(raw) ? raw : [];
-    const found = boards.find((b) => b.id === selectedBoardId) ?? null;
+    const found = boards.find((b) => b.id === boardId) ?? null;
     setBoard(found);
     if (found) {
       setZoomLevel(found.config.zoomLevel);
@@ -90,22 +80,42 @@ export function BoardView({ api }: { api: PluginAPI }) {
     } else {
       setCards([]);
     }
-  }, [selectedBoardId, boardsStorage, api]);
+  }, [boardsStorage, api]);
+
+  const loadBoardRef = useRef(loadBoard);
+  loadBoardRef.current = loadBoard;
+
+  // ── Single subscription — no cascading re-subscribes ────────────────
+  const refreshRef2 = useRef(kanBossState.refreshCount);
+  const prevBoardIdRef = useRef(kanBossState.selectedBoardId);
 
   useEffect(() => {
-    loadBoard();
-  }, [loadBoard]);
+    // Sync initial state and trigger first load
+    setSelectedBoardId(kanBossState.selectedBoardId);
+    prevBoardIdRef.current = kanBossState.selectedBoardId;
+    loadBoardRef.current();
 
-  const refreshRef = useRef(kanBossState.refreshCount);
-  useEffect(() => {
     const unsub = kanBossState.subscribe(() => {
-      if (kanBossState.refreshCount !== refreshRef.current) {
-        refreshRef.current = kanBossState.refreshCount;
-        loadBoard();
+      setSelectedBoardId(kanBossState.selectedBoardId);
+      setShowCardDialog(kanBossState.editingCardId !== null);
+      setShowConfigDialog(kanBossState.configuringBoard);
+      setFilter(prev => filtersEqual(prev, kanBossState.filter) ? prev : { ...kanBossState.filter });
+
+      const boardChanged = kanBossState.selectedBoardId !== prevBoardIdRef.current;
+      const refreshed = kanBossState.refreshCount !== refreshRef2.current;
+
+      if (boardChanged) {
+        prevBoardIdRef.current = kanBossState.selectedBoardId;
+      }
+      if (refreshed) {
+        refreshRef2.current = kanBossState.refreshCount;
+      }
+      if (boardChanged || refreshed) {
+        loadBoardRef.current();
       }
     });
     return unsub;
-  }, [loadBoard]);
+  }, []);
 
   // ── Zoom controls ─────────────────────────────────────────────────────
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -117,13 +127,13 @@ export function BoardView({ api }: { api: PluginAPI }) {
     const newZoom = Math.max(0.5, Math.min(2.0, Math.round((zoomLevel + delta) * 20) / 20));
     setZoomLevel(newZoom);
 
-    const raw = await boardsStorage.read(BOARDS_KEY);
-    const boards: Board[] = Array.isArray(raw) ? raw : [];
-    const idx = boards.findIndex((b) => b.id === board.id);
-    if (idx !== -1) {
-      boards[idx].config.zoomLevel = newZoom;
-      await boardsStorage.write(BOARDS_KEY, boards);
-    }
+    await mutateStorage<Board>(boardsStorage, BOARDS_KEY, (boards) => {
+      const idx = boards.findIndex((b) => b.id === board.id);
+      if (idx !== -1) {
+        boards[idx].config.zoomLevel = newZoom;
+      }
+      return boards;
+    });
   }, [board, zoomLevel, boardsStorage]);
 
   useEffect(() => {
@@ -145,112 +155,128 @@ export function BoardView({ api }: { api: PluginAPI }) {
   const handleMoveCard = useCallback(async (cardId: string, targetStateId: string, targetSwimlaneId?: string) => {
     if (!board) return;
 
-    const raw = await cardsStorage(api, board).read(cardsKey(board.id));
-    const allCards: Card[] = Array.isArray(raw) ? raw : [];
-    const idx = allCards.findIndex((c) => c.id === cardId);
-    if (idx === -1) return;
+    let movedCard: Card | null = null;
+    let toStateAutomatic = false;
 
-    const card = allCards[idx];
-    const stateChanged = card.stateId !== targetStateId;
-    const laneChanged = targetSwimlaneId != null && card.swimlaneId !== targetSwimlaneId;
+    const updated = await mutateStorage<Card>(cardsStorage(api, board), cardsKey(board.id), (allCards) => {
+      const idx = allCards.findIndex((c) => c.id === cardId);
+      if (idx === -1) return allCards;
 
-    if (!stateChanged && !laneChanged) return;
+      const card = allCards[idx];
+      const stateChanged = card.stateId !== targetStateId;
+      const laneChanged = targetSwimlaneId != null && card.swimlaneId !== targetSwimlaneId;
 
-    const fromState = board.states.find((s) => s.id === card.stateId);
-    const toState = board.states.find((s) => s.id === targetStateId);
-    if (!fromState || !toState) return;
+      if (!stateChanged && !laneChanged) return allCards;
 
-    const fromLane = laneChanged ? board.swimlanes.find((l) => l.id === card.swimlaneId) : null;
-    const toLane = laneChanged && targetSwimlaneId ? board.swimlanes.find((l) => l.id === targetSwimlaneId) : null;
+      const fromState = board.states.find((s) => s.id === card.stateId);
+      const toState = board.states.find((s) => s.id === targetStateId);
+      if (!fromState || !toState) return allCards;
 
-    card.stateId = targetStateId;
-    if (targetSwimlaneId) card.swimlaneId = targetSwimlaneId;
-    card.automationAttempts = 0;
-    card.updatedAt = Date.now();
+      const fromLane = laneChanged ? board.swimlanes.find((l) => l.id === card.swimlaneId) : null;
+      const toLane = laneChanged && targetSwimlaneId ? board.swimlanes.find((l) => l.id === targetSwimlaneId) : null;
 
-    let detail = '';
-    if (stateChanged) detail = `Moved from "${fromState.name}" to "${toState.name}"`;
-    if (laneChanged && fromLane && toLane) {
-      detail += detail ? `, lane "${fromLane.name}" \u2192 "${toLane.name}"` : `Moved to lane "${toLane.name}"`;
-    }
+      card.stateId = targetStateId;
+      if (targetSwimlaneId) card.swimlaneId = targetSwimlaneId;
+      card.automationAttempts = 0;
+      card.updatedAt = Date.now();
 
-    card.history.push({ action: 'moved', timestamp: Date.now(), detail });
+      let detail = '';
+      if (stateChanged) detail = `Moved from "${fromState.name}" to "${toState.name}"`;
+      if (laneChanged && fromLane && toLane) {
+        detail += detail ? `, lane "${fromLane.name}" \u2192 "${toLane.name}"` : `Moved to lane "${toLane.name}"`;
+      }
 
-    allCards[idx] = card;
-    await cardsStorage(api, board).write(cardsKey(board.id), allCards);
-    setCards([...allCards]);
+      card.history.push({ action: 'moved', timestamp: Date.now(), detail });
+      allCards[idx] = card;
+
+      if (stateChanged && toState.isAutomatic) {
+        movedCard = card;
+        toStateAutomatic = true;
+      }
+
+      return allCards;
+    });
+
+    setCards([...updated]);
     kanBossState.triggerRefresh();
 
-    if (stateChanged && toState.isAutomatic) {
-      await triggerAutomation(api, card, board);
+    if (toStateAutomatic && movedCard) {
+      await triggerAutomation(api, movedCard, board);
     }
   }, [board, api]);
 
   // ── Delete card ───────────────────────────────────────────────────────
   const handleDeleteCard = useCallback(async (cardId: string) => {
     if (!board) return;
-    const raw = await cardsStorage(api, board).read(cardsKey(board.id));
-    const allCards: Card[] = Array.isArray(raw) ? raw : [];
-    const filtered = allCards.filter((c) => c.id !== cardId);
-    await cardsStorage(api, board).write(cardsKey(board.id), filtered);
-    setCards(filtered);
+    const updated = await mutateStorage<Card>(cardsStorage(api, board), cardsKey(board.id), (allCards) =>
+      allCards.filter((c) => c.id !== cardId));
+    setCards(updated);
     kanBossState.triggerRefresh();
   }, [board, api]);
 
   // ── Clear retries ─────────────────────────────────────────────────────
   const handleClearRetries = useCallback(async (cardId: string) => {
     if (!board) return;
-    const raw = await cardsStorage(api, board).read(cardsKey(board.id));
-    const allCards: Card[] = Array.isArray(raw) ? raw : [];
-    const idx = allCards.findIndex((c) => c.id === cardId);
-    if (idx === -1) return;
+    let clearedCard: Card | null = null;
 
-    allCards[idx].automationAttempts = 0;
-    allCards[idx].updatedAt = Date.now();
-    allCards[idx].history.push({
-      action: 'edited',
-      timestamp: Date.now(),
-      detail: 'Retries cleared \u2014 automation can retry',
+    const updated = await mutateStorage<Card>(cardsStorage(api, board), cardsKey(board.id), (allCards) => {
+      const idx = allCards.findIndex((c) => c.id === cardId);
+      if (idx === -1) return allCards;
+
+      allCards[idx].automationAttempts = 0;
+      allCards[idx].updatedAt = Date.now();
+      allCards[idx].history.push({
+        action: 'edited',
+        timestamp: Date.now(),
+        detail: 'Retries cleared \u2014 automation can retry',
+      });
+
+      const state = board.states.find((s) => s.id === allCards[idx].stateId);
+      if (state?.isAutomatic) {
+        clearedCard = allCards[idx];
+      }
+
+      return allCards;
     });
 
-    await cardsStorage(api, board).write(cardsKey(board.id), allCards);
-    setCards([...allCards]);
+    setCards([...updated]);
     kanBossState.triggerRefresh();
 
-    const state = board.states.find((s) => s.id === allCards[idx].stateId);
-    if (state?.isAutomatic) {
-      await triggerAutomation(api, allCards[idx], board);
+    if (clearedCard) {
+      await triggerAutomation(api, clearedCard, board);
     }
   }, [board, api]);
 
   // ── Manual advance ────────────────────────────────────────────────────
   const handleManualAdvance = useCallback(async (cardId: string) => {
     if (!board) return;
-    const raw = await cardsStorage(api, board).read(cardsKey(board.id));
-    const allCards: Card[] = Array.isArray(raw) ? raw : [];
-    const idx = allCards.findIndex((c) => c.id === cardId);
-    if (idx === -1) return;
 
-    const card = allCards[idx];
-    const sortedStates = [...board.states].sort((a, b) => a.order - b.order);
-    const curIdx = sortedStates.findIndex((s) => s.id === card.stateId);
-    if (curIdx === -1 || curIdx >= sortedStates.length - 1) return;
+    const updated = await mutateStorage<Card>(cardsStorage(api, board), cardsKey(board.id), (allCards) => {
+      const idx = allCards.findIndex((c) => c.id === cardId);
+      if (idx === -1) return allCards;
 
-    const nextState = sortedStates[curIdx + 1];
-    const fromState = sortedStates[curIdx];
+      const card = allCards[idx];
+      const sortedStates = [...board.states].sort((a, b) => a.order - b.order);
+      const curIdx = sortedStates.findIndex((s) => s.id === card.stateId);
+      if (curIdx === -1 || curIdx >= sortedStates.length - 1) return allCards;
 
-    card.stateId = nextState.id;
-    card.automationAttempts = 0;
-    card.updatedAt = Date.now();
-    card.history.push({
-      action: 'moved',
-      timestamp: Date.now(),
-      detail: `Manually advanced from "${fromState.name}" to "${nextState.name}"`,
+      const nextState = sortedStates[curIdx + 1];
+      const fromState = sortedStates[curIdx];
+
+      card.stateId = nextState.id;
+      card.automationAttempts = 0;
+      card.updatedAt = Date.now();
+      card.history.push({
+        action: 'moved',
+        timestamp: Date.now(),
+        detail: `Manually advanced from "${fromState.name}" to "${nextState.name}"`,
+      });
+
+      allCards[idx] = card;
+      return allCards;
     });
 
-    allCards[idx] = card;
-    await cardsStorage(api, board).write(cardsKey(board.id), allCards);
-    setCards([...allCards]);
+    setCards([...updated]);
     kanBossState.triggerRefresh();
   }, [board, api]);
 

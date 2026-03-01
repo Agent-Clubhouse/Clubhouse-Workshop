@@ -1,32 +1,80 @@
 {
   "id": "standup",
   "name": "Standup",
-  "version": "0.1.0",
-  "description": "AI-generated daily standup summaries across all your projects.",
+  "version": "2.0.0",
+  "description": "AI-generated daily standup summaries from your git activity — local commits, branches, and merged PRs.",
   "author": "Clubhouse Workshop",
-  "official": true,
-  "engine": { "api": 0.5 },
-  "scope": "app",
+  "engine": { "api": 0.6 },
+  "scope": "project",
   "main": "./dist/main.js",
-  "permissions": ["logging", "storage", "notifications", "agents", "projects", "git", "commands"],
+  "settingsPanel": "custom",
+  "permissions": ["logging", "storage", "notifications", "agents", "projects", "commands", "theme", "process"],
+  "allowedCommands": ["git", "gh"],
   "contributes": {
-    "railItem": {
+    "tab": {
       "label": "Standup",
       "icon": "<svg width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'><rect x='3' y='4' width='18' height='18' rx='2' ry='2'/><line x1='16' y1='2' x2='16' y2='6'/><line x1='8' y1='2' x2='8' y2='6'/><line x1='3' y1='10' x2='21' y2='10'/></svg>",
-      "position": "top"
+      "layout": "sidebar-content"
     },
     "commands": [
+      { "id": "standup.generate", "title": "Generate Standup" }
+    ],
+    "settings": [
       {
-        "id": "standup.generate",
-        "title": "Generate Standup"
+        "key": "orchestrator",
+        "type": "string",
+        "label": "Orchestrator",
+        "description": "Agent orchestrator to use (leave empty for default)"
+      },
+      {
+        "key": "model",
+        "type": "string",
+        "label": "Model",
+        "description": "Model ID for the quick agent (leave empty for default)"
+      },
+      {
+        "key": "freeAgentMode",
+        "type": "boolean",
+        "label": "Free Agent Mode",
+        "description": "Allow the agent to use tools and run commands",
+        "default": false
+      },
+      {
+        "key": "prompt",
+        "type": "string",
+        "label": "System Prompt",
+        "description": "Custom instructions for the standup agent",
+        "default": "You are a concise standup report generator. Given git activity data, produce a brief daily standup in first person with sections: **Done** (what was accomplished), **Next** (what's planned based on context), **Blockers** (any potential issues). Keep each section to 3-5 bullet points max. Be specific about what changed — reference file names, features, and fixes."
+      },
+      {
+        "key": "lookbackDays",
+        "type": "number",
+        "label": "Lookback Days",
+        "description": "Max days to backfill when generating standups for missed days",
+        "default": 7
       }
     ],
     "help": {
       "topics": [
         {
           "id": "overview",
-          "title": "Standup",
-          "content": "# Standup Plugin\n\nGenerates a daily standup summary from your recent git activity across all open projects.\n\n## Usage\n\nClick the Standup item in the sidebar rail to view today's standup. Click \"Generate\" to create a fresh summary based on your recent commits.\n\nStandup history is stored globally so you can review past summaries."
+          "title": "Overview",
+          "content": "## Standup\n\nAI-generated daily standup summaries from your git activity. Crawls local commits, branches, and merged PRs from the active project to produce concise daily reports.\n\nClick **Generate** to create today's standup. If you missed days, it automatically backfills up to N days (configurable)."
+        },
+        {
+          "id": "features",
+          "title": "Key Features",
+          "content": "## Key Features\n\n**Git-Powered** — Gathers real commit history, branch activity, and merged PRs from the project.\n\n**Backfill** — Missed a few days? Click Generate and it fills in missing dates automatically (configurable lookback).\n\n**History** — Browse past standups in the sidebar panel. Click any date to view its report.\n\n**Configurable** — Choose orchestrator, model, free agent mode, and customize the prompt in Settings."
+        },
+        {
+          "id": "commands",
+          "title": "Commands",
+          "content": "## Commands\n\n| Command | Description |\n|---------|-------------|\n| **Generate Standup** | Creates standups for today and any missing recent days |"
+        },
+        {
+          "id": "permissions",
+          "title": "Permissions",
+          "content": "## Permissions\n\n| Permission | Why it's needed |\n|------------|----------------|\n| **logging** | Log diagnostic information |\n| **storage** | Persist standup history per-project |\n| **notifications** | Show completion and error notifications |\n| **agents** | Spawn a quick agent to generate summaries |\n| **projects** | Access project information for git data |\n| **commands** | Register the Generate Standup command |\n| **theme** | Adapt to the user's color theme |\n| **settings** | Read user configuration |\n| **process** | Execute git and gh CLI commands |"
         }
       ]
     }

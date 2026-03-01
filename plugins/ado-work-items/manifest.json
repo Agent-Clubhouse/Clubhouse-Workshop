@@ -1,0 +1,104 @@
+{
+  "id": "ado-work-items",
+  "name": "Azure DevOps Work Items",
+  "version": "1.1.0",
+  "description": "Browse, create, and manage Azure DevOps work items with WIQL query support and agent assignment",
+  "author": "Clubhouse Workshop",
+  "engine": { "api": 0.6 },
+  "scope": "project",
+  "main": "./dist/main.js",
+  "settingsPanel": "declarative",
+  "contributes": {
+    "tab": {
+      "label": "Work Items",
+      "icon": "<svg width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect x='3' y='3' width='18' height='18' rx='2'/><path d='M9 12l2 2 4-4'/></svg>",
+      "layout": "sidebar-content"
+    },
+    "commands": [
+      { "id": "ado-work-items.refresh", "title": "Refresh Work Items" },
+      { "id": "ado-work-items.create", "title": "Create Work Item" },
+      { "id": "ado-work-items.assignAgent", "title": "Assign Work Item to Agent" },
+      { "id": "ado-work-items.toggleState", "title": "Change Work Item State" },
+      { "id": "ado-work-items.viewInBrowser", "title": "View Work Item in Browser" }
+    ],
+    "settings": [
+      {
+        "key": "organization",
+        "type": "string",
+        "label": "Organization URL",
+        "description": "Azure DevOps organization URL (e.g., https://dev.azure.com/myorg)"
+      },
+      {
+        "key": "project",
+        "type": "string",
+        "label": "Project",
+        "description": "Azure DevOps project name"
+      },
+      {
+        "key": "team",
+        "type": "string",
+        "label": "Team (optional)",
+        "description": "Team name within the project (defaults to project default team)"
+      },
+      {
+        "key": "defaultWorkItemType",
+        "type": "string",
+        "label": "Default Work Item Type",
+        "description": "Default type when creating work items (e.g., User Story, Bug, Task)"
+      },
+      {
+        "key": "areaPath",
+        "type": "string",
+        "label": "Area Path (optional)",
+        "description": "Filter work items by area path (e.g., MyProject\\Frontend)"
+      },
+      {
+        "key": "iterationPath",
+        "type": "string",
+        "label": "Iteration Path (optional)",
+        "description": "Filter work items by iteration path (e.g., MyProject\\Sprint 1)"
+      },
+      {
+        "key": "queryPath",
+        "type": "string",
+        "label": "Saved Query Path (optional)",
+        "description": "Use a saved ADO query instead of the default listing (e.g., Shared Queries/Active Bugs)"
+      }
+    ],
+    "help": {
+      "topics": [
+        {
+          "id": "overview",
+          "title": "Overview",
+          "content": "## Azure DevOps Work Items\n\nBrowse, create, and manage Azure DevOps work items directly from Clubhouse. Supports WIQL queries, saved queries, filtering by state/type/area/iteration, and assigning work items to AI agents.\n\nRequires the **Azure CLI** with the `azure-devops` extension installed and authenticated (`az login`). Configure your Organization URL and Project in the plugin settings."
+        },
+        {
+          "id": "features",
+          "title": "Key Features",
+          "content": "## Key Features\n\n**Browse & Filter** — View work items sorted by most recently changed (50 per page). Filter by state, type, or search by title/ID.\n\n**Detail View** — See full work item details including metadata, description, discussion history, and inline commenting.\n\n**Create Work Items** — Click **+ New** or use the command palette. Set type, title, description, area/iteration path, priority, and tags.\n\n**Edit Inline** — Modify title, description, state, assignee, and tags directly from the detail view.\n\n**Agent Assignment** — Assign a work item to a durable agent with optional custom instructions. Agents receive the work item context and execute the task.\n\n**Saved Queries** — Point the plugin at a saved ADO query path to use your team's existing query instead of the default listing.\n\n**Settings** — Organization URL, Project, Team, Default Work Item Type, Area Path, Iteration Path, and Saved Query Path are all configurable."
+        },
+        {
+          "id": "commands",
+          "title": "Commands",
+          "content": "## Commands\n\nAvailable from the command palette:\n\n| Command | Description |\n|---------|-------------|\n| **Refresh Work Items** | Reloads the work item list from Azure DevOps |\n| **Create Work Item** | Opens the work item creation form |\n| **Assign Work Item to Agent** | Opens the agent assignment dialog for the selected work item |\n| **Change Work Item State** | Advances the state of the selected work item |\n| **View Work Item in Browser** | Opens the selected work item in the ADO web portal |"
+        },
+        {
+          "id": "permissions",
+          "title": "Permissions",
+          "content": "## Permissions\n\n| Permission | Why it's needed |\n|------------|----------------|\n| **logging** | Log diagnostic information for troubleshooting |\n| **storage** | Persist plugin settings and cached data |\n| **notifications** | Show success/error notifications after operations |\n| **agents** | List and assign durable agents to work items |\n| **commands** | Register command palette entries |\n| **process** | Execute the `az` CLI to interact with Azure DevOps |\n| **widgets** | Render UI components |\n| **theme** | Adapt colors and styles to the current theme |"
+        }
+      ]
+    }
+  },
+  "permissions": [
+    "logging",
+    "storage",
+    "notifications",
+    "agents",
+    "commands",
+    "process",
+    "widgets",
+    "theme"
+  ],
+  "allowedCommands": ["az"]
+}

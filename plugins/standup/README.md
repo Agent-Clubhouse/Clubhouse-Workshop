@@ -1,13 +1,13 @@
 # Standup Plugin
 
-AI-generated daily standup summaries across all your projects. Spawns a quick agent to analyze recent git activity and produce a structured standup report.
+AI-generated daily standup summaries from your project's git activity. Spawns a quick agent to analyze recent commits, branches, and merged PRs to produce a structured standup report.
 
 ## What it does
 
 - **Generate standup** — creates a daily summary of yesterday's work, today's plan, and blockers
-- **Multi-project awareness** — pulls context from all open projects in your workspace
-- **Streaming output** — see the standup as it's generated, not just at the end
-- **Standup history** — past standups are stored globally and browsable from the Standup panel (up to 30 entries)
+- **Backfill** — missed a few days? Click Generate and it fills in missing weekdays automatically
+- **Standup history** — past standups are stored per-project and browsable from the sidebar panel (up to 90 entries)
+- **Configurable** — choose orchestrator, model, and customize the system prompt in Settings
 
 ## Install
 
@@ -20,19 +20,17 @@ Then in Clubhouse: **Settings > Plugins > Standup > Enable**.
 
 ## Usage
 
-1. Click the **Standup** item in the sidebar rail
-2. Click **Generate Today's Standup**
-3. Wait for the agent to complete — you'll see output streaming in real time
-4. The completed standup is saved to history
-
-You can also browse past standups by clicking any entry in the **Past Standups** list.
+1. Open a project and click the **Standup** tab
+2. Click **Generate** in the sidebar panel
+3. Wait for the agent to complete — standups are generated for today and any missing recent weekdays
+4. Browse past standups by clicking any date in the sidebar
 
 ## Permissions
 
 | Permission | Why |
 |---|---|
 | `logging` | Log plugin lifecycle events |
-| `storage` | Persist standup history across sessions |
+| `storage` | Persist standup history per-project |
 | `notifications` | Show completion and error notifications |
 | `agents` | Spawn a quick agent to generate the standup summary |
 | `projects` | List open projects to provide context to the agent |

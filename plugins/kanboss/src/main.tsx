@@ -5,10 +5,12 @@ import { kanBossState } from './state';
 import { BoardSidebar } from './BoardSidebar';
 import { BoardView } from './BoardView';
 import { initAutomationEngine, shutdownAutomationEngine } from './AutomationEngine';
+import { useTheme } from './use-theme';
 
 // ── activate() ──────────────────────────────────────────────────────────
 
 export function activate(ctx: PluginContext, api: PluginAPI): void {
+  kanBossState.switchProject();
   api.logging.info('KanBoss plugin activated');
 
   // Register commands
@@ -39,9 +41,19 @@ export function deactivate(): void {
 // ── Panels ──────────────────────────────────────────────────────────────
 
 export function SidebarPanel({ api }: PanelProps) {
-  return <BoardSidebar api={api} />;
+  const { style: themeStyle } = useTheme(api.theme);
+  return (
+    <div style={{ ...themeStyle, height: '100%' }}>
+      <BoardSidebar api={api} />
+    </div>
+  );
 }
 
 export function MainPanel({ api }: PanelProps) {
-  return <BoardView api={api} />;
+  const { style: themeStyle } = useTheme(api.theme);
+  return (
+    <div style={{ ...themeStyle }}>
+      <BoardView api={api} />
+    </div>
+  );
 }

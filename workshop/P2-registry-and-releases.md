@@ -20,7 +20,6 @@
       "name": "Hello World",
       "description": "A minimal example plugin for Clubhouse.",
       "author": "Clubhouse Workshop",
-      "official": true,
       "repo": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop",
       "path": "plugins/example-hello-world",
       "tags": ["example", "starter"],
@@ -42,7 +41,7 @@
 **Fields per plugin:**
 - `id` — matches the plugin's manifest ID
 - `name`, `description`, `author` — display metadata
-- `official` — `true` for Clubhouse Workshop-maintained plugins, omitted for community
+- `official` — `true` for Workshop plugins (set automatically by the release pipeline), omitted for community
 - `repo` — link to the source repository
 - `path` — path within the repo (for first-party plugins in this monorepo)
 - `tags` — searchable keywords
@@ -97,8 +96,7 @@ cd plugins/my-plugin && npm run build && npm test
 # 4. Tag the release on main
 git tag -m "Release my-plugin v1.0.0" my-plugin-v1.0.0
 git push origin my-plugin-v1.0.0
-# 5. CI creates a GitHub Release and opens a registry update PR
-# 6. Merge the registry PR
+# 5. CI creates a GitHub Release and updates registry.json on main
 ```
 
 ---
@@ -140,7 +138,7 @@ The `"version": 1` field in registry.json allows schema evolution:
 ## Definition of Done
 
 1. `registry/registry.json` exists and lists all first-party plugins
-2. Tagging a plugin release automatically builds, zips, publishes, and updates the registry
-3. Registry validation runs on PRs
+2. Tagging a plugin release automatically builds, zips, publishes, and updates the registry directly on main
+3. Registry validation runs on community submission PRs
 4. `registry/CONTRIBUTING.md` explains the community submission process
 5. At least one plugin has a working automated release end-to-end

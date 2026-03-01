@@ -4,6 +4,7 @@ const { useState, useCallback, useEffect } = React;
 import type { Card, Priority, HistoryEntry, Label } from './types';
 import { cardsKey, generateId, PRIORITY_CONFIG } from './types';
 import { kanBossState } from './state';
+import { mutateStorage } from './storageQueue';
 import * as S from './styles';
 
 const PRIORITIES: Priority[] = ['none', 'low', 'medium', 'high', 'critical'];
@@ -81,59 +82,60 @@ export function CardDialog({ api, boardId, boardLabels }: CardDialogProps) {
   const handleSave = useCallback(async () => {
     if (!title.trim()) return;
 
-    const raw = await storage.read(cardsKey(boardId));
-    const cards: Card[] = Array.isArray(raw) ? raw : [];
-    const now = Date.now();
+    await mutateStorage<Card>(storage, cardsKey(boardId), (cards) => {
+      const now = Date.now();
 
-    if (isNew) {
-      const newCard: Card = {
-        id: generateId('card'),
-        boardId,
-        title: title.trim(),
-        body,
-        priority,
-        labels: selectedLabels,
-        stateId: kanBossState.editingStateId!,
-        swimlaneId: kanBossState.editingSwimlaneId!,
-        history: [{ action: 'created', timestamp: now, detail: `Created "${title.trim()}"` }],
-        automationAttempts: 0,
-        createdAt: now,
-        updatedAt: now,
-      };
-      cards.push(newCard);
-    } else if (cardId) {
-      const idx = cards.findIndex((c) => c.id === cardId);
-      if (idx !== -1) {
-        const card = cards[idx];
-        const changes: string[] = [];
-        if (card.title !== title.trim()) changes.push('title');
-        if (card.body !== body) changes.push('body');
-        if (card.priority !== priority) {
-          changes.push('priority');
-          card.history.push({
-            action: 'priority-changed',
-            timestamp: now,
-            detail: `Priority changed from ${card.priority} to ${priority}`,
-          });
+      if (isNew) {
+        const newCard: Card = {
+          id: generateId('card'),
+          boardId,
+          title: title.trim(),
+          body,
+          priority,
+          labels: selectedLabels,
+          stateId: kanBossState.editingStateId!,
+          swimlaneId: kanBossState.editingSwimlaneId!,
+          history: [{ action: 'created', timestamp: now, detail: `Created "${title.trim()}"` }],
+          automationAttempts: 0,
+          createdAt: now,
+          updatedAt: now,
+        };
+        cards.push(newCard);
+      } else if (cardId) {
+        const idx = cards.findIndex((c) => c.id === cardId);
+        if (idx !== -1) {
+          const card = cards[idx];
+          const changes: string[] = [];
+          if (card.title !== title.trim()) changes.push('title');
+          if (card.body !== body) changes.push('body');
+          if (card.priority !== priority) {
+            changes.push('priority');
+            card.history.push({
+              action: 'priority-changed',
+              timestamp: now,
+              detail: `Priority changed from ${card.priority} to ${priority}`,
+            });
+          }
+          if (JSON.stringify(card.labels) !== JSON.stringify(selectedLabels)) changes.push('labels');
+          if (changes.length > 0) {
+            card.history.push({
+              action: 'edited',
+              timestamp: now,
+              detail: `Edited: ${changes.join(', ')}`,
+            });
+          }
+          card.title = title.trim();
+          card.body = body;
+          card.priority = priority;
+          card.labels = selectedLabels;
+          card.updatedAt = now;
+          cards[idx] = card;
         }
-        if (JSON.stringify(card.labels) !== JSON.stringify(selectedLabels)) changes.push('labels');
-        if (changes.length > 0) {
-          card.history.push({
-            action: 'edited',
-            timestamp: now,
-            detail: `Edited: ${changes.join(', ')}`,
-          });
-        }
-        card.title = title.trim();
-        card.body = body;
-        card.priority = priority;
-        card.labels = selectedLabels;
-        card.updatedAt = now;
-        cards[idx] = card;
       }
-    }
 
-    await storage.write(cardsKey(boardId), cards);
+      return cards;
+    });
+
     kanBossState.closeCardDialog();
     kanBossState.triggerRefresh();
   }, [title, body, priority, selectedLabels, isNew, cardId, boardId, storage]);
@@ -144,10 +146,8 @@ export function CardDialog({ api, boardId, boardLabels }: CardDialogProps) {
     const ok = await api.ui.showConfirm('Delete this card? This cannot be undone.');
     if (!ok) return;
 
-    const raw = await storage.read(cardsKey(boardId));
-    const cards: Card[] = Array.isArray(raw) ? raw : [];
-    const next = cards.filter((c) => c.id !== cardId);
-    await storage.write(cardsKey(boardId), next);
+    await mutateStorage<Card>(storage, cardsKey(boardId), (cards) =>
+      cards.filter((c) => c.id !== cardId));
     kanBossState.closeCardDialog();
     kanBossState.triggerRefresh();
   }, [api, cardId, boardId, storage]);

@@ -38,7 +38,6 @@ const allPermissions = [
   { title: "process", value: "process" },
   { title: "commands", value: "commands" },
   { title: "events", value: "events" },
-  { title: "settings", value: "settings" },
   { title: "navigation", value: "navigation" },
   { title: "widgets", value: "widgets" },
   { title: "projects (app/dual scope only)", value: "projects" },

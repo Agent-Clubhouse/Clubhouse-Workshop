@@ -1,0 +1,55 @@
+{
+  "id": "automations",
+  "name": "Automations",
+  "version": "1.1.0",
+  "description": "Schedule recurring quick-agent tasks with cron expressions. Create automations with orchestrator selection, model selection, free agent mode, and prompt configuration. Track run history with status indicators and summaries.",
+  "author": "Clubhouse Workshop",
+  "engine": { "api": 0.6 },
+  "scope": "project",
+  "main": "./dist/main.js",
+  "permissions": [
+    "storage",
+    "agents",
+    "agents.free-agent-mode",
+    "commands",
+    "notifications",
+    "navigation",
+    "widgets",
+    "theme"
+  ],
+  "contributes": {
+    "tab": {
+      "label": "Automations",
+      "icon": "<svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"12\" cy=\"12\" r=\"10\"/><polyline points=\"12 6 12 12 16 14\"/></svg>",
+      "layout": "full"
+    },
+    "commands": [
+      { "id": "create", "title": "Create Automation" },
+      { "id": "refresh", "title": "Refresh Automations" }
+    ],
+    "help": {
+      "topics": [
+        {
+          "id": "overview",
+          "title": "Overview",
+          "content": "## Automations\n\nSchedule recurring AI agent tasks using cron expressions. Automations run quick agents on a schedule, making it easy to set up regular code reviews, reports, cleanups, or any repeatable task.\n\nSchedules are evaluated locally — automations only run when Clubhouse is open and the project is active."
+        },
+        {
+          "id": "features",
+          "title": "Key Features",
+          "content": "## Key Features\n\n**Create Automations** — Click **+ Add** or use the command palette. Set a name, cron schedule, orchestrator, model, and prompt.\n\n**Cron Scheduling** — Use preset schedules (every 15 min, hourly, daily, weekly, monthly) or write custom 5-field cron expressions (`minute hour day-of-month month day-of-week`). Rich human-readable descriptions for complex expressions.\n\n**Orchestrator Selection** — Choose which orchestrator runs the automation. Models are automatically filtered to those available for the selected orchestrator.\n\n**Model Selection** — Choose which AI model runs the automation.\n\n**Free Agent Mode** — Enable free agent mode to give the agent full autonomy without permission prompts.\n\n**Enable/Disable** — Toggle automations on or off without deleting them.\n\n**Run History** — View recent runs with status (running/completed/failed), timestamps, and expandable summaries. Stop running agents or delete old run records."
+        },
+        {
+          "id": "commands",
+          "title": "Commands",
+          "content": "## Commands\n\nAvailable from the command palette:\n\n| Command | Description |\n|---------|-------------|\n| **Create Automation** | Opens the creation form for a new automation |\n| **Refresh Automations** | Reloads the automation list |"
+        },
+        {
+          "id": "permissions",
+          "title": "Permissions",
+          "content": "## Permissions\n\n| Permission | Why it's needed |\n|------------|----------------|\n| **storage** | Persist automations, schedules, and run history |\n| **agents** | Spawn quick agents and monitor their status |\n| **agents.free-agent-mode** | Allow automations to run agents in free agent mode |\n| **commands** | Register command palette entries |\n| **notifications** | Show alerts when automations complete or fail |\n| **navigation** | Focus running agent panels |\n| **widgets** | Render completed agent summaries |\n| **theme** | Adapt colors and styles to the current theme |"
+        }
+      ]
+    }
+  }
+}

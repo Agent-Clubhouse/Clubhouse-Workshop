@@ -5,6 +5,7 @@ import type { PluginAPI, AgentInfo } from '@clubhouse/plugin-types';
 import type { Board, BoardState, Swimlane, Label } from './types';
 import { BOARDS_KEY, generateId, LABEL_COLORS } from './types';
 import { kanBossState } from './state';
+import { mutateStorage } from './storageQueue';
 import * as S from './styles';
 
 interface BoardConfigDialogProps {
@@ -114,21 +115,21 @@ export function BoardConfigDialog({ api, board }: BoardConfigDialogProps) {
 
   // ── Save ────────────────────────────────────────────────────────────
   const handleSave = useCallback(async () => {
-    const raw = await storage.read(BOARDS_KEY);
-    const boards: Board[] = Array.isArray(raw) ? raw : [];
-    const idx = boards.findIndex((b) => b.id === board.id);
-    if (idx !== -1) {
-      boards[idx] = {
-        ...boards[idx],
-        states,
-        swimlanes,
-        labels,
-        config: { ...boards[idx].config, maxRetries, gitHistory },
-        updatedAt: Date.now(),
-      };
-      await storage.write(BOARDS_KEY, boards);
-      kanBossState.setBoards(boards);
-    }
+    const updated = await mutateStorage<Board>(storage, BOARDS_KEY, (boards) => {
+      const idx = boards.findIndex((b) => b.id === board.id);
+      if (idx !== -1) {
+        boards[idx] = {
+          ...boards[idx],
+          states,
+          swimlanes,
+          labels,
+          config: { ...boards[idx].config, maxRetries, gitHistory },
+          updatedAt: Date.now(),
+        };
+      }
+      return boards;
+    });
+    kanBossState.setBoards(updated);
     kanBossState.closeBoardConfig();
     kanBossState.triggerRefresh();
   }, [storage, board.id, states, swimlanes, labels, maxRetries, gitHistory]);
@@ -436,7 +437,7 @@ export function BoardConfigDialog({ api, board }: BoardConfigDialogProps) {
                           height: 18,
                           borderRadius: '50%',
                           background: c,
-                          border: label.color === c ? '2px solid #fff' : '2px solid transparent',
+                          border: label.color === c ? `2px solid ${S.color.text}` : '2px solid transparent',
                           cursor: 'pointer',
                           padding: 0,
                         }}

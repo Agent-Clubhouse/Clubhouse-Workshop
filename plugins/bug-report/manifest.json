@@ -1,0 +1,55 @@
+{
+  "id": "bug-report",
+  "name": "Bug Report",
+  "version": "1.0.0",
+  "description": "File bug reports and feature requests for Clubhouse with structured severity and label support",
+  "author": "Clubhouse Workshop",
+  "engine": { "api": 0.6 },
+  "scope": "app",
+  "main": "./dist/main.js",
+  "contributes": {
+    "railItem": {
+      "label": "Bug Report",
+      "icon": "<svg width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M8 2l1.88 1.88'/><path d='M14.12 3.88 16 2'/><path d='M9 7.13v-1a3.003 3.003 0 1 1 6 0v1'/><path d='M12 20c-3.3 0-6-2.7-6-6v-3a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v3c0 3.3-2.7 6-6 6'/><path d='M12 20v-9'/><path d='M6.53 9C4.6 8.8 3 7.1 3 5'/><path d='M6 13H2'/><path d='M3 21c0-2.1 1.7-3.9 3.8-4'/><path d='M20.97 5c0 2.1-1.6 3.8-3.5 4'/><path d='M22 13h-4'/><path d='M17.2 17c2.1.1 3.8 1.9 3.8 4'/></svg>",
+      "position": "bottom"
+    },
+    "commands": [
+      { "id": "bug-report.refresh", "title": "Refresh Reports" },
+      { "id": "bug-report.create", "title": "File New Report" },
+      { "id": "bug-report.viewInBrowser", "title": "View Report in Browser" }
+    ],
+    "help": {
+      "topics": [
+        {
+          "id": "overview",
+          "title": "Overview",
+          "content": "## Bug Report\n\nFile bug reports and feature requests directly to the Clubhouse project on GitHub. Reports are created as GitHub issues with severity labels and type classification.\n\nRequires the **`gh` CLI** installed and authenticated (`gh auth login`)."
+        },
+        {
+          "id": "features",
+          "title": "Key Features",
+          "content": "## Key Features\n\n**File Reports** — Click **+ New Report** and fill in type (Bug/Enhancement), severity (Low/Medium/High/Critical), title, and description. The severity is prefixed to the title automatically (e.g. `[HIGH] Login fails on startup`).\n\n**Browse Reports** — Switch between **My Reports** (your filed issues) and **All Recent** (issues across all reporters). Click any report to view full details.\n\n**Detail View** — See the full report body, comments, metadata, and labels. Open the report on GitHub for additional actions."
+        },
+        {
+          "id": "commands",
+          "title": "Commands",
+          "content": "## Commands\n\nAvailable from the command palette:\n\n| Command | Description |\n|---------|-------------|\n| **Refresh Reports** | Reloads the report list from GitHub |\n| **File New Report** | Opens the report creation form |\n| **View Report in Browser** | Opens the selected report on GitHub |"
+        },
+        {
+          "id": "permissions",
+          "title": "Permissions",
+          "content": "## Permissions\n\n| Permission | Why it's needed |\n|------------|----------------|\n| **logging** | Log diagnostic information for troubleshooting |\n| **storage** | Cache report data locally |\n| **notifications** | Show success/error notifications after filing |\n| **commands** | Register command palette entries |\n| **process** | Execute the `gh` CLI to create and query issues |\n| **theme** | Adapt colors and styles to the current theme |"
+        }
+      ]
+    }
+  },
+  "permissions": [
+    "logging",
+    "storage",
+    "notifications",
+    "commands",
+    "process",
+    "theme"
+  ],
+  "allowedCommands": ["gh"]
+}
