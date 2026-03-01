@@ -20,8 +20,8 @@ describe("activate", () => {
       expect.any(Function),
     );
 
-    // Should push disposables to subscriptions
-    expect(ctx.subscriptions.length).toBe(2);
+    // Should push disposables to subscriptions (2 commands + monitor cleanup)
+    expect(ctx.subscriptions.length).toBe(3);
   });
 
   it("logs activation message", () => {

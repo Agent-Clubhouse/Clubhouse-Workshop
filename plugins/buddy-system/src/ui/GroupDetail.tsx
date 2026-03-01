@@ -1,12 +1,15 @@
 // ---------------------------------------------------------------------------
-// GroupDetail — Single group view with members, status, and management
+// GroupDetail — Single group view with members, mission, plan, and management
 // ---------------------------------------------------------------------------
 
 import type { PluginAPI, AgentInfo, ProjectInfo } from "@clubhouse/plugin-types";
 import type { BuddyGroup } from "../types";
 import type { GroupStore } from "../state/groups";
+import type { PlannerOrchestrator } from "../orchestration/planner";
 import { MemberCard } from "./MemberCard";
 import { AddMemberDialog } from "./AddMemberDialog";
+import { MissionInput } from "./MissionInput";
+import { PlanView } from "./PlanView";
 
 const React = globalThis.React;
 const { useState, useCallback } = React;
@@ -15,6 +18,7 @@ interface GroupDetailProps {
   api: PluginAPI;
   group: BuddyGroup;
   store: GroupStore;
+  planner: PlannerOrchestrator | null;
   onBack: () => void;
   onGroupUpdated: (group: BuddyGroup) => void;
 }
@@ -27,10 +31,12 @@ const STATUS_LABELS: Record<string, string> = {
   archived: "Archived",
 };
 
-export function GroupDetail({ api, group, store, onBack, onGroupUpdated }: GroupDetailProps) {
+export function GroupDetail({ api, group, store, planner, onBack, onGroupUpdated }: GroupDetailProps) {
   const [editing, setEditing] = useState(false);
   const [nameInput, setNameInput] = useState(group.name);
   const [showAddMember, setShowAddMember] = useState(false);
+
+  const isActive = group.status === "planning" || group.status === "executing";
 
   const handleRename = useCallback(async () => {
     if (nameInput.trim() && nameInput.trim() !== group.name) {
@@ -67,6 +73,44 @@ export function GroupDetail({ api, group, store, onBack, onGroupUpdated }: Group
     onGroupUpdated(updated);
     setShowAddMember(false);
   }, [group.id, store, onGroupUpdated]);
+
+  const handleAssignMission = useCallback(async (mission: string) => {
+    if (!planner) {
+      api.ui.showError("Orchestration not available");
+      return;
+    }
+    try {
+      // Save mission to group
+      group.mission = mission;
+      await store.save(group);
+      onGroupUpdated({ ...group });
+
+      // Start planning — wake the leader
+      const updated = await planner.startPlanning(group);
+      onGroupUpdated(updated);
+      api.ui.showNotice(`Mission assigned to ${group.name}. Leader is planning...`);
+    } catch (err) {
+      api.logging.error("Failed to start planning", { error: String(err) });
+      api.ui.showError(`Failed to start mission: ${err}`);
+    }
+  }, [api, group, store, planner, onGroupUpdated]);
+
+  const handleApprovePlan = useCallback(async () => {
+    if (!planner) return;
+    try {
+      // Process the plan that the leader wrote
+      let updated = await planner.processPlan(group);
+      onGroupUpdated(updated);
+
+      // Start execution — resume member agents
+      updated = await planner.startExecution(updated);
+      onGroupUpdated(updated);
+      api.ui.showNotice(`Execution started for ${group.name}`);
+    } catch (err) {
+      api.logging.error("Failed to approve plan", { error: String(err) });
+      api.ui.showError(`Failed to start execution: ${err}`);
+    }
+  }, [api, group, planner, onGroupUpdated]);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
@@ -166,23 +210,25 @@ export function GroupDetail({ api, group, store, onBack, onGroupUpdated }: Group
             }}>
               Members ({group.members.length})
             </h3>
-            <button
-              onClick={() => setShowAddMember(true)}
-              style={{
-                background: "none",
-                border: "1px solid var(--border-primary)",
-                color: "var(--text-secondary)",
-                borderRadius: 4,
-                padding: "4px 10px",
-                fontSize: 12,
-                cursor: "pointer",
-                fontFamily: "var(--font-family)",
-              }}
-              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--border-accent)"; }}
-              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--border-primary)"; }}
-            >
-              + Add
-            </button>
+            {!isActive && (
+              <button
+                onClick={() => setShowAddMember(true)}
+                style={{
+                  background: "none",
+                  border: "1px solid var(--border-primary)",
+                  color: "var(--text-secondary)",
+                  borderRadius: 4,
+                  padding: "4px 10px",
+                  fontSize: 12,
+                  cursor: "pointer",
+                  fontFamily: "var(--font-family)",
+                }}
+                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--border-accent)"; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--border-primary)"; }}
+              >
+                + Add
+              </button>
+            )}
           </div>
 
           {showAddMember && (
@@ -216,8 +262,18 @@ export function GroupDetail({ api, group, store, onBack, onGroupUpdated }: Group
           ))}
         </div>
 
-        {/* Mission section (placeholder for Phase 2) */}
-        {group.mission && (
+        {/* Mission input — only when idle */}
+        {group.status === "idle" && (
+          <MissionInput
+            onSubmit={handleAssignMission}
+            disabled={isActive}
+            hasLeader={!!group.leaderId}
+            memberCount={group.members.length}
+          />
+        )}
+
+        {/* Active mission display */}
+        {group.mission && group.status !== "idle" && (
           <div style={{ marginBottom: 20 }}>
             <h3 style={{
               margin: "0 0 8px 0",
@@ -243,6 +299,45 @@ export function GroupDetail({ api, group, store, onBack, onGroupUpdated }: Group
             </div>
           </div>
         )}
+
+        {/* Plan approval — when planning and plan exists but not yet executing */}
+        {group.status === "planning" && !group.plan && (
+          <div style={{
+            padding: "16px",
+            borderRadius: 8,
+            border: "1px solid var(--border-primary)",
+            background: "var(--bg-info)",
+            marginBottom: 20,
+          }}>
+            <div style={{
+              fontSize: 13,
+              color: "var(--text-primary)",
+              fontFamily: "var(--font-family)",
+              marginBottom: 8,
+            }}>
+              The group leader is creating a plan. Once the plan is written to the shared directory, click below to review and approve it.
+            </div>
+            <button
+              onClick={handleApprovePlan}
+              style={{
+                padding: "8px 18px",
+                fontSize: 13,
+                fontWeight: 600,
+                borderRadius: 6,
+                border: "1px solid var(--border-accent)",
+                background: "var(--bg-accent)",
+                color: "var(--text-accent)",
+                cursor: "pointer",
+                fontFamily: "var(--font-family)",
+              }}
+            >
+              Check for Plan & Approve
+            </button>
+          </div>
+        )}
+
+        {/* Plan view — when plan exists */}
+        <PlanView group={group} />
       </div>
     </div>
   );
