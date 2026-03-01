@@ -1,0 +1,63 @@
+{
+  "id": "buddy-system",
+  "name": "Buddy System",
+  "version": "0.1.0",
+  "description": "Collaborative agent groups for cross-project deliverables",
+  "author": "Clubhouse Workshop",
+  "engine": { "api": 0.7 },
+  "scope": "app",
+  "main": "./dist/main.js",
+  "permissions": [
+    "logging",
+    "storage",
+    "files",
+    "files.watch",
+    "agents",
+    "projects",
+    "notifications",
+    "commands",
+    "widgets",
+    "badges",
+    "navigation",
+    "theme",
+    "agent-config",
+    "agent-config.cross-project",
+    "agent-config.permissions"
+  ],
+  "contributes": {
+    "railItem": {
+      "label": "Buddy Groups",
+      "icon": "<svg width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2'/><circle cx='9' cy='7' r='4'/><path d='M22 21v-2a4 4 0 0 0-3-3.87'/><path d='M16 3.13a4 4 0 0 1 0 7.75'/></svg>",
+      "position": "top"
+    },
+    "commands": [
+      { "id": "buddy-system.new-group", "title": "Create Buddy Group" },
+      { "id": "buddy-system.assign-work", "title": "Assign Work to Group" }
+    ],
+    "globalDialog": {
+      "label": "Assign Work to Buddy Group",
+      "icon": "<svg width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2'/><circle cx='9' cy='7' r='4'/><path d='M22 21v-2a4 4 0 0 0-3-3.87'/><path d='M16 3.13a4 4 0 0 1 0 7.75'/></svg>",
+      "defaultBinding": "Meta+Shift+B",
+      "commandId": "buddy-system.assign-work"
+    },
+    "agentConfig": {
+      "skills": {
+        "buddy-system-mission": "# Buddy System Member\n\nYou may be added to a buddy group. When activated, check ~/.clubhouse/buddy-system/ for your assignment and follow the communication protocol described there."
+      }
+    },
+    "help": {
+      "topics": [
+        {
+          "id": "overview",
+          "title": "Buddy System",
+          "content": "# Buddy System\n\nCreate groups of agents across projects to collaborate on shared deliverables. Agents communicate through a shared filesystem directory, with the plugin providing real-time UI updates via file watching.\n\n## Quick Start\n\n1. Click the **Buddy Groups** rail item\n2. Click **+ New Group** to create a group\n3. Add durable agents from any open project\n4. Designate a group leader\n5. Assign a mission to the group"
+        },
+        {
+          "id": "permissions",
+          "title": "Permissions",
+          "content": "## Permissions\n\n| Permission | Why it's needed |\n|------------|----------------|\n| **logging** | Debug plugin operations |\n| **storage** | Persist group data globally |\n| **files / files.watch** | Monitor shared communication directory |\n| **agents** | List and resume agents across projects |\n| **projects** | Enumerate projects for agent discovery |\n| **notifications** | Alert on group events |\n| **commands** | Register group management commands |\n| **widgets** | Display agent avatars and status |\n| **badges** | Show unread communication count |\n| **navigation** | Focus on agents in the UI |\n| **theme** | Consistent styling |\n| **agent-config** | Inject skills and instructions into group members |\n| **agent-config.cross-project** | Configure agents in other projects |\n| **agent-config.permissions** | Grant filesystem access to group members |"
+        }
+      ]
+    }
+  }
+}

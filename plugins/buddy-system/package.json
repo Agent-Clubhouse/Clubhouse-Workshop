@@ -1,0 +1,25 @@
+{
+  "name": "buddy-system",
+  "version": "0.1.0",
+  "private": true,
+  "license": "MIT",
+  "description": "Collaborative agent groups for cross-project deliverables",
+  "scripts": {
+    "build": "esbuild src/main.tsx --bundle --format=esm --platform=browser --external:react --outfile=dist/main.js",
+    "watch": "esbuild src/main.tsx --bundle --format=esm --platform=browser --external:react --outfile=dist/main.js --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@clubhouse/plugin-testing": "file:../../sdk/v0.7/plugin-testing",
+    "@clubhouse/plugin-types": "file:../../sdk/v0.7/plugin-types",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "esbuild": "^0.24.0",
+    "jsdom": "^26.0.0",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0"
+  }
+}
