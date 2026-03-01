@@ -2,7 +2,7 @@
 
 **Plugin:** `buddy-system`
 **Scope:** `app` (rail item — cross-project by nature)
-**SDK Version:** `0.6` (required for `agentConfig` cross-project APIs)
+**SDK Version:** `0.7` (required for `files.watch`, `contributes.agentConfig`, and `contributes.globalDialog`)
 **Author:** Clubhouse Workshop
 **Date:** 2026-02-22
 
@@ -38,7 +38,7 @@ A new **Buddy Groups** item appears in the app sidebar rail. Clicking it opens t
 
 ```
 buddy-system/
-├── manifest.json          # App-scoped, v0.6, extensive permissions
+├── manifest.json          # App-scoped, v0.7, extensive permissions
 ├── package.json
 ├── tsconfig.json
 ├── src/
@@ -50,11 +50,12 @@ buddy-system/
 │   ├── orchestration/
 │   │   ├── planner.ts     # Leader planning orchestration
 │   │   ├── executor.ts    # Member execution orchestration
-│   │   └── monitor.ts     # Polling loop for status updates
+│   │   └── monitor.ts     # File watcher for status updates (files.watch)
 │   ├── config/
 │   │   ├── injector.ts    # agentConfig injection logic
 │   │   └── skills.ts      # Skill templates for group members
 │   ├── names.ts           # Random name generator
+│   ├── use-theme.ts       # ThemeAPI helper for consistent styling
 │   └── ui/
 │       ├── GroupList.tsx   # List of all groups
 │       ├── GroupDetail.tsx # Single group view
@@ -78,12 +79,14 @@ buddy-system/
   "version": "0.1.0",
   "description": "Collaborative agent groups for cross-project deliverables",
   "author": "Clubhouse Workshop",
-  "engine": { "api": 0.6 },
+  "engine": { "api": 0.7 },
   "scope": "app",
   "main": "./dist/main.js",
   "permissions": [
     "logging",
     "storage",
+    "files",
+    "files.watch",
     "agents",
     "projects",
     "notifications",
@@ -91,6 +94,7 @@ buddy-system/
     "widgets",
     "badges",
     "navigation",
+    "theme",
     "agent-config",
     "agent-config.cross-project",
     "agent-config.permissions"
@@ -105,6 +109,17 @@ buddy-system/
       { "id": "buddy-system.new-group", "title": "Create Buddy Group" },
       { "id": "buddy-system.assign-work", "title": "Assign Work to Group" }
     ],
+    "globalDialog": {
+      "label": "Assign Work to Buddy Group",
+      "icon": "<svg>...</svg>",
+      "defaultBinding": "Meta+Shift+B",
+      "commandId": "buddy-system.assign-work"
+    },
+    "agentConfig": {
+      "skills": {
+        "buddy-system-mission": "# Buddy System Member\n\nYou may be added to a buddy group. When activated, check ~/.clubhouse/buddy-system/ for your assignment and follow the communication protocol described there."
+      }
+    },
     "help": {
       "topics": [
         {
@@ -140,7 +155,7 @@ interface GroupMember {
   projectName: string;           // Display name of project
   context: string;               // User-provided context about this agent/project
   isLeader: boolean;
-  status: "idle" | "working" | "blocked" | "done" | "error";
+  status: "idle" | "creating" | "working" | "blocked" | "done" | "error";
   assignmentId?: string;         // Which deliverable they're working on
 }
 
@@ -215,7 +230,7 @@ For agent-to-agent communication, we use a **filesystem-based approach** rather 
 - No need for a bespoke IPC mechanism
 
 **Plugin syncs filesystem ↔ UI:**
-The plugin's monitor polling loop reads from this directory and updates the UI. When the plugin needs to write (e.g., initial plan placement), it writes directly.
+The plugin uses `api.files.watch()` (v0.7) to watch the shared directory for changes and updates the UI in real-time. No polling loop needed. When the plugin needs to write (e.g., initial plan placement), it writes directly.
 
 ---
 
@@ -223,9 +238,11 @@ The plugin's monitor polling loop reads from this directory and updates the UI. 
 
 ### 5.1 Config Injection Pipeline
 
-When an agent is added to a group, the plugin injects configuration into that agent's project using the `agentConfig` cross-project API:
+A base `buddy-system-mission` skill is auto-injected via `contributes.agentConfig` in the manifest (v0.7). This gives all agents in projects where the plugin is enabled a baseline awareness of buddy groups.
 
-#### Injected Skill: `buddy-system-member`
+When an agent is added to a specific group, the plugin injects **group-specific** configuration into that agent's project using the `agentConfig` cross-project API:
+
+#### Injected Skill (group-specific override): `buddy-system-mission`
 
 ```markdown
 # Buddy System Member
@@ -237,14 +254,48 @@ You are part of a buddy group: **{groupName}**.
 - Group Leader: {leaderName} ({leaderProjectName})
 - Your Assignment: See `~/.clubhouse/buddy-system/{groupId}/assignments/{memberId}.md`
 
-## Communication Protocol
-- **Check for updates:** Read `~/.clubhouse/buddy-system/{groupId}/comms/` periodically
-- **Report status:** Write JSON to `~/.clubhouse/buddy-system/{groupId}/status/{memberId}.json`
-- **Share findings:** Write to `~/.clubhouse/buddy-system/{groupId}/comms/{timestamp}-{memberId}.md`
-- **Design decisions:** Append to `~/.clubhouse/buddy-system/{groupId}/shared/decisions.md`
-- **Interface contracts:** Update `~/.clubhouse/buddy-system/{groupId}/shared/interfaces.md`
+## Work Loop
+
+Follow this loop for every unit of work (a function, a file, a logical step):
+
+1. **Read** — Check `~/.clubhouse/buddy-system/{groupId}/comms/` and `shared/` for
+   updates from other members. Look for new decisions, interface changes, or messages
+   that affect your work.
+2. **Work** — Implement the next piece of your assignment. Commit your code frequently
+   with clear, descriptive messages.
+3. **Write status** — After each commit, update your status file:
+   `~/.clubhouse/buddy-system/{groupId}/status/{memberId}.json`
+4. **Share** — If you made a decision, discovered something, or changed an interface
+   that affects other members, write it to the appropriate shared file before
+   continuing.
+5. **Repeat** — Go back to step 1.
+
+Do NOT batch large amounts of work before checking in. The loop should be tight:
+read, work a small unit, commit, write status, share, repeat.
+
+## Validation
+
+Run `/test` after every few iterations of the work loop to catch regressions early.
+When you finish your assignment (before setting status to `done`), run `/validate-changes`
+to do a full build + test + lint pass. Do not mark yourself done until validation passes.
+
+If tests fail, fix the issue and loop again — do not skip validation.
+
+## Paths
+
+| Action | Path |
+|--------|------|
+| Read your assignment | `~/.clubhouse/buddy-system/{groupId}/assignments/{memberId}.md` |
+| Update your status | `~/.clubhouse/buddy-system/{groupId}/status/{memberId}.json` |
+| Read others' status | `~/.clubhouse/buddy-system/{groupId}/status/` |
+| Read comms | `~/.clubhouse/buddy-system/{groupId}/comms/` |
+| Write a message | `~/.clubhouse/buddy-system/{groupId}/comms/{timestamp}-{memberId}.md` |
+| Log a design decision | Append to `~/.clubhouse/buddy-system/{groupId}/shared/decisions.md` |
+| Update shared interfaces | `~/.clubhouse/buddy-system/{groupId}/shared/interfaces.md` |
 
 ## Status Format
+
+```json
 {
   "status": "working" | "blocked" | "done" | "error",
   "deliverableId": "...",
@@ -252,13 +303,16 @@ You are part of a buddy group: **{groupName}**.
   "blockers": ["any blockers"],
   "lastCheckin": "ISO timestamp"
 }
+```
 
-## Guidelines
-- Check the shared directory for updates from other group members before starting work
-- When you make a design decision that affects others, write it to decisions.md
-- When you define or change an interface, update interfaces.md
-- Report status after completing each major step
-- If blocked on another member's work, write a message and note the blocker in your status
+## Rules
+- **Always** read the shared directory before starting a new unit of work
+- **Always** commit and update your status after completing a unit of work
+- When you make a design decision that affects others, write it to `decisions.md` immediately
+- When you define or change a shared interface, update `interfaces.md` immediately
+- If blocked on another member's work, write a comms message explaining what you need
+  and set your status to `blocked` with the blocker listed
+- When all deliverables assigned to you are complete, set status to `done`
 ```
 
 #### Appended Instructions
@@ -268,7 +322,7 @@ The plugin appends project instructions via `agentConfig.appendInstructions()`:
 ```
 You are participating in a Buddy System group "{groupName}". Check your assignment
 at ~/.clubhouse/buddy-system/{groupId}/assignments/{memberId}.md and follow the
-buddy-system-member skill for communication protocols.
+buddy-system-mission skill for communication protocols.
 ```
 
 #### Permission Rules
@@ -295,7 +349,7 @@ Leader wakes, reads group context, writes plan.md
          │
          ▼
 Plugin monitor detects plan.md written
-  (polling loop checks filesystem)
+  (api.files.watch() fires FileEvent callback)
          │
          ▼
 Plugin parses plan, creates assignment files
@@ -309,7 +363,7 @@ Plugin resumes each member agent with their assignment
 Members execute, writing status + comms to shared directory
          │
          ▼
-Plugin monitor polls status files, updates UI
+Plugin monitor receives file change events, updates UI
   shows progress, comms log, deliverable status
          │
          ▼
@@ -359,11 +413,16 @@ deliverables:
 | Capability | API | Assessment |
 |---|---|---|
 | App-scoped rail item | `contributes.railItem` | Direct support, no issues |
-| List agents across projects | `api.agents.list()` | Returns all agents with `projectId` — works perfectly |
+| List agents across projects | `api.agents.list()` | Returns all agents with `projectId`, `orchestrator` — works perfectly |
 | List all projects | `api.projects.list()` | Direct support |
 | Wake agents with missions | `api.agents.resume(id, { mission })` | **Key enabler.** Resume accepts an optional mission string |
+| Discover orchestrators | `api.agents.listOrchestrators()` | Identify orchestrator-owned agents for awareness |
 | Monitor agent status | `api.agents.onStatusChange()`, `getDetailedStatus()` | Real-time monitoring works |
-| Inject skills into agents | `api.agentConfig.injectSkill()` | Core to the approach, v0.6 |
+| Theme-aware UI | `api.theme.getCurrent()`, `onDidChange()` | Consistent styling via `use-theme.ts` helper |
+| File watching | `api.files.watch(glob, callback)` | **v0.7 key enabler.** Replaces polling loop for shared directory monitoring |
+| Global dialog | `contributes.globalDialog` + `DialogPanel` | Quick-access "Assign Work" overlay via keyboard shortcut |
+| Manifest agent config | `contributes.agentConfig` | Base skill auto-injected on plugin install; group-specific config still uses runtime API |
+| Inject skills into agents | `api.agentConfig.injectSkill()` + `contributes.agentConfig` | Base skill via manifest (v0.7); group-specific via runtime API |
 | Cross-project config | `agentConfig` with `{ projectId }` | Requires `agent-config.cross-project`, bilateral consent |
 | Inject instructions | `api.agentConfig.appendInstructions()` | Gives agents context about their role |
 | Grant permissions | `api.agentConfig.addPermissionAllowRules()` | Ensures agents can access shared directory |
@@ -376,10 +435,11 @@ deliverables:
 | Challenge | Severity | Mitigation |
 |---|---|---|
 | **No push-based inter-agent comms** | Medium | Filesystem-based communication + injected skill teaches agents to check shared directory. Agents won't be "notified" of new messages — they read on their own initiative or when the plugin resumes them. |
-| **No file watching API** | Medium | Plugin uses a polling loop (e.g., every 5-10 seconds) to check the shared directory for changes. This is the same pattern used by many real-world tools. |
-| **Agent must be sleeping to resume** | Medium | If agent is already running, cannot redirect it. Plugin must wait for agent to reach a resting state. UI should show "waiting for agent to become available" state. |
+| **~~No file watching API~~** | ~~Medium~~ Resolved | v0.7 adds `api.files.watch()` — plugin uses event-driven file watching instead of polling. Requires `files.watch` permission. |
+| **Agent must be sleeping to resume** | Medium | If agent is already running or creating, cannot redirect it. Plugin must wait for agent to reach a resting state. UI should show "waiting for agent to become available" state. v0.7 adds `creating` as a new `AgentStatus` — handle it alongside `running`. |
 | **Bilateral consent for cross-project config** | Low | Plugin must be installed/enabled in each project whose agents participate. This is a reasonable security boundary but requires user setup. Clear onboarding UX needed. |
 | **Quick agents can't participate durably** | Low | Buddy groups only accept durable agents. Quick agents are ephemeral by nature and wouldn't benefit from group membership. |
+| **Orchestrator-owned agents** | Low | Some agents may be managed by an orchestrator (`AgentInfo.orchestrator`). The plugin should display orchestrator info on member cards and be aware that orchestrator-managed agents may have different resume behavior. No blocking issues — `resume()` works regardless. |
 | **Agent identity stability** | Medium | Agents may be killed and recreated with new IDs. GroupMember stores the `agentId` at add-time; if the agent is replaced, the user needs to update the member. Plugin should detect stale agent IDs via `api.agents.list()` and warn. |
 | **Plan parsing reliability** | Medium | Leader agent output is unstructured text. Use YAML frontmatter in plan.md for structured data; fall back to plugin presenting the raw plan for user to manually assign if parsing fails. |
 | **Shared directory conflicts** | Low | Each member writes only to their own status/assignment subdirectory. `decisions.md` and `interfaces.md` are append-only. Conflict risk is low because agents operate on different projects/files. |
@@ -388,9 +448,9 @@ deliverables:
 
 | Blocker | Severity | Notes |
 |---|---|---|
-| **None identified** | — | All required capabilities exist in the v0.6 API. The design is feasible with current APIs. |
+| **None identified** | — | All required capabilities exist in the v0.7 API. The design is feasible with current APIs. |
 
-The only notable gap is the lack of a push-based communication mechanism between agents, but the filesystem + polling approach is a well-established pattern and sufficient for this use case. A future API enhancement (e.g., `api.agents.sendMessage()`) would improve this but is not required.
+The only notable gap is the lack of a push-based communication mechanism between agents, but the filesystem + file-watching approach is a well-established pattern and sufficient for this use case. A future API enhancement (e.g., `api.agents.sendMessage()`) would improve this but is not required.
 
 ---
 
@@ -408,7 +468,7 @@ An alternative communication approach would be injecting an MCP server via `agen
 - Significantly more complex — MCP server is a separate process
 - Overkill for v0.1; filesystem approach is simpler and proven
 
-**Recommendation:** Start with filesystem approach for v0.1. Consider MCP server for v0.2 if the communication patterns prove too loose.
+**Recommendation:** Start with filesystem approach for v0.1. With v0.7's `files.watch` API, the filesystem approach now has event-driven monitoring (no polling), making it significantly more robust. Consider MCP server for v0.2 only if structured tool interfaces prove necessary.
 
 ---
 
@@ -482,9 +542,10 @@ This gives ~600 unique combinations. Collision checking against existing group n
 ### Phase 1: Core Group Management (MVP)
 - Group CRUD (create, rename, delete, archive)
 - Random name generator
-- Add/remove members from agents list
+- Add/remove members from agents list (with orchestrator metadata display)
 - Leader designation and reassignment
 - Global storage persistence
+- Theme-aware UI via `use-theme.ts` helper (follows project convention)
 - Basic rail item UI with group list and detail views
 
 ### Phase 2: Planning & Assignment
@@ -496,12 +557,13 @@ This gives ~600 unique combinations. Collision checking against existing group n
 - Deliverable status tracking
 
 ### Phase 3: Execution & Communication
-- Config injection pipeline (skills, instructions, permissions)
+- Config injection pipeline (group-specific skills, instructions, permissions via runtime API)
 - Agent resume with assignment missions
-- Filesystem polling monitor
+- File watcher monitor via `api.files.watch()` (replaces polling)
 - Communication log UI
 - Status update display
 - Badge notifications for new comms
+- `DialogPanel` for quick-access "Assign Work" overlay
 
 ### Phase 4: Polish & Resilience
 - Stale agent detection and re-linking
@@ -527,7 +589,7 @@ This gives ~600 unique combinations. Collision checking against existing group n
 - Group creation persists to global storage
 - Member addition with agent lookup
 - Config injection calls correct `agentConfig` methods with correct `projectId`
-- Monitor polling loop detects file changes (mocked)
+- File watcher receives `FileEvent` callbacks and updates state (mocked via `api.files.watch`)
 
 ### Manual Validation
 - Create group, add agents from multiple projects
@@ -555,12 +617,15 @@ This gives ~600 unique combinations. Collision checking against existing group n
 
 ## 13. Conclusion
 
-Buddy System is **fully feasible** with the current v0.6 API surface. The key enablers are:
+Buddy System is **fully feasible** with the v0.7 API surface. The key enablers are:
 
 - `api.agents.resume(id, { mission })` — ability to wake durable agents with specific missions
 - `api.agentConfig.*` with cross-project support — inject skills, instructions, and permissions into agents across projects
+- `contributes.agentConfig` — base skill auto-injected via manifest (v0.7)
+- `api.files.watch()` — event-driven monitoring of the shared communication directory (v0.7, replaces polling)
+- `contributes.globalDialog` + `DialogPanel` — quick-access "Assign Work" dialog overlay (v0.7)
 - `api.agents.list()` + `api.projects.list()` — enumerate agents and projects for group composition
 - `api.storage.global` — persist group state
 - Filesystem-based shared directory — pragmatic inter-agent communication
 
-No API changes or new features are required. The biggest risk is plan parsing reliability (mitigated by fallback to manual assignment) and the polling-based communication model (adequate for v0.1, upgradeable to MCP in v0.2).
+No API changes or new features are required. The biggest risk is plan parsing reliability (mitigated by fallback to manual assignment). The v0.7 file watching API eliminates the previous concern about polling-based communication.
