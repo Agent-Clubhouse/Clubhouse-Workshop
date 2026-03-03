@@ -1,7 +1,7 @@
 {
   "id": "automations",
   "name": "Automations",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Schedule recurring quick-agent tasks with cron expressions. Create automations with orchestrator selection, model selection, free agent mode, and prompt configuration. Track run history with status indicators and summaries.",
   "author": "Clubhouse Workshop",
   "engine": { "api": 0.6 },
@@ -25,7 +25,8 @@
     },
     "commands": [
       { "id": "create", "title": "Create Automation" },
-      { "id": "refresh", "title": "Refresh Automations" }
+      { "id": "refresh", "title": "Refresh Automations" },
+      { "id": "run-now", "title": "Run Automation Now" }
     ],
     "help": {
       "topics": [
@@ -37,12 +38,12 @@
         {
           "id": "features",
           "title": "Key Features",
-          "content": "## Key Features\n\n**Create Automations** — Click **+ Add** or use the command palette. Set a name, cron schedule, orchestrator, model, and prompt.\n\n**Cron Scheduling** — Use preset schedules (every 15 min, hourly, daily, weekly, monthly) or write custom 5-field cron expressions (`minute hour day-of-month month day-of-week`). Rich human-readable descriptions for complex expressions.\n\n**Orchestrator Selection** — Choose which orchestrator runs the automation. Models are automatically filtered to those available for the selected orchestrator.\n\n**Model Selection** — Choose which AI model runs the automation.\n\n**Free Agent Mode** — Enable free agent mode to give the agent full autonomy without permission prompts.\n\n**Enable/Disable** — Toggle automations on or off without deleting them.\n\n**Run History** — View recent runs with status (running/completed/failed), timestamps, and expandable summaries. Stop running agents or delete old run records."
+          "content": "## Key Features\n\n**Create Automations** — Click **+ Add** or use the command palette. Set a name, cron schedule, orchestrator, model, and prompt.\n\n**Cron Scheduling** — Use preset schedules (every 15 min, hourly, daily, weekly, monthly) or write custom 5-field cron expressions (`minute hour day-of-month month day-of-week`). Rich human-readable descriptions for complex expressions.\n\n**Orchestrator Selection** — Choose which orchestrator runs the automation. Models are automatically filtered to those available for the selected orchestrator.\n\n**Model Selection** — Choose which AI model runs the automation.\n\n**Free Agent Mode** — Enable free agent mode to give the agent full autonomy without permission prompts.\n\n**Missed-Run Catch-Up** — Choose what happens when runs are missed while the app is closed: ignore, run once, or run all (up to 10).\n\n**Run Now** — Manually trigger any automation immediately, regardless of schedule or enabled state.\n\n**Enable/Disable** — Toggle automations on or off without deleting them.\n\n**Run History** — View recent runs with status (running/completed/failed), timestamps, and expandable summaries. Stop running agents or delete old run records."
         },
         {
           "id": "commands",
           "title": "Commands",
-          "content": "## Commands\n\nAvailable from the command palette:\n\n| Command | Description |\n|---------|-------------|\n| **Create Automation** | Opens the creation form for a new automation |\n| **Refresh Automations** | Reloads the automation list |"
+          "content": "## Commands\n\nAvailable from the command palette:\n\n| Command | Description |\n|---------|-------------|\n| **Create Automation** | Opens the creation form for a new automation |\n| **Refresh Automations** | Reloads the automation list |\n| **Run Automation Now** | Immediately fires the selected automation (works even when disabled) |"
         },
         {
           "id": "permissions",
