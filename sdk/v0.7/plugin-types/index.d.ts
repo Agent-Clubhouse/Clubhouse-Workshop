@@ -224,6 +224,24 @@ export interface TerminalColors {
   brightWhite: string;
 }
 
+/** Font family overrides for different UI contexts. */
+export interface ThemeFonts {
+  /** Font family for the general UI (sidebar, headers, labels). */
+  ui?: string;
+  /** Monospace font family for code blocks, editors, and the terminal. */
+  mono?: string;
+}
+
+/** Optional CSS gradient decorations layered on top of solid theme colors. */
+export interface ThemeGradients {
+  /** CSS gradient applied to the app background (e.g. `linear-gradient(135deg, #1a1a2e, #16213e)`). */
+  background?: string;
+  /** CSS gradient applied to panel/card surfaces. */
+  surface?: string;
+  /** CSS gradient applied to accent elements (buttons, highlights). */
+  accent?: string;
+}
+
 // ---------------------------------------------------------------------------
 // Sound types
 // ---------------------------------------------------------------------------
@@ -388,6 +406,10 @@ export interface PluginThemeDeclaration {
   hljs: HljsColors;
   /** Terminal colors. */
   terminal: TerminalColors;
+  /** Font family overrides. */
+  fonts?: ThemeFonts;
+  /** CSS gradient decorations layered on top of solid colors. */
+  gradients?: ThemeGradients;
 }
 
 /** Declare agent configuration that is auto-injected on plugin registration (v0.7+). */
@@ -693,6 +715,10 @@ export interface ThemeInfo {
   colors: Record<string, string>;
   hljs: Record<string, string>;
   terminal: Record<string, string>;
+  /** Font family overrides (v0.7+). */
+  fonts?: ThemeFonts;
+  /** CSS gradient decorations (v0.7+). */
+  gradients?: ThemeGradients;
 }
 
 export interface ThemeAPI {

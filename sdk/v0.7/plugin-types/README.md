@@ -22,7 +22,7 @@ Or reference directly in your `tsconfig.json`:
 
 ## What's new in v0.7
 
-- **Plugin themes** — ship color themes via `contributes.themes` in your manifest
+- **Plugin themes** — ship color themes via `contributes.themes` in your manifest, with optional font overrides and CSS gradient decorations
 - **Global dialogs** — register modal dialogs via `contributes.globalDialog` with keyboard bindings
 - **Manifest agent config** — auto-inject skills, templates, and MCP servers via `contributes.agentConfig`
 - **File watching** — `api.files.watch(glob, callback)` with the `files.watch` permission

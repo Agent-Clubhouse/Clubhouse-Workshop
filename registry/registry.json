@@ -1,11 +1,12 @@
 {
   "version": 1,
-  "updated": "2026-02-25T07:05:42.267Z",
+  "updated": "2026-03-03T19:45:09.417Z",
   "supportedApis": {
-    "latest": "0.6",
+    "latest": "0.7",
     "minimum": "0.6",
     "versions": [
-      "0.6"
+      "0.6",
+      "0.7"
     ]
   },
   "plugins": [
@@ -53,7 +54,7 @@
         "cron",
         "agents"
       ],
-      "latest": "1.1.0",
+      "latest": "1.2.0",
       "releases": {
         "0.1.0": {
           "api": 0.5,
@@ -98,6 +99,22 @@
             "theme"
           ],
           "size": 11065
+        },
+        "1.2.0": {
+          "api": 0.6,
+          "asset": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop/releases/download/automations-v1.2.0/automations-v1.2.0.zip",
+          "sha256": "7bdc7296ebe31808a5f3c64819f627797164a7104bcf159e254a781a04449693",
+          "permissions": [
+            "storage",
+            "agents",
+            "agents.free-agent-mode",
+            "commands",
+            "notifications",
+            "navigation",
+            "widgets",
+            "theme"
+          ],
+          "size": 11972
         }
       }
     },
