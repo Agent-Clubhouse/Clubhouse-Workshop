@@ -2,7 +2,7 @@
   "id": "tech-modern",
   "name": "Tech Modern",
   "version": "0.1.0",
-  "description": "Color themes inspired by iconic tech companies — Redmond, Mountain View, Cupertino, Anthropic, and Seattle.",
+  "description": "Color themes inspired by iconic tech companies — Redmond, Mountain View, Cupertino, AI Lab, and Seattle.",
   "author": "Clubhouse Workshop",
   "engine": { "api": 0.7 },
   "kind": "pack",
@@ -71,6 +71,10 @@
           "brightMagenta": "#c4b0ff",
           "brightCyan": "#60d0ff",
           "brightWhite": "#f0f0f0"
+        },
+        "fonts": {
+          "ui": "'Segoe UI Variable', 'Segoe UI', system-ui, sans-serif",
+          "mono": "'Cascadia Code', 'Cascadia Mono', Consolas, monospace"
         }
       },
       {
@@ -135,6 +139,9 @@
           "brightMagenta": "#b162f5",
           "brightCyan": "#24b0c0",
           "brightWhite": "#e8f0fe"
+        },
+        "gradients": {
+          "accent": "linear-gradient(135deg, #1a73e8, #4285f4)"
         }
       },
       {
@@ -199,11 +206,15 @@
           "brightMagenta": "#bf62ee",
           "brightCyan": "#70d2fa",
           "brightWhite": "#ffffff"
+        },
+        "fonts": {
+          "ui": "-apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif",
+          "mono": "'SF Mono', SFMono-Regular, Menlo, Monaco, monospace"
         }
       },
       {
-        "id": "anthropic",
-        "name": "Anthropic",
+        "id": "ai-lab",
+        "name": "AI Lab",
         "type": "light",
         "colors": {
           "base": "#fafaf5",
@@ -327,6 +338,10 @@
           "brightMagenta": "#d898e8",
           "brightCyan": "#58d8c0",
           "brightWhite": "#e8e8e8"
+        },
+        "gradients": {
+          "background": "linear-gradient(180deg, #232f3e, #141e28 60%, #1b2530)",
+          "accent": "linear-gradient(135deg, #ff9900, #f0a050)"
         }
       }
     ],
@@ -335,7 +350,7 @@
         {
           "id": "overview",
           "title": "Tech Modern",
-          "content": "# Tech Modern\n\nColor themes inspired by iconic technology companies.\n\n## Themes\n\n### Redmond (Dark)\nWindows 11 dark mode with Mica-style surfaces. Cool cyan-blue accents and soft pastel highlights on smooth, layered darks.\n\n### Mountain View (Light)\nGoogle's Material You in full color. Bold red, green, yellow, and blue primaries pop against a tinted blue surface — playful and unmistakably Google.\n\n### Cupertino (Light)\nApple's refined minimalism. Pure whites, careful grays, and restrained system accent colors from the Human Interface Guidelines.\n\n### Anthropic (Light)\nWarm cream backgrounds with burnt-sienna orange accents, inspired by the thoughtful, human-centered design of Anthropic and Claude.\n\n### Seattle (Dark)\nBold orange on dark navy — an e-commerce giant's signature palette reimagined for code, with cloud-blue accents.\n\n## Usage\n\nInstall the plugin and select any Tech Modern theme from **Settings > Appearance > Theme**."
+          "content": "# Tech Modern\n\nColor themes inspired by iconic technology companies.\n\n## Themes\n\n### Redmond (Dark)\nWindows 11 dark mode with Mica-style surfaces. Cool cyan-blue accents and soft pastel highlights on smooth, layered darks. Uses Segoe UI and Cascadia Code fonts.\n\n### Mountain View (Light)\nGoogle's Material You in full color. Bold red, green, yellow, and blue primaries pop against a tinted blue surface — playful and unmistakably Google. Features a Google Blue accent gradient.\n\n### Cupertino (Light)\nApple's refined minimalism. Pure whites, careful grays, and restrained system accent colors from the Human Interface Guidelines. Uses Apple system fonts including SF Mono.\n\n### AI Lab (Light)\nWarm cream backgrounds with burnt-sienna orange accents, inspired by the thoughtful, human-centered aesthetic of modern AI research labs.\n\n### Seattle (Dark)\nBold orange on dark navy — an e-commerce giant's signature palette reimagined for code, with cloud-blue accents. Features a navy background gradient and an orange accent gradient.\n\n## Usage\n\nInstall the plugin and select any Tech Modern theme from **Settings > Appearance > Theme**."
         }
       ]
     }

@@ -71,6 +71,13 @@
           "brightMagenta": "#ff40a0",
           "brightCyan": "#20f8d0",
           "brightWhite": "#e0e0f0"
+        },
+        "fonts": {
+          "mono": "'Fira Code', 'Cascadia Code', 'JetBrains Mono', monospace"
+        },
+        "gradients": {
+          "accent": "linear-gradient(135deg, #ff2090, #00d8ff)",
+          "background": "linear-gradient(145deg, #0c0c18, #100820 50%, #0c0c18)"
         }
       },
       {
@@ -135,6 +142,10 @@
           "brightMagenta": "#ff9eeb",
           "brightCyan": "#92f9c8",
           "brightWhite": "#e0d0f0"
+        },
+        "gradients": {
+          "background": "linear-gradient(180deg, #1a0e28, #180828 50%, #200e30)",
+          "accent": "linear-gradient(135deg, #ff7edb, #36f9f6)"
         }
       },
       {
@@ -199,6 +210,9 @@
           "brightMagenta": "#d070f0",
           "brightCyan": "#48e8e0",
           "brightWhite": "#d8d0e0"
+        },
+        "gradients": {
+          "accent": "linear-gradient(135deg, #e83838, #c060e0)"
         }
       },
       {
@@ -263,6 +277,10 @@
           "brightMagenta": "#b080f0",
           "brightCyan": "#20e8d0",
           "brightWhite": "#d8e0f0"
+        },
+        "gradients": {
+          "background": "linear-gradient(135deg, #0a1018, #061020 50%, #0c1420)",
+          "accent": "linear-gradient(135deg, #00b0ff, #00e068)"
         }
       },
       {
@@ -327,6 +345,10 @@
           "brightMagenta": "#f070b0",
           "brightCyan": "#40b0b0",
           "brightWhite": "#f8f0fa"
+        },
+        "gradients": {
+          "background": "linear-gradient(135deg, #f8f0fa, #f0e4f4 50%, #ece0f4)",
+          "accent": "linear-gradient(135deg, #e060a0, #5080d0)"
         }
       }
     ],
@@ -335,7 +357,7 @@
         {
           "id": "overview",
           "title": "Neon Themes",
-          "content": "# Neon Themes\n\nA collection of five neon and cyberpunk-inspired color themes for Clubhouse.\n\n## Themes\n\n### Cyberpunk (Dark)\nHot pink and electric cyan on a near-black canvas. High-contrast, high-energy, pure cyberpunk aesthetic.\n\n### Synthwave (Dark)\nRetro-futuristic purples and pinks with mint green highlights. A love letter to '80s neon and analog synths.\n\n### Neon Tokyo (Dark)\nNeon red and electric green on deep purple-black — late-night streets in a rain-soaked metropolis.\n\n### Electric (Dark)\nBright electric blue and vivid yellow on deep navy. Clean, modern, and crackling with energy.\n\n### Vaporwave (Light)\nSoft pastel pinks, purples, and blues. A dreamy, nostalgic aesthetic from the retrowave art movement.\n\n## Usage\n\nInstall the plugin and select any Neon Theme from **Settings > Appearance > Theme**."
+          "content": "# Neon Themes\n\nA collection of five neon and cyberpunk-inspired color themes for Clubhouse.\n\n## Themes\n\n### Cyberpunk (Dark)\nHot pink and electric cyan on a near-black canvas. High-contrast, high-energy, pure cyberpunk aesthetic. Features a stylized monospace font and a pink-to-cyan neon accent gradient.\n\n### Synthwave (Dark)\nRetro-futuristic purples and pinks with mint green highlights. A love letter to '80s neon and analog synths. Enhanced with a deep purple background gradient and a pink-to-cyan accent gradient.\n\n### Neon Tokyo (Dark)\nNeon red and electric green on deep purple-black — late-night streets in a rain-soaked metropolis. Features a red-to-purple accent gradient.\n\n### Electric (Dark)\nBright electric blue and vivid yellow on deep navy. Clean, modern, and crackling with energy. Enhanced with a deep blue background gradient and a blue-to-green accent gradient.\n\n### Vaporwave (Light)\nSoft pastel pinks, purples, and blues. A dreamy, nostalgic aesthetic from the retrowave art movement. Features pastel gradients on the background and accent elements.\n\n## Usage\n\nInstall the plugin and select any Neon Theme from **Settings > Appearance > Theme**."
         }
       ]
     }

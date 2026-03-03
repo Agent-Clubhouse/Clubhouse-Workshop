@@ -199,6 +199,10 @@
           "brightMagenta": "#d890f0",
           "brightCyan": "#60d8c0",
           "brightWhite": "#d0dae8"
+        },
+        "gradients": {
+          "background": "linear-gradient(160deg, #0e1520, #0a1018 40%, #101828)",
+          "accent": "linear-gradient(135deg, #50d890, #c880e0)"
         }
       },
       {
@@ -263,6 +267,9 @@
           "brightMagenta": "#7878bb",
           "brightCyan": "#559999",
           "brightWhite": "#fafbfc"
+        },
+        "fonts": {
+          "ui": "'Helvetica Neue', Helvetica, Arial, sans-serif"
         }
       },
       {
@@ -327,6 +334,9 @@
           "brightMagenta": "#b090d0",
           "brightCyan": "#60c8b8",
           "brightWhite": "#c8d0e0"
+        },
+        "gradients": {
+          "background": "linear-gradient(180deg, #1a2030, #101520 50%, #151a28)"
         }
       }
     ],
@@ -335,7 +345,7 @@
         {
           "id": "overview",
           "title": "Winter Themes",
-          "content": "# Winter Themes\n\nA collection of five winter-inspired color themes for Clubhouse.\n\n## Themes\n\n### Frost (Light)\nCrisp ice-blue tones with pale, frosty backgrounds. A clean, cool theme like a frozen windowpane at dawn.\n\n### Evergreen (Light)\nDeep pine greens on soft snowy whites — a walk through a quiet evergreen forest blanketed in snow.\n\n### Northern Lights (Dark)\nAurora borealis on a dark arctic sky. Vivid greens, purples, and cyans dance across a deep navy background.\n\n### Snowfall (Light)\nUltra-minimal and serene. Nearly pure white with the faintest blue-gray tints, like fresh snowfall on a still morning.\n\n### Polar Night (Dark)\nThe deep, cold blue of an arctic winter night. Muted, desaturated accents against a rich navy canvas.\n\n## Usage\n\nInstall the plugin and select any Winter Theme from **Settings > Appearance > Theme**."
+          "content": "# Winter Themes\n\nA collection of five winter-inspired color themes for Clubhouse.\n\n## Themes\n\n### Frost (Light)\nCrisp ice-blue tones with pale, frosty backgrounds. A clean, cool theme like a frozen windowpane at dawn.\n\n### Evergreen (Light)\nDeep pine greens on soft snowy whites — a walk through a quiet evergreen forest blanketed in snow.\n\n### Northern Lights (Dark)\nAurora borealis on a dark arctic sky. Vivid greens, purples, and cyans dance across a deep navy background. Enhanced with an aurora background gradient and a green-to-purple accent gradient.\n\n### Snowfall (Light)\nUltra-minimal and serene. Nearly pure white with the faintest blue-gray tints, like fresh snowfall on a still morning. Uses a clean Helvetica Neue font.\n\n### Polar Night (Dark)\nThe deep, cold blue of an arctic winter night. Muted, desaturated accents against a rich navy canvas. Features a deep polar blue background gradient.\n\n## Usage\n\nInstall the plugin and select any Winter Theme from **Settings > Appearance > Theme**."
         }
       ]
     }

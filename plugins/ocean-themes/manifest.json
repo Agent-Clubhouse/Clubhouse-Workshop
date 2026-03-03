@@ -199,6 +199,9 @@
           "brightMagenta": "#8070b0",
           "brightCyan": "#38a0b0",
           "brightWhite": "#f0f4f8"
+        },
+        "fonts": {
+          "ui": "'Avenir Next', Avenir, 'Segoe UI', sans-serif"
         }
       },
       {
@@ -263,6 +266,10 @@
           "brightMagenta": "#c090e0",
           "brightCyan": "#40c8e0",
           "brightWhite": "#c0d4e0"
+        },
+        "gradients": {
+          "background": "linear-gradient(180deg, #0a1520, #061018 50%, #081825)",
+          "accent": "linear-gradient(135deg, #30b8d0, #40c890)"
         }
       },
       {
@@ -327,6 +334,9 @@
           "brightMagenta": "#9880c0",
           "brightCyan": "#58c0b0",
           "brightWhite": "#b0c0d4"
+        },
+        "gradients": {
+          "background": "linear-gradient(180deg, #080c14, #030508 60%, #0a1020)"
         }
       }
     ],
@@ -335,7 +345,7 @@
         {
           "id": "overview",
           "title": "Ocean Themes",
-          "content": "# Ocean Themes\n\nA collection of five ocean-inspired color themes for Clubhouse.\n\n## Themes\n\n### Coral Reef (Light)\nWarm sandy whites with vibrant coral and turquoise accents — the colorful life of a tropical reef.\n\n### Tide Pool (Light)\nSea-glass greens and soft coastal tones. A tranquil palette inspired by sheltered rocky pools.\n\n### Pacific (Light)\nCool blue-grays stretching to the horizon. A calm, expansive palette like the open Pacific under overcast skies.\n\n### Deep Sea (Dark)\nDescend into the deep blue. Rich navy backgrounds with luminous bioluminescent accents of cyan and aqua.\n\n### Abyssal (Dark)\nThe darkest depths of the ocean. Near-black backgrounds with sparse, muted light — mysterious and immersive.\n\n## Usage\n\nInstall the plugin and select any Ocean Theme from **Settings > Appearance > Theme**."
+          "content": "# Ocean Themes\n\nA collection of five ocean-inspired color themes for Clubhouse.\n\n## Themes\n\n### Coral Reef (Light)\nWarm sandy whites with vibrant coral and turquoise accents — the colorful life of a tropical reef.\n\n### Tide Pool (Light)\nSea-glass greens and soft coastal tones. A tranquil palette inspired by sheltered rocky pools.\n\n### Pacific (Light)\nCool blue-grays stretching to the horizon. A calm, expansive palette like the open Pacific under overcast skies. Uses a clean, modern sans-serif font.\n\n### Deep Sea (Dark)\nDescend into the deep blue. Rich navy backgrounds with luminous bioluminescent accents of cyan and aqua. Enhanced with a deep ocean background gradient and a cyan-to-green accent gradient.\n\n### Abyssal (Dark)\nThe darkest depths of the ocean. Near-black backgrounds with sparse, muted light — mysterious and immersive. Features a dark gradient that fades into the void.\n\n## Usage\n\nInstall the plugin and select any Ocean Theme from **Settings > Appearance > Theme**."
         }
       ]
     }

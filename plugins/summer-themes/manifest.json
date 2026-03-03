@@ -71,6 +71,10 @@
           "brightMagenta": "#c070a0",
           "brightCyan": "#4a9890",
           "brightWhite": "#fdf6f0"
+        },
+        "gradients": {
+          "background": "linear-gradient(180deg, #fdf6f0, #faeee4 40%, #f5dcd0)",
+          "accent": "linear-gradient(135deg, #d07040, #b06090)"
         }
       },
       {
@@ -199,6 +203,9 @@
           "brightMagenta": "#f06890",
           "brightCyan": "#38a8b0",
           "brightWhite": "#f2faf0"
+        },
+        "fonts": {
+          "ui": "'Trebuchet MS', 'Lucida Grande', 'Lucida Sans', sans-serif"
         }
       },
       {
@@ -327,6 +334,10 @@
           "brightMagenta": "#e090c0",
           "brightCyan": "#50c8d8",
           "brightWhite": "#c8d8e8"
+        },
+        "gradients": {
+          "background": "linear-gradient(180deg, #0c1828, #040e18 60%, #081422)",
+          "accent": "linear-gradient(135deg, #40b8c8, #d080b0)"
         }
       }
     ],
@@ -335,7 +346,7 @@
         {
           "id": "overview",
           "title": "Summer Themes",
-          "content": "# Summer Themes\n\nA collection of five summer-inspired color themes for Clubhouse.\n\n## Themes\n\n### Sunset Beach (Light)\nWarm coral and sandy tones, like watching the sun dip below the ocean from a quiet beach.\n\n### Ocean Breeze (Light)\nCool teals and aquas. A refreshing palette inspired by gentle seaside winds and sparkling water.\n\n### Tropical (Light)\nLush, vivid greens with bold pink hibiscus accents — a walk through a tropical rainforest canopy.\n\n### Golden Hour (Light)\nRich amber and honey tones bathed in the warm glow of late-afternoon sunlight.\n\n### Midnight Swim (Dark)\nDeep ocean blues with luminous teal and coral accents — a warm night swim under the stars.\n\n## Usage\n\nInstall the plugin and select any Summer Theme from **Settings > Appearance > Theme**."
+          "content": "# Summer Themes\n\nA collection of five summer-inspired color themes for Clubhouse.\n\n## Themes\n\n### Sunset Beach (Light)\nWarm coral and sandy tones, like watching the sun dip below the ocean from a quiet beach. Enhanced with a warm sunset background gradient and a coral-to-rose accent gradient.\n\n### Ocean Breeze (Light)\nCool teals and aquas. A refreshing palette inspired by gentle seaside winds and sparkling water.\n\n### Tropical (Light)\nLush, vivid greens with bold pink hibiscus accents — a walk through a tropical rainforest canopy. Uses a playful sans-serif font.\n\n### Golden Hour (Light)\nRich amber and honey tones bathed in the warm glow of late-afternoon sunlight.\n\n### Midnight Swim (Dark)\nDeep ocean blues with luminous teal and coral accents — a warm night swim under the stars. Features a deep ocean background gradient and a teal-to-rose accent gradient.\n\n## Usage\n\nInstall the plugin and select any Summer Theme from **Settings > Appearance > Theme**."
         }
       ]
     }

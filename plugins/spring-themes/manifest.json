@@ -71,6 +71,12 @@
           "brightMagenta": "#c86e9a",
           "brightCyan": "#60a8a8",
           "brightWhite": "#fef6f8"
+        },
+        "fonts": {
+          "ui": "Georgia, 'Noto Serif', serif"
+        },
+        "gradients": {
+          "background": "linear-gradient(180deg, #fef6f8, #fceef2 40%, #f5d5df)"
         }
       },
       {
@@ -199,6 +205,10 @@
           "brightMagenta": "#9a6cc5",
           "brightCyan": "#5ea0a8",
           "brightWhite": "#f9f5fc"
+        },
+        "gradients": {
+          "background": "linear-gradient(160deg, #f9f5fc, #f0e8f6 50%, #e9e0f2)",
+          "accent": "linear-gradient(135deg, #8a5cb5, #c06888)"
         }
       },
       {
@@ -327,6 +337,10 @@
           "brightMagenta": "#d8b0f0",
           "brightCyan": "#78d8d0",
           "brightWhite": "#d0d8ea"
+        },
+        "gradients": {
+          "background": "linear-gradient(135deg, #161b28, #121722 50%, #1a1530)",
+          "accent": "linear-gradient(135deg, #a88ed0, #88c0d8)"
         }
       }
     ],
@@ -335,7 +349,7 @@
         {
           "id": "overview",
           "title": "Spring Themes",
-          "content": "# Spring Themes\n\nA collection of five spring-inspired color themes for Clubhouse.\n\n## Themes\n\n### Cherry Blossom (Light)\nSoft sakura pinks with cream backgrounds and sage green accents. A gentle, floral theme inspired by Japanese cherry blossom season.\n\n### Spring Meadow (Light)\nFresh greens and cornflower blues, like a walk through a wildflower meadow on a sunny morning.\n\n### Wisteria (Light)\nDreamy lavender and purple tones, inspired by cascading wisteria blossoms on a garden arbor.\n\n### Daffodil (Light)\nWarm, sunny yellows and golds — cheerful and bright, like fields of daffodils in bloom.\n\n### Moonlit Garden (Dark)\nA spring garden under moonlight. Deep night-blue backgrounds with luminous wisteria, rose, and mint accents.\n\n## Usage\n\nInstall the plugin and select any Spring Theme from **Settings > Appearance > Theme**."
+          "content": "# Spring Themes\n\nA collection of five spring-inspired color themes for Clubhouse.\n\n## Themes\n\n### Cherry Blossom (Light)\nSoft sakura pinks with cream backgrounds and sage green accents. A gentle, floral theme inspired by Japanese cherry blossom season. Features an elegant serif font and a subtle pink background gradient.\n\n### Spring Meadow (Light)\nFresh greens and cornflower blues, like a walk through a wildflower meadow on a sunny morning.\n\n### Wisteria (Light)\nDreamy lavender and purple tones, inspired by cascading wisteria blossoms on a garden arbor. Enhanced with a lavender background gradient and purple-to-rose accent gradient.\n\n### Daffodil (Light)\nWarm, sunny yellows and golds — cheerful and bright, like fields of daffodils in bloom.\n\n### Moonlit Garden (Dark)\nA spring garden under moonlight. Deep night-blue backgrounds with luminous wisteria, rose, and mint accents. Features twilight gradients on the background and accent elements.\n\n## Usage\n\nInstall the plugin and select any Spring Theme from **Settings > Appearance > Theme**."
         }
       ]
     }
