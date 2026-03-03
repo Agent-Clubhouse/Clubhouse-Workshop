@@ -14,7 +14,13 @@
 - `ThemeColors` interface — structured UI color tokens
 - `HljsColors` interface — structured syntax highlighting color tokens
 - `TerminalColors` interface — structured terminal color tokens
+- `ThemeFonts` interface — font family overrides for UI and monospace contexts
+- `ThemeGradients` interface — optional CSS gradient decorations (background, surface, accent)
 - `PluginThemeDeclaration` — declare color themes that ship with a plugin
+- `PluginThemeDeclaration.fonts` — optional font family overrides per theme
+- `PluginThemeDeclaration.gradients` — optional CSS gradient decorations per theme
+- `ThemeInfo.fonts` — font overrides on the runtime theme object
+- `ThemeInfo.gradients` — gradient decorations on the runtime theme object
 - `PluginAgentConfigDeclaration` — declare agent config to auto-inject via manifest
 - `PluginGlobalDialogDeclaration` — declare a global dialog action with keybinding
 - `PluginContributes.themes` — array of theme declarations
