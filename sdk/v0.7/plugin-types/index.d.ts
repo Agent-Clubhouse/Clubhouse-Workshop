@@ -330,6 +330,11 @@ export type PluginPermission =
   | "agent-config.permissions"
   | "agents.free-agent-mode"
   | "agent-config.mcp"
+  | "workspace"
+  | "workspace.watch"
+  | "workspace.cross-plugin"
+  | "workspace.shared"
+  | "workspace.cross-project"
   | "sounds"
   | "theme";
 
@@ -542,6 +547,59 @@ export interface FilesAPI {
    * Callback receives batched file events. Returns a Disposable to stop watching.
    */
   watch(glob: string, callback: (events: FileEvent[]) => void): Disposable;
+}
+
+/**
+ * Managed filesystem for plugin coordination, sandboxed to
+ * ~/.clubhouse/plugin-data/{pluginId}/workspace/.
+ * Available to all scopes (app, project, dual). Gated by "workspace" permission.
+ * The root directory is auto-created before activate() and cleaned up on uninstall.
+ */
+export interface WorkspaceAPI {
+  /** Absolute filesystem path to this plugin's workspace directory. */
+  readonly root: string;
+  readFile(relativePath: string): Promise<string>;
+  writeFile(relativePath: string, content: string): Promise<void>;
+  mkdir(relativePath: string): Promise<void>;
+  delete(relativePath: string): Promise<void>;
+  stat(relativePath: string): Promise<FileStatInfo>;
+  exists(relativePath: string): Promise<boolean>;
+  listDir(relativePath?: string): Promise<DirectoryEntry[]>;
+  readTree(relativePath?: string, opts?: { depth?: number }): Promise<FileNode[]>;
+  /** Watch files matching a glob pattern for changes. Requires "workspace.watch" permission. */
+  watch(glob: string, cb: (events: FileEvent[]) => void): Disposable;
+  /**
+   * Read-only access to another plugin's workspace.
+   * Requires "workspace.cross-plugin" on caller and "workspace.shared" on target.
+   */
+  forPlugin(pluginId: string): WorkspaceReadonlyAPI;
+  /**
+   * Access workspace data scoped to another project.
+   * Requires "workspace.cross-project" permission and bilateral consent
+   * (target project must have the plugin enabled).
+   */
+  forProject(projectId: string): WorkspaceProjectAPI;
+}
+
+/** Read-only subset for cross-plugin workspace access. */
+export interface WorkspaceReadonlyAPI {
+  readonly root: string;
+  readFile(relativePath: string): Promise<string>;
+  stat(relativePath: string): Promise<FileStatInfo>;
+  exists(relativePath: string): Promise<boolean>;
+  listDir(relativePath?: string): Promise<DirectoryEntry[]>;
+  watch(glob: string, cb: (events: FileEvent[]) => void): Disposable;
+}
+
+/** Workspace scoped to {projectPath}/.clubhouse/plugin-data/{pluginId}/. */
+export interface WorkspaceProjectAPI {
+  readonly projectPath: string;
+  readonly projectId: string;
+  readFile(relativePath: string): Promise<string>;
+  writeFile(relativePath: string, content: string): Promise<void>;
+  exists(relativePath: string): Promise<boolean>;
+  listDir(relativePath?: string): Promise<DirectoryEntry[]>;
+  watch(glob: string, cb: (events: FileEvent[]) => void): Disposable;
 }
 
 export interface ProjectAPI {
@@ -832,6 +890,7 @@ export interface PluginAPI {
   process: ProcessAPI;
   badges: BadgesAPI;
   agentConfig: AgentConfigAPI;
+  workspace: WorkspaceAPI;
   sounds: SoundsAPI;
   theme: ThemeAPI;
   context: PluginContextInfo;
