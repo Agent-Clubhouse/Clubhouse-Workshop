@@ -1057,3 +1057,288 @@ describe('automations plugin module exports', () => {
     expect((automationsModule as any).SettingsPanel).toBeUndefined();
   });
 });
+
+// ── Fix B: broadened terminal status detection ───────────────────────
+// Any transition TO 'sleeping' or 'error' counts as completion, regardless
+// of what the previous status was.
+
+describe('automations onStatusChange terminal-status detection (Fix B)', () => {
+  let ctx: PluginContext;
+  let storage: ReturnType<typeof createMapStorage>;
+  let statusChangeCallback: (agentId: string, status: string, prevStatus: string) => void;
+  let runQuickSpy: ReturnType<typeof vi.fn>;
+  let listCompletedSpy: ReturnType<typeof vi.fn>;
+  let api: PluginAPI;
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    ctx = createMockContext({ pluginId: 'automations' });
+    storage = createMapStorage();
+    runQuickSpy = vi.fn().mockResolvedValue('spawned-agent-1');
+    listCompletedSpy = vi.fn().mockReturnValue([]);
+
+    api = createMockAPI({
+      commands: { register: vi.fn(() => ({ dispose: vi.fn() })), execute: vi.fn() },
+      agents: {
+        ...createMockAPI().agents,
+        runQuick: runQuickSpy,
+        listCompleted: listCompletedSpy,
+        onStatusChange: vi.fn((cb) => {
+          statusChangeCallback = cb;
+          return { dispose: vi.fn() };
+        }),
+      },
+      storage: {
+        ...createMockAPI().storage,
+        projectLocal: storage,
+      },
+    });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  async function fireAgent() {
+    const auto = makeAutomation({ id: 'auto-1' });
+    storage._data.set('automations', [auto]);
+    activate(ctx, api);
+    await vi.advanceTimersByTimeAsync(30_000);
+  }
+
+  it('treats creating→sleeping as completion (intermediate prevStatus is ignored)', async () => {
+    listCompletedSpy.mockReturnValue([
+      { id: 'spawned-agent-1', summary: 'Done', exitCode: 0 },
+    ]);
+    await fireAgent();
+
+    statusChangeCallback('spawned-agent-1', 'sleeping', 'creating');
+    await vi.advanceTimersByTimeAsync(0);
+
+    const runs = storage._data.get('runs:auto-1') as RunRecord[];
+    expect(runs[0].status).toBe('completed');
+    expect(runs[0].summary).toBe('Done');
+  });
+
+  it('treats creating→error as failure', async () => {
+    await fireAgent();
+
+    statusChangeCallback('spawned-agent-1', 'error', 'creating');
+    await vi.advanceTimersByTimeAsync(0);
+
+    const runs = storage._data.get('runs:auto-1') as RunRecord[];
+    expect(runs[0].status).toBe('failed');
+  });
+
+  it('does not treat creating→running as completion (non-terminal status)', async () => {
+    await fireAgent();
+
+    (storage.write as ReturnType<typeof vi.fn>).mockClear();
+    statusChangeCallback('spawned-agent-1', 'running', 'creating');
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(storage.write).not.toHaveBeenCalled();
+  });
+});
+
+// ── Fix A: stale run reconciliation ─────────────────────────────────
+// On each cron tick, stale 'running' records are cross-checked against the
+// live agent list and updated to their correct terminal status.
+
+describe('automations stale run reconciliation (Fix A)', () => {
+  let ctx: PluginContext;
+  let storage: ReturnType<typeof createMapStorage>;
+  let runQuickSpy: ReturnType<typeof vi.fn>;
+  let listSpy: ReturnType<typeof vi.fn>;
+  let listCompletedSpy: ReturnType<typeof vi.fn>;
+  let statusChangeCallback: (agentId: string, status: string, prevStatus: string) => void;
+  let api: PluginAPI;
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    ctx = createMockContext({ pluginId: 'automations' });
+    storage = createMapStorage();
+    runQuickSpy = vi.fn().mockResolvedValue('new-agent-1');
+    listSpy = vi.fn().mockReturnValue([]);
+    listCompletedSpy = vi.fn().mockReturnValue([]);
+
+    api = createMockAPI({
+      commands: { register: vi.fn(() => ({ dispose: vi.fn() })), execute: vi.fn() },
+      agents: {
+        ...createMockAPI().agents,
+        runQuick: runQuickSpy,
+        list: listSpy,
+        listCompleted: listCompletedSpy,
+        onStatusChange: vi.fn((cb) => {
+          statusChangeCallback = cb;
+          return { dispose: vi.fn() };
+        }),
+      },
+      storage: {
+        ...createMockAPI().storage,
+        projectLocal: storage,
+      },
+    });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('marks stale running record as completed when agent is in listCompleted', async () => {
+    const auto = makeAutomation({ id: 'auto-1', enabled: false });
+    const staleRun = makeRunRecord({ agentId: 'stale-agent-1', status: 'running' });
+    storage._data.set('automations', [auto]);
+    storage._data.set('runs:auto-1', [staleRun]);
+
+    listSpy.mockReturnValue([]);
+    listCompletedSpy.mockReturnValue([
+      { id: 'stale-agent-1', summary: 'Did the thing', exitCode: 0 },
+    ]);
+
+    activate(ctx, api);
+    await vi.advanceTimersByTimeAsync(30_000);
+
+    const runs = storage._data.get('runs:auto-1') as RunRecord[];
+    expect(runs[0].status).toBe('completed');
+    expect(runs[0].summary).toBe('Did the thing');
+    expect(runs[0].exitCode).toBe(0);
+    expect(runs[0].completedAt).toBeTypeOf('number');
+  });
+
+  it('marks stale running record as failed when agent is not found anywhere', async () => {
+    const auto = makeAutomation({ id: 'auto-1', enabled: false });
+    const staleRun = makeRunRecord({ agentId: 'stale-agent-1', status: 'running' });
+    storage._data.set('automations', [auto]);
+    storage._data.set('runs:auto-1', [staleRun]);
+
+    listSpy.mockReturnValue([]);
+    listCompletedSpy.mockReturnValue([]);
+
+    activate(ctx, api);
+    await vi.advanceTimersByTimeAsync(30_000);
+
+    const runs = storage._data.get('runs:auto-1') as RunRecord[];
+    expect(runs[0].status).toBe('failed');
+    expect(runs[0].completedAt).toBeTypeOf('number');
+  });
+
+  it('marks stale running record as completed when agent in active list with sleeping status', async () => {
+    const auto = makeAutomation({ id: 'auto-1', enabled: false });
+    const staleRun = makeRunRecord({ agentId: 'stale-agent-1', status: 'running' });
+    storage._data.set('automations', [auto]);
+    storage._data.set('runs:auto-1', [staleRun]);
+
+    listSpy.mockReturnValue([
+      { id: 'stale-agent-1', name: 'Done', kind: 'quick', status: 'sleeping', color: '#fff', projectId: 'test', exitCode: 0 },
+    ]);
+    listCompletedSpy.mockReturnValue([
+      { id: 'stale-agent-1', summary: 'Summary here', exitCode: 0 },
+    ]);
+
+    activate(ctx, api);
+    await vi.advanceTimersByTimeAsync(30_000);
+
+    const runs = storage._data.get('runs:auto-1') as RunRecord[];
+    expect(runs[0].status).toBe('completed');
+    expect(runs[0].summary).toBe('Summary here');
+  });
+
+  it('marks stale running record as failed when agent in active list with error status', async () => {
+    const auto = makeAutomation({ id: 'auto-1', enabled: false });
+    const staleRun = makeRunRecord({ agentId: 'stale-agent-1', status: 'running' });
+    storage._data.set('automations', [auto]);
+    storage._data.set('runs:auto-1', [staleRun]);
+
+    listSpy.mockReturnValue([
+      { id: 'stale-agent-1', name: 'Errored', kind: 'quick', status: 'error', color: '#fff', projectId: 'test' },
+    ]);
+
+    activate(ctx, api);
+    await vi.advanceTimersByTimeAsync(30_000);
+
+    const runs = storage._data.get('runs:auto-1') as RunRecord[];
+    expect(runs[0].status).toBe('failed');
+    expect(runs[0].completedAt).toBeTypeOf('number');
+  });
+
+  it('does not write to storage when there are no stale runs', async () => {
+    const auto = makeAutomation({ id: 'auto-1', enabled: false });
+    storage._data.set('automations', [auto]);
+    // No run records at all
+
+    activate(ctx, api);
+    (storage.write as ReturnType<typeof vi.fn>).mockClear();
+    await vi.advanceTimersByTimeAsync(30_000);
+
+    // Disabled automation → no cron fire, no reconciliation writes
+    expect(storage.write).not.toHaveBeenCalled();
+  });
+
+  it('re-populates pendingRuns for genuinely still-running agents', async () => {
+    const auto = makeAutomation({ id: 'auto-1', enabled: false });
+    const activeRun = makeRunRecord({ agentId: 'active-agent-1', status: 'running' });
+    storage._data.set('automations', [auto]);
+    storage._data.set('runs:auto-1', [activeRun]);
+
+    // Agent is genuinely still running
+    listSpy.mockReturnValue([
+      { id: 'active-agent-1', name: 'Active', kind: 'quick', status: 'running', color: '#fff', projectId: 'test' },
+    ]);
+
+    activate(ctx, api);
+    await vi.advanceTimersByTimeAsync(30_000);
+
+    // Run should remain 'running' (not erroneously changed)
+    const runsDuring = storage._data.get('runs:auto-1') as RunRecord[];
+    expect(runsDuring[0].status).toBe('running');
+
+    // After the agent completes, the onStatusChange callback should update
+    // the record because pendingRuns was re-populated by reconciliation.
+    listCompletedSpy.mockReturnValue([
+      { id: 'active-agent-1', summary: 'Finally done', exitCode: 0 },
+    ]);
+    statusChangeCallback('active-agent-1', 'sleeping', 'running');
+    await vi.advanceTimersByTimeAsync(0);
+
+    const runsAfter = storage._data.get('runs:auto-1') as RunRecord[];
+    expect(runsAfter[0].status).toBe('completed');
+    expect(runsAfter[0].summary).toBe('Finally done');
+  });
+
+  it('reconciles multiple stale runs across multiple automations', async () => {
+    const auto1 = makeAutomation({ id: 'auto-1', enabled: false });
+    const auto2 = makeAutomation({ id: 'auto-2', enabled: false });
+    storage._data.set('automations', [auto1, auto2]);
+    storage._data.set('runs:auto-1', [makeRunRecord({ agentId: 'stale-a1', automationId: 'auto-1', status: 'running' })]);
+    storage._data.set('runs:auto-2', [makeRunRecord({ agentId: 'stale-a2', automationId: 'auto-2', status: 'running' })]);
+
+    listSpy.mockReturnValue([]);
+    listCompletedSpy.mockReturnValue([
+      { id: 'stale-a1', summary: 'Done 1', exitCode: 0 },
+      { id: 'stale-a2', summary: 'Done 2', exitCode: 0 },
+    ]);
+
+    activate(ctx, api);
+    await vi.advanceTimersByTimeAsync(30_000);
+
+    expect((storage._data.get('runs:auto-1') as RunRecord[])[0].status).toBe('completed');
+    expect((storage._data.get('runs:auto-2') as RunRecord[])[0].status).toBe('completed');
+  });
+
+  it('does not reconcile a run that is already completed', async () => {
+    const auto = makeAutomation({ id: 'auto-1', enabled: false });
+    const completedRun = makeRunRecord({ agentId: 'old-agent', status: 'completed', completedAt: 999 });
+    storage._data.set('automations', [auto]);
+    storage._data.set('runs:auto-1', [completedRun]);
+
+    activate(ctx, api);
+    (storage.write as ReturnType<typeof vi.fn>).mockClear();
+    await vi.advanceTimersByTimeAsync(30_000);
+
+    // Already-completed run must not be touched
+    expect(storage.write).not.toHaveBeenCalled();
+    const runs = storage._data.get('runs:auto-1') as RunRecord[];
+    expect(runs[0].completedAt).toBe(999);
+  });
+});
