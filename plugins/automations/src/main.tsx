@@ -64,15 +64,14 @@ export function activate(ctx: PluginContext, api: PluginAPI): void {
   }
 
   // 1. onStatusChange — detect agent completion
-  const statusSub = api.agents.onStatusChange((agentId, status, prevStatus) => {
+  const statusSub = api.agents.onStatusChange((agentId, status, _prevStatus) => {
     const automationId = pendingRuns.get(agentId);
     if (!automationId) return;
 
-    const isCompleted =
-      (prevStatus === 'running' && status === 'sleeping') ||
-      (prevStatus === 'running' && status === 'error');
-
-    if (!isCompleted) return;
+    // Treat any transition to a terminal status as completion, regardless of
+    // the previous state (e.g. creating→sleeping is still a valid completion).
+    const isTerminal = status === 'sleeping' || status === 'error';
+    if (!isTerminal) return;
 
     pendingRuns.delete(agentId);
 
@@ -110,8 +109,62 @@ export function activate(ctx: PluginContext, api: PluginAPI): void {
   });
   ctx.subscriptions.push(statusSub);
 
-  // 2. Cron tick — every 30 seconds
+  // 2. reconcileStaleRuns — cross-check stored 'running' records against live agent status.
+  // Called at the start of each cron tick so stale records are cleaned up even after a
+  // plugin restart that cleared the in-memory pendingRuns map.
+  async function reconcileStaleRuns(): Promise<void> {
+    const raw = await storage.read(AUTOMATIONS_KEY);
+    const automations: Automation[] = Array.isArray(raw) ? raw : [];
+    const activeAgents = api.agents.list();
+    const completedAgents = api.agents.listCompleted();
+
+    for (const auto of automations) {
+      const runsRaw = await storage.read(runsKey(auto.id));
+      const runs: RunRecord[] = Array.isArray(runsRaw) ? runsRaw : [];
+      const staleIndices = runs.reduce<number[]>((acc, r, i) => {
+        if (r.status === 'running') acc.push(i);
+        return acc;
+      }, []);
+      if (staleIndices.length === 0) continue;
+
+      let changed = false;
+      for (const idx of staleIndices) {
+        const record = runs[idx];
+        const activeAgent = activeAgents.find((a) => a.id === record.agentId);
+
+        if (activeAgent && activeAgent.status !== 'sleeping' && activeAgent.status !== 'error') {
+          // Agent is still in a non-terminal state — restore the pendingRuns mapping
+          // so the onStatusChange callback can handle its eventual completion.
+          pendingRuns.set(record.agentId, auto.id);
+          continue;
+        }
+
+        // Agent is terminal (sleeping/error in active list) or gone entirely.
+        const completedInfo = completedAgents.find((c) => c.id === record.agentId);
+        const terminalStatus: RunRecord['status'] =
+          activeAgent?.status === 'sleeping' || completedInfo ? 'completed' : 'failed';
+        runs[idx] = {
+          ...record,
+          status: terminalStatus,
+          summary: completedInfo?.summary ?? null,
+          exitCode: completedInfo?.exitCode ?? activeAgent?.exitCode ?? null,
+          completedAt: Date.now(),
+        };
+        changed = true;
+      }
+
+      if (changed) {
+        await storage.write(runsKey(auto.id), runs);
+      }
+    }
+  }
+
+  // 3. Cron tick — every 30 seconds
   const tickInterval = setInterval(async () => {
+    // Reconcile any stale 'running' records before processing new cron fires.
+    // This handles the case where the plugin was restarted and pendingRuns was lost.
+    await reconcileStaleRuns();
+
     const now = new Date();
     const raw = await storage.read(AUTOMATIONS_KEY);
     const automations: Automation[] = Array.isArray(raw) ? raw : [];
@@ -379,9 +432,27 @@ export function MainPanel({ api }: { api: PluginAPI }) {
     setRuns(next);
   }, [selectedId, storage]);
 
+  const dismissRun = useCallback(async (agentId: string) => {
+    if (!selectedId) return;
+    const raw = await storage.read(runsKey(selectedId));
+    const current: RunRecord[] = Array.isArray(raw) ? raw : [];
+    const idx = current.findIndex((r) => r.agentId === agentId);
+    if (idx === -1) return;
+    current[idx] = { ...current[idx], status: 'failed', completedAt: Date.now() };
+    await storage.write(runsKey(selectedId), current);
+    setRuns([...current]);
+    if (!current.some((r) => r.status === 'running')) {
+      setRunningIds((prev) => {
+        const next = new Set(prev);
+        next.delete(selectedId);
+        return next;
+      });
+    }
+  }, [selectedId, storage]);
+
   // Stable refs for callbacks
-  const actionsRef = useRef({ createAutomation, saveAutomation, deleteAutomation, toggleEnabled, runNow, deleteRun });
-  actionsRef.current = { createAutomation, saveAutomation, deleteAutomation, toggleEnabled, runNow, deleteRun };
+  const actionsRef = useRef({ createAutomation, saveAutomation, deleteAutomation, toggleEnabled, runNow, deleteRun, dismissRun });
+  actionsRef.current = { createAutomation, saveAutomation, deleteAutomation, toggleEnabled, runNow, deleteRun, dismissRun };
 
   if (!loaded) {
     return (
@@ -730,6 +801,19 @@ export function MainPanel({ api }: { api: PluginAPI }) {
                             onClick={() => api.agents.kill(run.agentId)}
                           >
                             Stop
+                          </button>
+                          <button
+                            style={{
+                              padding: '2px 8px', fontSize: 11, borderRadius: 4,
+                              color: S.color.textSecondary,
+                              border: `1px solid ${S.color.border}`,
+                              background: 'transparent',
+                              cursor: 'pointer',
+                            }}
+                            title="Mark this run as failed and clear the stuck state"
+                            onClick={() => actionsRef.current.dismissRun(run.agentId)}
+                          >
+                            Dismiss
                           </button>
                         </div>
                       ) : (
