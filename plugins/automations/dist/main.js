@@ -534,11 +534,11 @@ function activate(ctx, api) {
     auto.lastRunAt = Date.now();
     await storage.write(AUTOMATIONS_KEY, automations);
   }
-  const statusSub = api.agents.onStatusChange((agentId, status, prevStatus) => {
+  const statusSub = api.agents.onStatusChange((agentId, status, _prevStatus) => {
     const automationId = pendingRuns.get(agentId);
     if (!automationId) return;
-    const isCompleted = prevStatus === "running" && status === "sleeping" || prevStatus === "running" && status === "error";
-    if (!isCompleted) return;
+    const isTerminal = status === "sleeping" || status === "error";
+    if (!isTerminal) return;
     pendingRuns.delete(agentId);
     const completed = api.agents.listCompleted();
     const info = completed.find((c) => c.id === agentId);
@@ -567,7 +567,45 @@ function activate(ctx, api) {
     });
   });
   ctx.subscriptions.push(statusSub);
+  async function reconcileStaleRuns() {
+    const raw = await storage.read(AUTOMATIONS_KEY);
+    const automations = Array.isArray(raw) ? raw : [];
+    const activeAgents = api.agents.list();
+    const completedAgents = api.agents.listCompleted();
+    for (const auto of automations) {
+      const runsRaw = await storage.read(runsKey(auto.id));
+      const runs = Array.isArray(runsRaw) ? runsRaw : [];
+      const staleIndices = runs.reduce((acc, r, i) => {
+        if (r.status === "running") acc.push(i);
+        return acc;
+      }, []);
+      if (staleIndices.length === 0) continue;
+      let changed = false;
+      for (const idx of staleIndices) {
+        const record = runs[idx];
+        const activeAgent = activeAgents.find((a) => a.id === record.agentId);
+        if (activeAgent && activeAgent.status !== "sleeping" && activeAgent.status !== "error") {
+          pendingRuns.set(record.agentId, auto.id);
+          continue;
+        }
+        const completedInfo = completedAgents.find((c) => c.id === record.agentId);
+        const terminalStatus = activeAgent?.status === "sleeping" || completedInfo ? "completed" : "failed";
+        runs[idx] = {
+          ...record,
+          status: terminalStatus,
+          summary: completedInfo?.summary ?? null,
+          exitCode: completedInfo?.exitCode ?? activeAgent?.exitCode ?? null,
+          completedAt: Date.now()
+        };
+        changed = true;
+      }
+      if (changed) {
+        await storage.write(runsKey(auto.id), runs);
+      }
+    }
+  }
   const tickInterval = setInterval(async () => {
+    await reconcileStaleRuns();
     const now = /* @__PURE__ */ new Date();
     const raw = await storage.read(AUTOMATIONS_KEY);
     const automations = Array.isArray(raw) ? raw : [];
@@ -777,8 +815,25 @@ function MainPanel({ api }) {
     await storage.write(runsKey(selectedId), next);
     setRuns(next);
   }, [selectedId, storage]);
-  const actionsRef = useRef({ createAutomation, saveAutomation, deleteAutomation, toggleEnabled, runNow, deleteRun });
-  actionsRef.current = { createAutomation, saveAutomation, deleteAutomation, toggleEnabled, runNow, deleteRun };
+  const dismissRun = useCallback(async (agentId) => {
+    if (!selectedId) return;
+    const raw = await storage.read(runsKey(selectedId));
+    const current = Array.isArray(raw) ? raw : [];
+    const idx = current.findIndex((r) => r.agentId === agentId);
+    if (idx === -1) return;
+    current[idx] = { ...current[idx], status: "failed", completedAt: Date.now() };
+    await storage.write(runsKey(selectedId), current);
+    setRuns([...current]);
+    if (!current.some((r) => r.status === "running")) {
+      setRunningIds((prev) => {
+        const next = new Set(prev);
+        next.delete(selectedId);
+        return next;
+      });
+    }
+  }, [selectedId, storage]);
+  const actionsRef = useRef({ createAutomation, saveAutomation, deleteAutomation, toggleEnabled, runNow, deleteRun, dismissRun });
+  actionsRef.current = { createAutomation, saveAutomation, deleteAutomation, toggleEnabled, runNow, deleteRun, dismissRun };
   if (!loaded) {
     return /* @__PURE__ */ jsx("div", { style: { display: "flex", alignItems: "center", justifyContent: "center", height: "100%", color: color.textTertiary, fontSize: 12 }, children: "Loading automations..." });
   }
@@ -1096,6 +1151,23 @@ function MainPanel({ api }) {
                       },
                       onClick: () => api.agents.kill(run.agentId),
                       children: "Stop"
+                    }
+                  ),
+                  /* @__PURE__ */ jsx(
+                    "button",
+                    {
+                      style: {
+                        padding: "2px 8px",
+                        fontSize: 11,
+                        borderRadius: 4,
+                        color: color.textSecondary,
+                        border: `1px solid ${color.border}`,
+                        background: "transparent",
+                        cursor: "pointer"
+                      },
+                      title: "Mark this run as failed and clear the stuck state",
+                      onClick: () => actionsRef.current.dismissRun(run.agentId),
+                      children: "Dismiss"
                     }
                   )
                 ] }) : /* @__PURE__ */ jsxs("div", { style: { display: "flex", alignItems: "center", gap: 6 }, children: [
