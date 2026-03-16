@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated": "2026-03-16T07:35:37.400Z",
+  "updated": "2026-03-16T08:10:59.167Z",
   "supportedApis": {
     "latest": "0.7",
     "minimum": "0.6",
@@ -359,7 +359,7 @@
         "markdown",
         "documentation"
       ],
-      "latest": "1.2.0",
+      "latest": "1.2.1",
       "releases": {
         "1.0.0": {
           "api": 0.5,
@@ -409,6 +409,23 @@
             "theme"
           ],
           "size": 87449
+        },
+        "1.2.1": {
+          "api": 0.6,
+          "asset": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop/releases/download/wiki-v1.2.1/wiki-v1.2.1.zip",
+          "sha256": "7772b122d9be51d6bb7829b85ec03ed7828ac368e1ad3101dab7ff4fab0f7efe",
+          "permissions": [
+            "files",
+            "files.external",
+            "commands",
+            "notifications",
+            "agents",
+            "navigation",
+            "storage",
+            "widgets",
+            "theme"
+          ],
+          "size": 87488
         }
       }
     },
