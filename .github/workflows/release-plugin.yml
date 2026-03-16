@@ -118,16 +118,27 @@ jobs:
             Or download the zip and extract to `~/.clubhouse/plugins/${{ steps.tag.outputs.plugin_id }}/`.
           files: ${{ steps.zip.outputs.zip_path }}
 
-      - name: Update registry
+      - name: Update registry and create PR
         run: |
+          # Save manifest before switching branches (tag checkout may differ from main)
+          cp ${{ steps.tag.outputs.plugin_dir }}/manifest.json /tmp/manifest.json
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          BRANCH="registry-update/${{ steps.tag.outputs.tag }}"
+
+          git fetch origin main
+          git checkout -b "$BRANCH" origin/main
+
+          # Update registry on top of main's latest state (not the tag checkout)
+          # This ensures concurrent releases don't overwrite each other
           node -e "
             const fs = require('fs');
 
-            // Re-read registry from main (we may be on a tag checkout)
             const registry = JSON.parse(fs.readFileSync('registry/registry.json', 'utf8'));
             const pluginId = '${{ steps.tag.outputs.plugin_id }}';
             const version = '${{ steps.tag.outputs.version }}';
-            const manifest = JSON.parse(fs.readFileSync('${{ steps.tag.outputs.plugin_dir }}/manifest.json', 'utf8'));
+            const manifest = JSON.parse(fs.readFileSync('/tmp/manifest.json', 'utf8'));
 
             let plugin = registry.plugins.find(p => p.id === pluginId);
             if (!plugin) {
@@ -180,20 +191,6 @@ jobs:
           # Validate the registry we just generated
           node scripts/validate-registry.mjs
 
-      - name: Create and merge registry PR
-        run: |
-          # Save updated registry before switching branches
-          cp registry/registry.json /tmp/registry-updated.json
-
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          BRANCH="registry-update/${{ steps.tag.outputs.tag }}"
-
-          git fetch origin main
-          git checkout -b "$BRANCH" origin/main
-
-          # Apply the updated registry
-          cp /tmp/registry-updated.json registry/registry.json
           git add registry/registry.json
           git diff --cached --quiet && echo "No registry changes" && exit 0
 
