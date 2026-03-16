@@ -1,6 +1,6 @@
 {
   "name": "wiki",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "private": true,
   "license": "MIT",
   "description": "Browse and edit markdown wikis stored in external directories",
@@ -20,7 +20,7 @@
     "vitest": "^3.0.0",
     "marked": "^15.0.0",
     "highlight.js": "^11.11.0",
-    "dompurify": "^3.2.0",
+    "dompurify": "^3.3.2",
     "jsdom": "^26.0.0"
   }
 }
