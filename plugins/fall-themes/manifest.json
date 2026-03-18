@@ -1,10 +1,12 @@
 {
   "id": "fall-themes",
   "name": "Fall Themes",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "A collection of autumn-inspired color themes — maple, harvest, pumpkin spice, amber forest, and twilight ember.",
   "author": "Clubhouse Workshop",
-  "engine": { "api": 0.7 },
+  "engine": {
+    "api": 0.7
+  },
   "kind": "pack",
   "scope": "app",
   "contributes": {

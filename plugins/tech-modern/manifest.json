@@ -1,10 +1,12 @@
 {
   "id": "tech-modern",
   "name": "Tech Modern",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Color themes inspired by iconic tech companies — Redmond, Mountain View, Cupertino, AI Lab, and Seattle.",
   "author": "Clubhouse Workshop",
-  "engine": { "api": 0.7 },
+  "engine": {
+    "api": 0.7
+  },
   "kind": "pack",
   "scope": "app",
   "contributes": {

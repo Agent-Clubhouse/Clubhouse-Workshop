@@ -1,10 +1,12 @@
 {
   "id": "neon-themes",
   "name": "Neon Themes",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "A collection of neon and cyberpunk-inspired color themes — cyberpunk, synthwave, neon tokyo, electric, and vaporwave.",
   "author": "Clubhouse Workshop",
-  "engine": { "api": 0.7 },
+  "engine": {
+    "api": 0.7
+  },
   "kind": "pack",
   "scope": "app",
   "contributes": {
