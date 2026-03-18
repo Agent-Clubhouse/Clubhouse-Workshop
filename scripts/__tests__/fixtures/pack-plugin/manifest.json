@@ -1,0 +1,36 @@
+{
+  "id": "test-pack",
+  "name": "Test Pack",
+  "version": "0.1.0",
+  "description": "A minimal test pack plugin",
+  "author": "Test Author",
+  "engine": { "api": 0.7 },
+  "kind": "pack",
+  "scope": "app",
+  "contributes": {
+    "themes": [
+      {
+        "id": "test-theme",
+        "name": "Test Theme",
+        "type": "dark",
+        "colors": {
+          "base": "#1e1e2e",
+          "mantle": "#181825",
+          "crust": "#11111b",
+          "text": "#cdd6f4",
+          "subtext0": "#a6adc8",
+          "subtext1": "#bac2de",
+          "surface0": "#313244",
+          "surface1": "#45475a",
+          "surface2": "#585b70",
+          "accent": "#cba6f7",
+          "link": "#89b4fa",
+          "warning": "#f9e2af",
+          "error": "#f38ba8",
+          "info": "#89b4fa",
+          "success": "#a6e3a1"
+        }
+      }
+    ]
+  }
+}

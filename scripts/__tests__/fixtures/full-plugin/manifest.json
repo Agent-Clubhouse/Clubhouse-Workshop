@@ -1,0 +1,11 @@
+{
+  "id": "test-full",
+  "name": "Test Full Plugin",
+  "version": "1.0.0",
+  "description": "A minimal test plugin with build step",
+  "author": "Test Author",
+  "engine": { "api": 0.7 },
+  "scope": "project",
+  "main": "./dist/main.js",
+  "permissions": ["storage", "notifications"]
+}

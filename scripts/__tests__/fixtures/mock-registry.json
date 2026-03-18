@@ -1,0 +1,51 @@
+{
+  "version": 1,
+  "updated": "2026-03-01T00:00:00.000Z",
+  "supportedApis": {
+    "latest": "0.7",
+    "minimum": "0.6",
+    "versions": ["0.6", "0.7"]
+  },
+  "plugins": [
+    {
+      "id": "existing-plugin",
+      "name": "Existing Plugin",
+      "description": "An existing plugin in the registry",
+      "author": "Test Author",
+      "official": true,
+      "repo": "https://github.com/test/repo",
+      "path": "plugins/existing-plugin",
+      "tags": ["test"],
+      "latest": "1.0.0",
+      "releases": {
+        "1.0.0": {
+          "api": 0.6,
+          "asset": "https://github.com/test/repo/releases/download/existing-plugin-v1.0.0/existing-plugin-v1.0.0.zip",
+          "sha256": "abc123",
+          "permissions": ["storage"],
+          "size": 5000
+        }
+      }
+    },
+    {
+      "id": "another-plugin",
+      "name": "Another Plugin",
+      "description": "Another existing plugin",
+      "author": "Test Author",
+      "official": true,
+      "repo": "https://github.com/test/repo",
+      "path": "plugins/another-plugin",
+      "tags": ["test"],
+      "latest": "2.0.0",
+      "releases": {
+        "2.0.0": {
+          "api": 0.7,
+          "asset": "https://github.com/test/repo/releases/download/another-plugin-v2.0.0/another-plugin-v2.0.0.zip",
+          "sha256": "def456",
+          "permissions": ["storage", "notifications"],
+          "size": 8000
+        }
+      }
+    }
+  ]
+}

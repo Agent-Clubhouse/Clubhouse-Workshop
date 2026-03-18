@@ -1,0 +1,9 @@
+{
+  "name": "test-full",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "mkdir -p dist && cp src/main.tsx dist/main.js",
+    "test": "echo 'tests passed'"
+  }
+}
