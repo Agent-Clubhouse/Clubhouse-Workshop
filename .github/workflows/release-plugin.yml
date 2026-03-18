@@ -22,6 +22,9 @@ concurrency:
 jobs:
   release:
     runs-on: ubuntu-latest
+    # Skip when tags are pushed by the batch workflow (github-actions[bot])
+    # to prevent double-trigger. Human-pushed tags still trigger normally.
+    if: github.actor != 'github-actions[bot]'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -56,58 +59,19 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Install and build
-        working-directory: ${{ steps.tag.outputs.plugin_dir }}
+      - name: Build, validate, and zip
+        id: release
         run: |
-          if [ -f package.json ]; then
-            npm install
-            npm run build
-          else
-            echo "No package.json found (theme/pack plugin), skipping build"
-          fi
+          OUTPUT=$(node scripts/release-plugin.mjs "${{ steps.tag.outputs.plugin_dir }}" "${{ steps.tag.outputs.version }}")
+          echo "$OUTPUT"
 
-      - name: Run tests
-        working-directory: ${{ steps.tag.outputs.plugin_dir }}
-        run: |
-          if [ -f package.json ] && grep -q '"test"' package.json; then
-            npm test
-          else
-            echo "No tests to run, skipping"
-          fi
+          # Extract fields from JSON output
+          ZIP_PATH=$(echo "$OUTPUT" | node -e "const d=require('fs').readFileSync(0,'utf8');const j=JSON.parse(d.slice(d.indexOf('{'))); console.log(j.zipPath)")
+          SHA256=$(echo "$OUTPUT" | node -e "const d=require('fs').readFileSync(0,'utf8');const j=JSON.parse(d.slice(d.indexOf('{'))); console.log(j.sha256)")
+          SIZE=$(echo "$OUTPUT" | node -e "const d=require('fs').readFileSync(0,'utf8');const j=JSON.parse(d.slice(d.indexOf('{'))); console.log(j.size)")
 
-      - name: Validate manifest
-        run: node scripts/validate-manifest.mjs "${{ steps.tag.outputs.plugin_dir }}" --strict
-
-      - name: Verify version matches tag
-        working-directory: ${{ steps.tag.outputs.plugin_dir }}
-        run: |
-          MANIFEST_VERSION=$(node -p "JSON.parse(require('fs').readFileSync('manifest.json','utf8')).version")
-          TAG_VERSION="${{ steps.tag.outputs.version }}"
-          if [ "$MANIFEST_VERSION" != "$TAG_VERSION" ]; then
-            echo "ERROR: manifest.json version ($MANIFEST_VERSION) does not match tag version ($TAG_VERSION)"
-            exit 1
-          fi
-          MANIFEST_ID=$(node -p "JSON.parse(require('fs').readFileSync('manifest.json','utf8')).id")
-          TAG_ID="${{ steps.tag.outputs.plugin_id }}"
-          if [ "$MANIFEST_ID" != "$TAG_ID" ]; then
-            echo "ERROR: manifest.json id ($MANIFEST_ID) does not match tag id ($TAG_ID)"
-            exit 1
-          fi
-
-      - name: Create release zip
-        id: zip
-        working-directory: ${{ steps.tag.outputs.plugin_dir }}
-        run: |
-          ZIP_NAME="${{ steps.tag.outputs.tag }}.zip"
-          # Include manifest.json always; dist/ and README.md only if they exist
-          ZIP_FILES="manifest.json"
-          [ -d dist ] && ZIP_FILES="$ZIP_FILES dist/"
-          [ -f README.md ] && ZIP_FILES="$ZIP_FILES README.md"
-          zip -r "../../$ZIP_NAME" $ZIP_FILES
-          echo "zip_path=$ZIP_NAME" >> "$GITHUB_OUTPUT"
-          SHA=$(sha256sum "../../$ZIP_NAME" | cut -d' ' -f1)
-          echo "sha256=$SHA" >> "$GITHUB_OUTPUT"
-          SIZE=$(wc -c < "../../$ZIP_NAME" | tr -d ' ')
+          echo "zip_path=$ZIP_PATH" >> "$GITHUB_OUTPUT"
+          echo "sha256=$SHA256" >> "$GITHUB_OUTPUT"
           echo "size=$SIZE" >> "$GITHUB_OUTPUT"
 
       - name: Create GitHub Release
@@ -124,7 +88,7 @@ jobs:
             ```
 
             Or download the zip and extract to `~/.clubhouse/plugins/${{ steps.tag.outputs.plugin_id }}/`.
-          files: ${{ steps.zip.outputs.zip_path }}
+          files: ${{ steps.release.outputs.zip_path }}
 
       - name: Update registry and create PR
         run: |
@@ -138,66 +102,22 @@ jobs:
           git fetch origin main
           git checkout -b "$BRANCH" origin/main
 
-          # Update registry on top of main's latest state (not the tag checkout)
-          # This ensures concurrent releases don't overwrite each other
+          # Create release metadata JSON for update-registry.mjs
           node -e "
             const fs = require('fs');
-
-            const registry = JSON.parse(fs.readFileSync('registry/registry.json', 'utf8'));
-            const pluginId = '${{ steps.tag.outputs.plugin_id }}';
-            const version = '${{ steps.tag.outputs.version }}';
             const manifest = JSON.parse(fs.readFileSync('/tmp/manifest.json', 'utf8'));
-
-            let plugin = registry.plugins.find(p => p.id === pluginId);
-            if (!plugin) {
-              plugin = {
-                id: pluginId,
-                name: manifest.name,
-                description: manifest.description,
-                author: manifest.author,
-                official: true,
-                repo: 'https://github.com/${{ github.repository }}',
-                path: 'plugins/' + pluginId,
-                tags: [],
-                latest: version,
-                releases: {}
-              };
-              registry.plugins.push(plugin);
-            }
-
-            // Update metadata from manifest (in case name/description changed)
-            plugin.name = manifest.name;
-            plugin.description = manifest.description;
-            plugin.author = manifest.author;
-            plugin.latest = version;
-            plugin.releases[version] = {
-              api: manifest.engine.api,
-              asset: 'https://github.com/${{ github.repository }}/releases/download/${{ steps.tag.outputs.tag }}/${{ steps.tag.outputs.tag }}.zip',
-              sha256: '${{ steps.zip.outputs.sha256 }}',
-              permissions: manifest.permissions || [],
-              size: parseInt('${{ steps.zip.outputs.size }}', 10)
-            };
-
-            // Sync supportedApis from sdk/versions.json
-            const versionsPath = 'sdk/versions.json';
-            if (fs.existsSync(versionsPath)) {
-              const sdkVersions = JSON.parse(fs.readFileSync(versionsPath, 'utf8'));
-              const activeVersions = Object.entries(sdkVersions.versions)
-                .filter(([_, e]) => e.status !== 'removed')
-                .map(([v]) => v);
-              registry.supportedApis = {
-                latest: sdkVersions.latest,
-                minimum: sdkVersions.minimum,
-                versions: activeVersions
-              };
-            }
-
-            registry.updated = new Date().toISOString();
-            fs.writeFileSync('registry/registry.json', JSON.stringify(registry, null, 2) + '\n');
+            const releases = [{
+              pluginId: '${{ steps.tag.outputs.plugin_id }}',
+              version: '${{ steps.tag.outputs.version }}',
+              tag: '${{ steps.tag.outputs.tag }}',
+              sha256: '${{ steps.release.outputs.sha256 }}',
+              size: parseInt('${{ steps.release.outputs.size }}', 10),
+              manifest: manifest
+            }];
+            fs.writeFileSync('/tmp/registry-releases.json', JSON.stringify(releases, null, 2));
           "
 
-          # Validate the registry we just generated
-          node scripts/validate-registry.mjs
+          node scripts/update-registry.mjs /tmp/registry-releases.json --repo "https://github.com/${{ github.repository }}"
 
           git add registry/registry.json
           git diff --cached --quiet && echo "No registry changes" && exit 0
