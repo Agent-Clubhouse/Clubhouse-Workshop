@@ -25,7 +25,8 @@ function fatal(msg) {
 }
 
 function exec(cmd, opts = {}) {
-  return execSync(cmd, { stdio: "inherit", ...opts });
+  // Send subprocess output to stderr so stdout stays clean for JSON output
+  return execSync(cmd, { stdio: ["inherit", "stderr", "stderr"], ...opts });
 }
 
 function computeSha256(filePath) {
