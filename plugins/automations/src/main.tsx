@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
-import type { PluginContext, PluginAPI, PluginModule, ModelOption, CompletedQuickAgentInfo, PluginOrchestratorInfo } from '@clubhouse/plugin-types';
+import type { PluginContext, PluginAPI, PluginModule, ModelOption, CompletedQuickAgentInfo, PluginOrchestratorInfo, ProjectInfo } from '@clubhouse/plugin-types';
 import type { Automation, RunRecord, MissedRunPolicy } from './types';
 import { matchesCron, describeSchedule, validateCronExpression, countMissedFireTimes, PRESETS } from './cron';
 import * as S from './styles';
@@ -39,6 +39,7 @@ export function activate(ctx: PluginContext, api: PluginAPI): void {
       model: auto.model || undefined,
       orchestrator: auto.orchestrator || undefined,
       freeAgentMode: auto.freeAgentMode || undefined,
+      projectId: auto.worktree || undefined,
     });
 
     pendingRuns.set(agentId, auto.id);
@@ -281,6 +282,7 @@ export function MainPanel({ api }: { api: PluginAPI }) {
   const [runs, setRuns] = useState<RunRecord[]>([]);
   const [modelOptions, setModelOptions] = useState<ModelOption[]>([]);
   const [orchestrators, setOrchestrators] = useState<PluginOrchestratorInfo[]>([]);
+  const [projects, setProjects] = useState<ProjectInfo[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [runningIds, setRunningIds] = useState<Set<string>>(new Set());
   const [expandedRunId, setExpandedRunId] = useState<string | null>(null);
@@ -295,6 +297,7 @@ export function MainPanel({ api }: { api: PluginAPI }) {
   const [editPrompt, setEditPrompt] = useState('');
   const [editEnabled, setEditEnabled] = useState(true);
   const [editMissedRunPolicy, setEditMissedRunPolicy] = useState<MissedRunPolicy>('ignore');
+  const [editWorktree, setEditWorktree] = useState('');
   const [cronError, setCronError] = useState<string | null>(null);
 
   // ── Load automations on mount + poll ────────────────────────────────
@@ -325,6 +328,11 @@ export function MainPanel({ api }: { api: PluginAPI }) {
     setOrchestrators(api.agents.listOrchestrators());
   }, [api]);
 
+  // ── Load projects (worktrees) ─────────────────────────────────────
+  useEffect(() => {
+    setProjects(api.projects.list());
+  }, [api]);
+
   // ── Load model options (filtered by orchestrator) ─────────────────
   useEffect(() => {
     api.agents.getModelOptions(undefined, editOrchestrator || undefined).then(setModelOptions);
@@ -343,6 +351,7 @@ export function MainPanel({ api }: { api: PluginAPI }) {
       setEditPrompt(selected.prompt);
       setEditEnabled(selected.enabled);
       setEditMissedRunPolicy(selected.missedRunPolicy ?? 'ignore');
+      setEditWorktree(selected.worktree ?? '');
       setCronError(null);
     }
   }, [selected?.id]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -373,6 +382,7 @@ export function MainPanel({ api }: { api: PluginAPI }) {
       prompt: '',
       enabled: false,
       missedRunPolicy: 'ignore',
+      worktree: '',
       createdAt: Date.now(),
       lastRunAt: null,
     };
@@ -392,12 +402,12 @@ export function MainPanel({ api }: { api: PluginAPI }) {
     setCronError(null);
     const next = automations.map((a) =>
       a.id === selectedId
-        ? { ...a, name: editName, cronExpression: editCron, orchestrator: editOrchestrator, model: editModel, freeAgentMode: editFreeAgent, prompt: editPrompt, enabled: editEnabled, missedRunPolicy: editMissedRunPolicy }
+        ? { ...a, name: editName, cronExpression: editCron, orchestrator: editOrchestrator, model: editModel, freeAgentMode: editFreeAgent, prompt: editPrompt, enabled: editEnabled, missedRunPolicy: editMissedRunPolicy, worktree: editWorktree }
         : a,
     );
     await storage.write(AUTOMATIONS_KEY, next);
     setAutomations(next);
-  }, [selectedId, automations, storage, editName, editCron, editOrchestrator, editModel, editFreeAgent, editPrompt, editEnabled, editMissedRunPolicy]);
+  }, [selectedId, automations, storage, editName, editCron, editOrchestrator, editModel, editFreeAgent, editPrompt, editEnabled, editMissedRunPolicy, editWorktree]);
 
   const deleteAutomation = useCallback(async () => {
     if (!selectedId) return;
@@ -703,6 +713,27 @@ export function MainPanel({ api }: { api: PluginAPI }) {
                 ))}
               </select>
             </div>
+            {/* Worktree */}
+            {projects.length > 1 && (
+              <div>
+                <label style={S.label}>Worktree</label>
+                <select
+                  style={{ ...S.baseInput, cursor: 'pointer' }}
+                  value={editWorktree}
+                  onChange={(e) => setEditWorktree(e.target.value)}
+                >
+                  <option value="">Active Project</option>
+                  {projects.map((p) => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
+                  ))}
+                </select>
+                <div style={{ fontSize: 10, color: S.color.textTertiary, marginTop: 4 }}>
+                  {editWorktree
+                    ? `Agent will run in the "${projects.find((p) => p.id === editWorktree)?.name ?? editWorktree}" worktree`
+                    : 'Agent will run in whichever project is active at trigger time'}
+                </div>
+              </div>
+            )}
             {/* Free Agent Mode */}
             <div>
               <label

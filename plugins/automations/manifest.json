@@ -1,7 +1,7 @@
 {
   "id": "automations",
   "name": "Automations",
-  "version": "1.2.1",
+  "version": "1.3.0",
   "description": "Schedule recurring quick-agent tasks with cron expressions. Create automations with orchestrator selection, model selection, free agent mode, and prompt configuration. Track run history with status indicators and summaries.",
   "author": "Clubhouse Workshop",
   "engine": { "api": 0.6 },
@@ -15,7 +15,8 @@
     "notifications",
     "navigation",
     "widgets",
-    "theme"
+    "theme",
+    "projects"
   ],
   "contributes": {
     "tab": {
@@ -38,7 +39,7 @@
         {
           "id": "features",
           "title": "Key Features",
-          "content": "## Key Features\n\n**Create Automations** — Click **+ Add** or use the command palette. Set a name, cron schedule, orchestrator, model, and prompt.\n\n**Cron Scheduling** — Use preset schedules (every 15 min, hourly, daily, weekly, monthly) or write custom 5-field cron expressions (`minute hour day-of-month month day-of-week`). Rich human-readable descriptions for complex expressions.\n\n**Orchestrator Selection** — Choose which orchestrator runs the automation. Models are automatically filtered to those available for the selected orchestrator.\n\n**Model Selection** — Choose which AI model runs the automation.\n\n**Free Agent Mode** — Enable free agent mode to give the agent full autonomy without permission prompts.\n\n**Missed-Run Catch-Up** — Choose what happens when runs are missed while the app is closed: ignore, run once, or run all (up to 10).\n\n**Run Now** — Manually trigger any automation immediately, regardless of schedule or enabled state.\n\n**Enable/Disable** — Toggle automations on or off without deleting them.\n\n**Run History** — View recent runs with status (running/completed/failed), timestamps, and expandable summaries. Stop running agents or delete old run records."
+          "content": "## Key Features\n\n**Create Automations** — Click **+ Add** or use the command palette. Set a name, cron schedule, orchestrator, model, and prompt.\n\n**Cron Scheduling** — Use preset schedules (every 15 min, hourly, daily, weekly, monthly) or write custom 5-field cron expressions (`minute hour day-of-month month day-of-week`). Rich human-readable descriptions for complex expressions.\n\n**Orchestrator Selection** — Choose which orchestrator runs the automation. Models are automatically filtered to those available for the selected orchestrator.\n\n**Model Selection** — Choose which AI model runs the automation.\n\n**Free Agent Mode** — Enable free agent mode to give the agent full autonomy without permission prompts.\n\n**Worktree Selection** — Choose which project worktree the automation runs in, or leave as default to use the active project.\n\n**Missed-Run Catch-Up** — Choose what happens when runs are missed while the app is closed: ignore, run once, or run all (up to 10).\n\n**Run Now** — Manually trigger any automation immediately, regardless of schedule or enabled state.\n\n**Enable/Disable** — Toggle automations on or off without deleting them.\n\n**Run History** — View recent runs with status (running/completed/failed), timestamps, and expandable summaries. Stop running agents or delete old run records."
         },
         {
           "id": "commands",
@@ -48,7 +49,7 @@
         {
           "id": "permissions",
           "title": "Permissions",
-          "content": "## Permissions\n\n| Permission | Why it's needed |\n|------------|----------------|\n| **storage** | Persist automations, schedules, and run history |\n| **agents** | Spawn quick agents and monitor their status |\n| **agents.free-agent-mode** | Allow automations to run agents in free agent mode |\n| **commands** | Register command palette entries |\n| **notifications** | Show alerts when automations complete or fail |\n| **navigation** | Focus running agent panels |\n| **widgets** | Render completed agent summaries |\n| **theme** | Adapt colors and styles to the current theme |"
+          "content": "## Permissions\n\n| Permission | Why it's needed |\n|------------|----------------|\n| **storage** | Persist automations, schedules, and run history |\n| **agents** | Spawn quick agents and monitor their status |\n| **agents.free-agent-mode** | Allow automations to run agents in free agent mode |\n| **commands** | Register command palette entries |\n| **notifications** | Show alerts when automations complete or fail |\n| **navigation** | Focus running agent panels |\n| **widgets** | Render completed agent summaries |\n| **theme** | Adapt colors and styles to the current theme |\n| **projects** | List available projects/worktrees for target selection |"
         }
       ]
     }
