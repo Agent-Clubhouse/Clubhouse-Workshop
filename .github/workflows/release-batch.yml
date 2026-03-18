@@ -111,8 +111,9 @@ jobs:
         if: steps.detect.outputs.count != '0'
         id: build
         run: |
-          SUCCESSES="[]"
-          FAILURES="[]"
+          # Initialize accumulator files
+          echo '[]' > /tmp/successful-builds.json
+          echo '[]' > /tmp/failed-builds.json
 
           for row in $(node -e "
             const d=JSON.parse(require('fs').readFileSync('/tmp/plugins-to-release.json','utf8'));
@@ -127,27 +128,30 @@ jobs:
             echo "Building: $PLUGIN_ID v$VERSION"
             echo "════════════════════════════════════════════════════════════"
 
-            if node scripts/release-plugin.mjs "$PLUGIN_DIR" "$VERSION" > "/tmp/release-${PLUGIN_ID}.json" 2>&1; then
+            # Capture stdout (JSON) separately from stderr (warnings/logs)
+            if node scripts/release-plugin.mjs "$PLUGIN_DIR" "$VERSION" > "/tmp/release-${PLUGIN_ID}.json" 2>/tmp/release-${PLUGIN_ID}.log; then
               echo "✓ $PLUGIN_ID v$VERSION built successfully"
-              SUCCESSES=$(node -e "
-                const s=JSON.parse('$SUCCESSES');
-                const r=JSON.parse(require('fs').readFileSync('/tmp/release-${PLUGIN_ID}.json','utf8'));
+              cat "/tmp/release-${PLUGIN_ID}.log" || true
+              # Append to successes array using file-based accumulation
+              node -e "
+                const fs = require('fs');
+                const s = JSON.parse(fs.readFileSync('/tmp/successful-builds.json', 'utf8'));
+                const r = JSON.parse(fs.readFileSync('/tmp/release-${PLUGIN_ID}.json', 'utf8'));
                 s.push(r);
-                console.log(JSON.stringify(s));
-              ")
+                fs.writeFileSync('/tmp/successful-builds.json', JSON.stringify(s));
+              "
             else
               echo "✗ $PLUGIN_ID v$VERSION FAILED"
+              cat "/tmp/release-${PLUGIN_ID}.log" || true
               cat "/tmp/release-${PLUGIN_ID}.json" || true
-              FAILURES=$(node -e "
-                const f=JSON.parse('$FAILURES');
+              node -e "
+                const fs = require('fs');
+                const f = JSON.parse(fs.readFileSync('/tmp/failed-builds.json', 'utf8'));
                 f.push({pluginId:'$PLUGIN_ID',version:'$VERSION',error:'Build/validation failed'});
-                console.log(JSON.stringify(f));
-              ")
+                fs.writeFileSync('/tmp/failed-builds.json', JSON.stringify(f));
+              "
             fi
           done
-
-          echo "$SUCCESSES" > /tmp/successful-builds.json
-          echo "$FAILURES" > /tmp/failed-builds.json
 
           SUCCESS_COUNT=$(node -e "console.log(JSON.parse(require('fs').readFileSync('/tmp/successful-builds.json','utf8')).length)")
           FAIL_COUNT=$(node -e "console.log(JSON.parse(require('fs').readFileSync('/tmp/failed-builds.json','utf8')).length)")

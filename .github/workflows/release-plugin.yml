@@ -62,13 +62,14 @@ jobs:
       - name: Build, validate, and zip
         id: release
         run: |
-          OUTPUT=$(node scripts/release-plugin.mjs "${{ steps.tag.outputs.plugin_dir }}" "${{ steps.tag.outputs.version }}")
-          echo "$OUTPUT"
+          node scripts/release-plugin.mjs "${{ steps.tag.outputs.plugin_dir }}" "${{ steps.tag.outputs.version }}" > /tmp/release-output.json
+
+          cat /tmp/release-output.json
 
           # Extract fields from JSON output
-          ZIP_PATH=$(echo "$OUTPUT" | node -e "const d=require('fs').readFileSync(0,'utf8');const j=JSON.parse(d.slice(d.indexOf('{'))); console.log(j.zipPath)")
-          SHA256=$(echo "$OUTPUT" | node -e "const d=require('fs').readFileSync(0,'utf8');const j=JSON.parse(d.slice(d.indexOf('{'))); console.log(j.sha256)")
-          SIZE=$(echo "$OUTPUT" | node -e "const d=require('fs').readFileSync(0,'utf8');const j=JSON.parse(d.slice(d.indexOf('{'))); console.log(j.size)")
+          ZIP_PATH=$(node -e "const r=JSON.parse(require('fs').readFileSync('/tmp/release-output.json','utf8')); console.log(r.zipPath)")
+          SHA256=$(node -e "const r=JSON.parse(require('fs').readFileSync('/tmp/release-output.json','utf8')); console.log(r.sha256)")
+          SIZE=$(node -e "const r=JSON.parse(require('fs').readFileSync('/tmp/release-output.json','utf8')); console.log(r.size)")
 
           echo "zip_path=$ZIP_PATH" >> "$GITHUB_OUTPUT"
           echo "sha256=$SHA256" >> "$GITHUB_OUTPUT"
