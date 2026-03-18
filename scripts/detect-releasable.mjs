@@ -83,21 +83,24 @@ export function detectReleasable({
 
 // ── CLI entry point ──────────────────────────────────────────────────────────
 
-const args = process.argv.slice(2);
-if (args.includes("--help")) {
-  console.log("Usage: node scripts/detect-releasable.mjs [--registry <path>] [--plugins-dir <path>]");
-  console.log("");
-  console.log("Detects plugins whose manifest version is newer than the registry's latest.");
-  console.log("Outputs a JSON array to stdout.");
-  process.exit(0);
+const isMain = process.argv[1] && resolve(process.argv[1]) === resolve(import.meta.dirname, "detect-releasable.mjs");
+if (isMain) {
+  const args = process.argv.slice(2);
+  if (args.includes("--help")) {
+    console.log("Usage: node scripts/detect-releasable.mjs [--registry <path>] [--plugins-dir <path>]");
+    console.log("");
+    console.log("Detects plugins whose manifest version is newer than the registry's latest.");
+    console.log("Outputs a JSON array to stdout.");
+    process.exit(0);
+  }
+
+  const registryIdx = args.indexOf("--registry");
+  const pluginsDirIdx = args.indexOf("--plugins-dir");
+
+  const opts = {};
+  if (registryIdx !== -1) opts.registryPath = resolve(args[registryIdx + 1]);
+  if (pluginsDirIdx !== -1) opts.pluginsDir = resolve(args[pluginsDirIdx + 1]);
+
+  const releasable = detectReleasable(opts);
+  console.log(JSON.stringify(releasable, null, 2));
 }
-
-const registryIdx = args.indexOf("--registry");
-const pluginsDirIdx = args.indexOf("--plugins-dir");
-
-const opts = {};
-if (registryIdx !== -1) opts.registryPath = resolve(args[registryIdx + 1]);
-if (pluginsDirIdx !== -1) opts.pluginsDir = resolve(args[pluginsDirIdx + 1]);
-
-const releasable = detectReleasable(opts);
-console.log(JSON.stringify(releasable, null, 2));

@@ -175,28 +175,31 @@ export async function releasePlugin(pluginDir, expectedVersion, { repo = "" } = 
 
 // ── CLI entry point ──────────────────────────────────────────────────────────
 
-const args = process.argv.slice(2);
-if (args.length < 2 || args.includes("--help")) {
-  console.log("Usage: node scripts/release-plugin.mjs <plugin-dir> <expected-version> [--repo <repo>]");
-  console.log("");
-  console.log("Builds, validates, and zips a plugin for release.");
-  console.log("Outputs structured JSON to stdout on success.");
-  process.exit(args.includes("--help") ? 0 : 1);
-}
-
-const pluginDir = resolve(args[0]);
-const expectedVersion = args[1];
-const repoIdx = args.indexOf("--repo");
-const repo = repoIdx !== -1 ? args[repoIdx + 1] : "";
-
-const result = await releasePlugin(pluginDir, expectedVersion, { repo });
-
-if (!result.success) {
-  for (const e of result.errors) {
-    console.error(`ERROR: ${e}`);
+const isMain = process.argv[1] && resolve(process.argv[1]) === resolve(import.meta.dirname, "release-plugin.mjs");
+if (isMain) {
+  const args = process.argv.slice(2);
+  if (args.length < 2 || args.includes("--help")) {
+    console.log("Usage: node scripts/release-plugin.mjs <plugin-dir> <expected-version> [--repo <repo>]");
+    console.log("");
+    console.log("Builds, validates, and zips a plugin for release.");
+    console.log("Outputs structured JSON to stdout on success.");
+    process.exit(args.includes("--help") ? 0 : 1);
   }
-  process.exit(1);
-}
 
-// Output structured JSON to stdout
-console.log(JSON.stringify(result, null, 2));
+  const pluginDir = resolve(args[0]);
+  const expectedVersion = args[1];
+  const repoIdx = args.indexOf("--repo");
+  const repo = repoIdx !== -1 ? args[repoIdx + 1] : "";
+
+  const result = await releasePlugin(pluginDir, expectedVersion, { repo });
+
+  if (!result.success) {
+    for (const e of result.errors) {
+      console.error(`ERROR: ${e}`);
+    }
+    process.exit(1);
+  }
+
+  // Output structured JSON to stdout
+  console.log(JSON.stringify(result, null, 2));
+}
