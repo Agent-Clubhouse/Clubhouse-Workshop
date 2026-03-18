@@ -515,8 +515,7 @@ function activate(ctx, api) {
     const agentId = await api.agents.runQuick(auto.prompt, {
       model: auto.model || void 0,
       orchestrator: auto.orchestrator || void 0,
-      freeAgentMode: auto.freeAgentMode || void 0,
-      projectId: auto.worktree || void 0
+      freeAgentMode: auto.freeAgentMode || void 0
     });
     pendingRuns.set(agentId, auto.id);
     const runsRaw = await storage.read(runsKey(auto.id));
@@ -685,7 +684,6 @@ function MainPanel({ api }) {
   const [runs, setRuns] = useState([]);
   const [modelOptions, setModelOptions] = useState([]);
   const [orchestrators, setOrchestrators] = useState([]);
-  const [projects, setProjects] = useState([]);
   const [loaded, setLoaded] = useState(false);
   const [runningIds, setRunningIds] = useState(/* @__PURE__ */ new Set());
   const [expandedRunId, setExpandedRunId] = useState(null);
@@ -698,7 +696,6 @@ function MainPanel({ api }) {
   const [editPrompt, setEditPrompt] = useState("");
   const [editEnabled, setEditEnabled] = useState(true);
   const [editMissedRunPolicy, setEditMissedRunPolicy] = useState("ignore");
-  const [editWorktree, setEditWorktree] = useState("");
   const [cronError, setCronError] = useState(null);
   const loadAutomations = useCallback(async () => {
     const raw = await storage.read(AUTOMATIONS_KEY);
@@ -726,9 +723,6 @@ function MainPanel({ api }) {
     setOrchestrators(api.agents.listOrchestrators());
   }, [api]);
   useEffect(() => {
-    setProjects(api.projects.list());
-  }, [api]);
-  useEffect(() => {
     api.agents.getModelOptions(void 0, editOrchestrator || void 0).then(setModelOptions);
   }, [api, editOrchestrator]);
   const selected = automations.find((a) => a.id === selectedId) ?? null;
@@ -742,7 +736,6 @@ function MainPanel({ api }) {
       setEditPrompt(selected.prompt);
       setEditEnabled(selected.enabled);
       setEditMissedRunPolicy(selected.missedRunPolicy ?? "ignore");
-      setEditWorktree(selected.worktree ?? "");
       setCronError(null);
     }
   }, [selected?.id]);
@@ -771,7 +764,6 @@ function MainPanel({ api }) {
       prompt: "",
       enabled: false,
       missedRunPolicy: "ignore",
-      worktree: "",
       createdAt: Date.now(),
       lastRunAt: null
     };
@@ -789,11 +781,11 @@ function MainPanel({ api }) {
     }
     setCronError(null);
     const next = automations.map(
-      (a) => a.id === selectedId ? { ...a, name: editName, cronExpression: editCron, orchestrator: editOrchestrator, model: editModel, freeAgentMode: editFreeAgent, prompt: editPrompt, enabled: editEnabled, missedRunPolicy: editMissedRunPolicy, worktree: editWorktree } : a
+      (a) => a.id === selectedId ? { ...a, name: editName, cronExpression: editCron, orchestrator: editOrchestrator, model: editModel, freeAgentMode: editFreeAgent, prompt: editPrompt, enabled: editEnabled, missedRunPolicy: editMissedRunPolicy } : a
     );
     await storage.write(AUTOMATIONS_KEY, next);
     setAutomations(next);
-  }, [selectedId, automations, storage, editName, editCron, editOrchestrator, editModel, editFreeAgent, editPrompt, editEnabled, editMissedRunPolicy, editWorktree]);
+  }, [selectedId, automations, storage, editName, editCron, editOrchestrator, editModel, editFreeAgent, editPrompt, editEnabled, editMissedRunPolicy]);
   const deleteAutomation = useCallback(async () => {
     if (!selectedId) return;
     const next = automations.filter((a) => a.id !== selectedId);
@@ -1065,22 +1057,6 @@ function MainPanel({ api }) {
               ]
             }
           )
-        ] }),
-        projects.length > 1 && /* @__PURE__ */ jsxs("div", { children: [
-          /* @__PURE__ */ jsx("label", { style: label, children: "Worktree" }),
-          /* @__PURE__ */ jsxs(
-            "select",
-            {
-              style: { ...baseInput, cursor: "pointer" },
-              value: editWorktree,
-              onChange: (e) => setEditWorktree(e.target.value),
-              children: [
-                /* @__PURE__ */ jsx("option", { value: "", children: "Active Project" }),
-                projects.map((p) => /* @__PURE__ */ jsx("option", { value: p.id, children: p.name }, p.id))
-              ]
-            }
-          ),
-          /* @__PURE__ */ jsx("div", { style: { fontSize: 10, color: color.textTertiary, marginTop: 4 }, children: editWorktree ? `Agent will run in the "${projects.find((p) => p.id === editWorktree)?.name ?? editWorktree}" worktree` : "Agent will run in whichever project is active at trigger time" })
         ] }),
         /* @__PURE__ */ jsxs("div", { children: [
           /* @__PURE__ */ jsxs(
