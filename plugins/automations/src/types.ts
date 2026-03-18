@@ -12,8 +12,6 @@ export interface Automation {
   missedRunPolicy: MissedRunPolicy;
   createdAt: number;
   lastRunAt: number | null;
-  /** Target project/worktree ID. Empty string or undefined means active project. */
-  worktree?: string;
 }
 
 export type RunStatus = 'running' | 'completed' | 'failed';

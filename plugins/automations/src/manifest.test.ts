@@ -16,17 +16,13 @@ describe('automations plugin manifest', () => {
 
   it('declares required permissions', () => {
     expect(manifest.permissions).toEqual(
-      expect.arrayContaining(['storage', 'agents', 'agents.free-agent-mode', 'commands', 'notifications', 'navigation', 'widgets', 'theme', 'projects']),
+      expect.arrayContaining(['storage', 'agents', 'agents.free-agent-mode', 'commands', 'notifications', 'navigation', 'widgets', 'theme']),
     );
-    expect(manifest.permissions).toHaveLength(9);
+    expect(manifest.permissions).toHaveLength(8);
   });
 
   it('includes agents.free-agent-mode permission', () => {
     expect(manifest.permissions).toContain('agents.free-agent-mode');
-  });
-
-  it('includes projects permission for worktree selection', () => {
-    expect(manifest.permissions).toContain('projects');
   });
 
   it('contributes help topics', () => {
