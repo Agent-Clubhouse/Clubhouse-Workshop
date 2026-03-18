@@ -161,22 +161,25 @@ export async function validateRegistry({ checkAssets = false } = {}) {
 
 // ── CLI entry point ──────────────────────────────────────────────────────────
 
-const args = process.argv.slice(2);
-if (args.includes("--help")) {
-  console.log("Usage: node scripts/validate-registry.mjs [--check-assets]");
-  console.log("  --check-assets  HTTP HEAD each asset URL to verify reachability");
-  process.exit(0);
-}
+const isMain = process.argv[1] && resolve(process.argv[1]) === resolve(import.meta.dirname, "validate-registry.mjs");
+if (isMain) {
+  const args = process.argv.slice(2);
+  if (args.includes("--help")) {
+    console.log("Usage: node scripts/validate-registry.mjs [--check-assets]");
+    console.log("  --check-assets  HTTP HEAD each asset URL to verify reachability");
+    process.exit(0);
+  }
 
-const checkAssets = args.includes("--check-assets");
-const { errors, warnings, registry } = await validateRegistry({ checkAssets });
+  const checkAssets = args.includes("--check-assets");
+  const { errors, warnings, registry } = await validateRegistry({ checkAssets });
 
-if (warnings.length > 0) {
-  for (const w of warnings) console.warn(`WARNING: ${w}`);
-}
-if (errors.length > 0) {
-  for (const e of errors) console.error(`ERROR: ${e}`);
-  process.exit(1);
-}
+  if (warnings.length > 0) {
+    for (const w of warnings) console.warn(`WARNING: ${w}`);
+  }
+  if (errors.length > 0) {
+    for (const e of errors) console.error(`ERROR: ${e}`);
+    process.exit(1);
+  }
 
-console.log(`Registry valid: ${registry.plugins.length} plugin(s)`);
+  console.log(`Registry valid: ${registry.plugins.length} plugin(s)`);
+}

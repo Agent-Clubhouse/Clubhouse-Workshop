@@ -149,23 +149,26 @@ export function validateManifest(pluginDir, { strict = false } = {}) {
 
 // ── CLI entry point ──────────────────────────────────────────────────────────
 
-const args = process.argv.slice(2);
-if (args.length === 0 || args.includes("--help")) {
-  console.log("Usage: node scripts/validate-manifest.mjs <plugin-dir> [--strict]");
-  console.log("  --strict  Also check that dist/main.js exists");
-  process.exit(args.includes("--help") ? 0 : 1);
-}
+const isMain = process.argv[1] && resolve(process.argv[1]) === resolve(import.meta.dirname, "validate-manifest.mjs");
+if (isMain) {
+  const args = process.argv.slice(2);
+  if (args.length === 0 || args.includes("--help")) {
+    console.log("Usage: node scripts/validate-manifest.mjs <plugin-dir> [--strict]");
+    console.log("  --strict  Also check that dist/main.js exists");
+    process.exit(args.includes("--help") ? 0 : 1);
+  }
 
-const pluginDir = resolve(args[0]);
-const strict = args.includes("--strict");
-const { errors, warnings, manifest } = validateManifest(pluginDir, { strict });
+  const pluginDir = resolve(args[0]);
+  const strict = args.includes("--strict");
+  const { errors, warnings, manifest } = validateManifest(pluginDir, { strict });
 
-if (warnings.length > 0) {
-  for (const w of warnings) console.warn(`WARNING: ${w}`);
-}
-if (errors.length > 0) {
-  for (const e of errors) console.error(`ERROR: ${e}`);
-  process.exit(1);
-}
+  if (warnings.length > 0) {
+    for (const w of warnings) console.warn(`WARNING: ${w}`);
+  }
+  if (errors.length > 0) {
+    for (const e of errors) console.error(`ERROR: ${e}`);
+    process.exit(1);
+  }
 
-console.log(`OK: ${manifest.id} v${manifest.version} (API ${manifest.engine.api}, scope: ${manifest.scope})`);
+  console.log(`OK: ${manifest.id} v${manifest.version} (API ${manifest.engine.api}, scope: ${manifest.scope})`);
+}
