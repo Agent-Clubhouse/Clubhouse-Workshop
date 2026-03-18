@@ -20,6 +20,7 @@ function makeAutomation(overrides?: Partial<Automation>): Automation {
     createdAt: 1000,
     missedRunPolicy: 'ignore',
     lastRunAt: null,
+    worktree: '',
     ...overrides,
   };
 }
@@ -192,7 +193,7 @@ describe('automations cron tick', () => {
     await vi.advanceTimersByTimeAsync(30_000);
 
     expect(runQuickSpy).toHaveBeenCalledTimes(1);
-    expect(runQuickSpy).toHaveBeenCalledWith('do stuff', { model: undefined, orchestrator: undefined, freeAgentMode: undefined });
+    expect(runQuickSpy).toHaveBeenCalledWith('do stuff', { model: undefined, orchestrator: undefined, freeAgentMode: undefined, projectId: undefined });
   });
 
   it('passes model option when set', async () => {
@@ -202,7 +203,7 @@ describe('automations cron tick', () => {
     activate(ctx, api);
     await vi.advanceTimersByTimeAsync(30_000);
 
-    expect(runQuickSpy).toHaveBeenCalledWith('do stuff', { model: 'fast-model', orchestrator: undefined, freeAgentMode: undefined });
+    expect(runQuickSpy).toHaveBeenCalledWith('do stuff', { model: 'fast-model', orchestrator: undefined, freeAgentMode: undefined, projectId: undefined });
   });
 
   it('skips disabled automations', async () => {
@@ -321,7 +322,7 @@ describe('automations cron tick', () => {
     activate(ctx, api);
     await vi.advanceTimersByTimeAsync(30_000);
 
-    expect(runQuickSpy).toHaveBeenCalledWith('do stuff', { model: undefined, orchestrator: 'claude-code', freeAgentMode: undefined });
+    expect(runQuickSpy).toHaveBeenCalledWith('do stuff', { model: undefined, orchestrator: 'claude-code', freeAgentMode: undefined, projectId: undefined });
   });
 
   it('passes freeAgentMode when enabled', async () => {
@@ -331,7 +332,7 @@ describe('automations cron tick', () => {
     activate(ctx, api);
     await vi.advanceTimersByTimeAsync(30_000);
 
-    expect(runQuickSpy).toHaveBeenCalledWith('do stuff', { model: undefined, orchestrator: undefined, freeAgentMode: true });
+    expect(runQuickSpy).toHaveBeenCalledWith('do stuff', { model: undefined, orchestrator: undefined, freeAgentMode: true, projectId: undefined });
   });
 
   it('passes all options when orchestrator, model, and freeAgentMode are set', async () => {
@@ -341,7 +342,48 @@ describe('automations cron tick', () => {
     activate(ctx, api);
     await vi.advanceTimersByTimeAsync(30_000);
 
-    expect(runQuickSpy).toHaveBeenCalledWith('do stuff', { model: 'opus', orchestrator: 'claude-code', freeAgentMode: true });
+    expect(runQuickSpy).toHaveBeenCalledWith('do stuff', { model: 'opus', orchestrator: 'claude-code', freeAgentMode: true, projectId: undefined });
+  });
+
+  it('passes projectId when worktree is set', async () => {
+    const auto = makeAutomation({ worktree: 'project-2' });
+    storage._data.set('automations', [auto]);
+
+    activate(ctx, api);
+    await vi.advanceTimersByTimeAsync(30_000);
+
+    expect(runQuickSpy).toHaveBeenCalledWith('do stuff', { model: undefined, orchestrator: undefined, freeAgentMode: undefined, projectId: 'project-2' });
+  });
+
+  it('does not pass projectId when worktree is empty string', async () => {
+    const auto = makeAutomation({ worktree: '' });
+    storage._data.set('automations', [auto]);
+
+    activate(ctx, api);
+    await vi.advanceTimersByTimeAsync(30_000);
+
+    expect(runQuickSpy).toHaveBeenCalledWith('do stuff', { model: undefined, orchestrator: undefined, freeAgentMode: undefined, projectId: undefined });
+  });
+
+  it('does not pass projectId when worktree is undefined (backwards compat)', async () => {
+    const auto = makeAutomation();
+    delete (auto as any).worktree;
+    storage._data.set('automations', [auto]);
+
+    activate(ctx, api);
+    await vi.advanceTimersByTimeAsync(30_000);
+
+    expect(runQuickSpy).toHaveBeenCalledWith('do stuff', { model: undefined, orchestrator: undefined, freeAgentMode: undefined, projectId: undefined });
+  });
+
+  it('passes all options including projectId when all fields are set', async () => {
+    const auto = makeAutomation({ orchestrator: 'claude-code', model: 'opus', freeAgentMode: true, worktree: 'project-x' });
+    storage._data.set('automations', [auto]);
+
+    activate(ctx, api);
+    await vi.advanceTimersByTimeAsync(30_000);
+
+    expect(runQuickSpy).toHaveBeenCalledWith('do stuff', { model: 'opus', orchestrator: 'claude-code', freeAgentMode: true, projectId: 'project-x' });
   });
 
   it('handles storage returning non-array data gracefully', async () => {
@@ -362,8 +404,8 @@ describe('automations cron tick', () => {
     await vi.advanceTimersByTimeAsync(30_000);
 
     expect(runQuickSpy).toHaveBeenCalledTimes(2);
-    expect(runQuickSpy).toHaveBeenCalledWith('first', { model: undefined, orchestrator: undefined, freeAgentMode: undefined });
-    expect(runQuickSpy).toHaveBeenCalledWith('second', { model: undefined, orchestrator: undefined, freeAgentMode: undefined });
+    expect(runQuickSpy).toHaveBeenCalledWith('first', { model: undefined, orchestrator: undefined, freeAgentMode: undefined, projectId: undefined });
+    expect(runQuickSpy).toHaveBeenCalledWith('second', { model: undefined, orchestrator: undefined, freeAgentMode: undefined, projectId: undefined });
   });
 });
 
@@ -712,7 +754,7 @@ describe('automations run-now command', () => {
     await runNowCallback('auto-1');
 
     expect(runQuickSpy).toHaveBeenCalledTimes(1);
-    expect(runQuickSpy).toHaveBeenCalledWith('do stuff', { model: undefined, orchestrator: undefined, freeAgentMode: undefined });
+    expect(runQuickSpy).toHaveBeenCalledWith('do stuff', { model: undefined, orchestrator: undefined, freeAgentMode: undefined, projectId: undefined });
   });
 
   it('works even when automation is disabled', async () => {
@@ -907,6 +949,13 @@ describe('automations plugin API assumptions', () => {
     it('resolves to an object with available boolean', async () => {
       const result = await api.agents.checkOrchestratorAvailability('test');
       expect(typeof result.available).toBe('boolean');
+    });
+  });
+
+  describe('projects.list', () => {
+    it('exists and returns an array', () => {
+      expect(typeof api.projects.list).toBe('function');
+      expect(Array.isArray(api.projects.list())).toBe(true);
     });
   });
 
