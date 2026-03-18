@@ -6,18 +6,38 @@ argument-hint: "[plugin-name...] or blank to choose interactively"
 
 # Release a Plugin
 
-Help the user release one or more plugins through the tag-based release pipeline. This skill handles tagging, pushing, verifying CI, and troubleshooting failures.
+Help the user release one or more plugins through the release pipeline. This skill handles tagging, pushing, verifying CI, and troubleshooting failures.
 
-## How the release pipeline works
+## Release Options
 
-The `release-plugin.yml` workflow triggers on tag pushes matching `*-v*` (e.g., `wiki-v1.2.1`). It:
+There are two ways to release plugins:
 
-1. Checks out the tag
-2. Builds and tests the plugin
-3. Validates the manifest and version match
-4. Creates a GitHub Release with a zip artifact
-5. Checks out `origin/main`, updates `registry/registry.json` on top of the latest state
-6. Creates and auto-merges a registry PR
+### Option A: Batch Release (recommended for multiple plugins)
+
+Use the **Release Batch** workflow to release multiple plugins in a single run. This is the preferred method for releasing 2+ plugins (e.g., theme packs).
+
+```bash
+# Auto-detect all plugins with version bumps
+gh workflow run "Release Batch" -f plugins=auto
+
+# Release specific plugins
+gh workflow run "Release Batch" -f plugins=fall-themes,spring-themes,summer-themes
+
+# Dry run — build and validate without publishing
+gh workflow run "Release Batch" -f plugins=auto -f dry_run=true
+```
+
+The batch workflow:
+1. Detects plugins to release (auto or explicit list)
+2. Validates no duplicate tags exist
+3. Builds each plugin serially via `scripts/release-plugin.mjs`
+4. Creates git tags and GitHub Releases for each
+5. Updates the registry in a single PR via `scripts/update-registry.mjs`
+6. Prints a summary table
+
+### Option B: Single Tag Push (for individual releases)
+
+The `release-plugin.yml` workflow triggers on tag pushes matching `*-v*` (e.g., `wiki-v1.2.1`). It uses the same shared scripts as the batch workflow.
 
 **Tag format:** `{plugin-id}-v{version}` (hyphen before `v`, NOT a slash)
 - Correct: `wiki-v1.2.1`, `automations-v1.0.0`
@@ -31,59 +51,44 @@ If plugin names were provided via `$ARGUMENTS`, use those. Otherwise:
 2. Ask which plugin(s) to release
 3. For each, confirm the version in `manifest.json` is correct and has been updated
 
-Read each plugin's `manifest.json` to get the `id` and `version` fields. Verify the version looks intentional (e.g., was bumped from the previous release).
+To auto-detect releasable plugins:
+```bash
+node scripts/detect-releasable.mjs
+```
 
 Check existing tags to make sure the tag doesn't already exist:
 ```bash
 git tag -l '{plugin-id}-v*'
 ```
 
-## Step 2: Ensure main is up to date
+## Step 2: Choose release method
 
-The tags must be created on a commit that is on `main` and that contains the version bump. Confirm:
+**For multiple plugins (2+):** Recommend the batch workflow.
+
+```bash
+# Dry run first to validate
+gh workflow run "Release Batch" -f plugins=fall-themes,spring-themes -f dry_run=true
+
+# Then release for real
+gh workflow run "Release Batch" -f plugins=fall-themes,spring-themes
+```
+
+**For a single plugin:** Either method works. For a single tag push:
 
 ```bash
 git checkout main
 git pull origin main
+git tag -a {plugin-id}-v{version} -m "{plugin-id} v{version}"
+git push origin {plugin-id}-v{version}
 ```
 
-## Step 3: Tag and push ONE AT A TIME
-
-**IMPORTANT: Release one plugin at a time.** Do not push multiple tags simultaneously.
-
-The release workflow uses a concurrency group (`registry-update`) that serializes registry updates. When multiple tags are pushed at once:
-- Only the first tag starts running
-- One additional tag may queue as "pending"
-- All remaining tags are **silently dropped** by GitHub Actions
-
-For each plugin, provide the commands and wait for the user to confirm before moving to the next:
-
-```
-Releasing {plugin-name} v{version}...
-
-Run this command:
-
-  git tag -a {plugin-id}-v{version} -m "{plugin-id} v{version}" && git push origin {plugin-id}-v{version}
-
-Then verify the workflow triggered:
-
-  gh run list --workflow=release-plugin.yml --limit 1
-```
-
-Wait for the user to confirm that run succeeded (or at least triggered) before providing the next tag command. If releasing multiple plugins, number them clearly:
-
-```
-Release 1 of 5: wiki v1.2.1
-Release 2 of 5: automations v1.2.1
-...
-```
-
-## Step 4: Verify each release
-
-After each tag push, help the user verify:
+## Step 3: Verify releases
 
 ```bash
-# Check workflow status
+# Check batch workflow status
+gh run list --workflow="Release Batch" --limit 1
+
+# Check single release workflow status
 gh run list --workflow=release-plugin.yml --limit 1
 
 # Watch a specific run
@@ -99,15 +104,15 @@ Confirm these artifacts were created:
 
 ## Troubleshooting
 
-### Workflow didn't trigger
+### Workflow didn't trigger (single tag push)
 - Verify the tag is on the remote: `git ls-remote --tags origin | grep {plugin-id}`
 - Verify tag format matches `*-v*` pattern
-- If the tag was pushed in a batch, it may have been dropped by the concurrency group. Re-trigger with: `gh workflow run "Release Plugin" -f tag={plugin-id}-v{version}`
+- If the tag was pushed by the batch workflow (as `github-actions[bot]`), the single workflow intentionally skips it to prevent double-trigger
 
-### "Your local changes would be overwritten by checkout"
-This is the registry race condition. The workflow checks out `origin/main` to apply the registry update. If the working tree is dirty (from a prior step or concurrent run), the checkout fails. The fix (PR #138) ensures the registry update runs after checking out main. If running on an old tag that predates the fix, use `workflow_dispatch` to re-trigger (it uses the workflow from main):
+### Batch workflow partial failure
+The batch workflow continues past failed plugins and reports failures in the summary. To retry just the failed plugins:
 ```bash
-gh workflow run "Release Plugin" -f tag={plugin-id}-v{version}
+gh workflow run "Release Batch" -f plugins=failed-plugin-1,failed-plugin-2
 ```
 
 ### "manifest.json version does not match tag version"
@@ -127,14 +132,13 @@ git tag -a {plugin-id}-v{version} -m "{plugin-id} v{version}"
 git push origin {plugin-id}-v{version}
 ```
 
-### Multiple releases were dropped
-If you pushed N tags but only 1-2 triggered, re-trigger the rest via `workflow_dispatch`:
+### Re-trigger via workflow_dispatch
+For any failed single release, re-trigger without needing to recreate the tag:
 ```bash
 gh workflow run "Release Plugin" -f tag={plugin-id}-v{version}
 ```
-This uses the workflow file from main (not the tag commit), so it always picks up the latest fixes.
 
-## Step 5: Confirm completion
+## Step 4: Confirm completion
 
 Once all releases are done, summarize:
 
@@ -150,5 +154,5 @@ Registry updated with all new versions.
 
 Remind the user to verify the registry looks correct:
 ```bash
-cat registry/registry.json | grep -A2 '"latest"'
+node scripts/validate-registry.mjs
 ```

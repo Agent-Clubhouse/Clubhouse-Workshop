@@ -1,0 +1,300 @@
+name: Release Batch
+
+on:
+  workflow_dispatch:
+    inputs:
+      plugins:
+        description: 'Comma-separated plugin IDs (e.g., "fall-themes,spring-themes") or "auto" to detect version bumps'
+        required: true
+        default: 'auto'
+      dry_run:
+        description: 'Dry run — validate and build but skip GitHub Releases, tags, and registry update'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  pull-requests: write
+
+# Share concurrency group with single-release workflow to serialize registry writes
+concurrency:
+  group: registry-update
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for tag operations
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # ── Step 1: Detect plugins to release ──────────────────────────────
+      - name: Detect plugins to release
+        id: detect
+        run: |
+          if [ "${{ inputs.plugins }}" = "auto" ]; then
+            echo "Mode: auto-detect version bumps"
+            PLUGINS_JSON=$(node scripts/detect-releasable.mjs)
+          else
+            echo "Mode: explicit plugin list"
+            # Convert comma-separated IDs to JSON array format expected downstream
+            PLUGINS_JSON=$(node -e "
+              const ids = '${{ inputs.plugins }}'.split(',').map(s => s.trim()).filter(Boolean);
+              const fs = require('fs');
+              const results = [];
+              for (const id of ids) {
+                const manifestPath = 'plugins/' + id + '/manifest.json';
+                if (!fs.existsSync(manifestPath)) {
+                  console.error('ERROR: Plugin not found: ' + id);
+                  process.exit(1);
+                }
+                const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+                results.push({
+                  pluginId: manifest.id,
+                  version: manifest.version,
+                  tag: manifest.id + '-v' + manifest.version,
+                  currentLatest: null
+                });
+              }
+              console.log(JSON.stringify(results, null, 2));
+            ")
+          fi
+
+          COUNT=$(echo "$PLUGINS_JSON" | node -e "const d=require('fs').readFileSync(0,'utf8');console.log(JSON.parse(d).length)")
+
+          if [ "$COUNT" = "0" ]; then
+            echo "No plugins to release."
+            echo "count=0" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "Found $COUNT plugin(s) to release:"
+          echo "$PLUGINS_JSON" | node -e "
+            const d=require('fs').readFileSync(0,'utf8');
+            for (const p of JSON.parse(d)) {
+              console.log('  - ' + p.pluginId + ' v' + p.version + (p.currentLatest ? ' (was ' + p.currentLatest + ')' : ' (new)'));
+            }
+          "
+
+          # Save to file for downstream steps
+          echo "$PLUGINS_JSON" > /tmp/plugins-to-release.json
+          echo "count=$COUNT" >> "$GITHUB_OUTPUT"
+
+      # ── Step 2: Validate no duplicate tags ─────────────────────────────
+      - name: Validate no duplicate tags
+        if: steps.detect.outputs.count != '0'
+        run: |
+          git fetch --tags
+          ERRORS=""
+          for tag in $(node -e "const d=JSON.parse(require('fs').readFileSync('/tmp/plugins-to-release.json','utf8'));d.forEach(p=>console.log(p.tag))"); do
+            if git rev-parse "refs/tags/$tag" >/dev/null 2>&1; then
+              ERRORS="$ERRORS\n  Tag already exists: $tag"
+            fi
+          done
+          if [ -n "$ERRORS" ]; then
+            echo "ERROR: Duplicate tags found. Delete them first or bump versions."
+            echo -e "$ERRORS"
+            exit 1
+          fi
+          echo "No duplicate tags found."
+
+      # ── Step 3: Build each plugin serially ─────────────────────────────
+      - name: Build plugins
+        if: steps.detect.outputs.count != '0'
+        id: build
+        run: |
+          SUCCESSES="[]"
+          FAILURES="[]"
+
+          for row in $(node -e "
+            const d=JSON.parse(require('fs').readFileSync('/tmp/plugins-to-release.json','utf8'));
+            d.forEach(p=>console.log(p.pluginId+'|'+p.version));
+          "); do
+            PLUGIN_ID=$(echo "$row" | cut -d'|' -f1)
+            VERSION=$(echo "$row" | cut -d'|' -f2)
+            PLUGIN_DIR="plugins/$PLUGIN_ID"
+
+            echo ""
+            echo "════════════════════════════════════════════════════════════"
+            echo "Building: $PLUGIN_ID v$VERSION"
+            echo "════════════════════════════════════════════════════════════"
+
+            if node scripts/release-plugin.mjs "$PLUGIN_DIR" "$VERSION" > "/tmp/release-${PLUGIN_ID}.json" 2>&1; then
+              echo "✓ $PLUGIN_ID v$VERSION built successfully"
+              SUCCESSES=$(node -e "
+                const s=JSON.parse('$SUCCESSES');
+                const r=JSON.parse(require('fs').readFileSync('/tmp/release-${PLUGIN_ID}.json','utf8'));
+                s.push(r);
+                console.log(JSON.stringify(s));
+              ")
+            else
+              echo "✗ $PLUGIN_ID v$VERSION FAILED"
+              cat "/tmp/release-${PLUGIN_ID}.json" || true
+              FAILURES=$(node -e "
+                const f=JSON.parse('$FAILURES');
+                f.push({pluginId:'$PLUGIN_ID',version:'$VERSION',error:'Build/validation failed'});
+                console.log(JSON.stringify(f));
+              ")
+            fi
+          done
+
+          echo "$SUCCESSES" > /tmp/successful-builds.json
+          echo "$FAILURES" > /tmp/failed-builds.json
+
+          SUCCESS_COUNT=$(node -e "console.log(JSON.parse(require('fs').readFileSync('/tmp/successful-builds.json','utf8')).length)")
+          FAIL_COUNT=$(node -e "console.log(JSON.parse(require('fs').readFileSync('/tmp/failed-builds.json','utf8')).length)")
+
+          echo "success_count=$SUCCESS_COUNT" >> "$GITHUB_OUTPUT"
+          echo "fail_count=$FAIL_COUNT" >> "$GITHUB_OUTPUT"
+
+          echo ""
+          echo "Build results: $SUCCESS_COUNT succeeded, $FAIL_COUNT failed"
+
+      # ── Step 4: Create git tags ────────────────────────────────────────
+      - name: Create git tags
+        if: steps.build.outputs.success_count != '0' && inputs.dry_run == false
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          for tag in $(node -e "
+            const d=JSON.parse(require('fs').readFileSync('/tmp/successful-builds.json','utf8'));
+            d.forEach(r=>console.log(r.tag));
+          "); do
+            echo "Creating tag: $tag"
+            git tag -a "$tag" -m "$tag"
+          done
+
+          echo "Pushing all tags..."
+          git push origin --tags
+
+      # ── Step 5: Create GitHub Releases ─────────────────────────────────
+      - name: Create GitHub Releases
+        if: steps.build.outputs.success_count != '0' && inputs.dry_run == false
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          node -e "
+            const fs = require('fs');
+            const { execSync } = require('child_process');
+            const builds = JSON.parse(fs.readFileSync('/tmp/successful-builds.json', 'utf8'));
+
+            for (const build of builds) {
+              console.log('Creating release: ' + build.tag);
+              const body = '## ' + build.pluginId + ' v' + build.version + '\n\n' +
+                '### Install\n\`\`\`bash\ncp -r plugins/' + build.pluginId + ' ~/.clubhouse/plugins/\n\`\`\`\n\n' +
+                'Or download the zip and extract to \`~/.clubhouse/plugins/' + build.pluginId + '/\`.';
+
+              execSync(
+                'gh release create ' + build.tag +
+                ' ' + build.zipPath +
+                ' --title \"' + build.pluginId + ' v' + build.version + '\"' +
+                ' --notes \"' + body.replace(/\"/g, '\\\\\"') + '\"',
+                { stdio: 'inherit' }
+              );
+              console.log('✓ Release created: ' + build.tag);
+            }
+          "
+
+      # ── Step 6: Single registry update ─────────────────────────────────
+      - name: Update registry
+        if: steps.build.outputs.success_count != '0' && inputs.dry_run == false
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Prepare release metadata for update-registry.mjs
+          node -e "
+            const fs = require('fs');
+            const builds = JSON.parse(fs.readFileSync('/tmp/successful-builds.json', 'utf8'));
+            const releases = builds.map(b => ({
+              pluginId: b.pluginId,
+              version: b.version,
+              tag: b.tag,
+              sha256: b.sha256,
+              size: b.size,
+              manifest: b.manifest
+            }));
+            fs.writeFileSync('/tmp/registry-releases.json', JSON.stringify(releases, null, 2));
+          "
+
+          BRANCH="registry-update/batch-$(date +%Y%m%d-%H%M%S)"
+
+          git fetch origin main
+          git checkout -b "$BRANCH" origin/main
+
+          node scripts/update-registry.mjs /tmp/registry-releases.json --repo "https://github.com/${{ github.repository }}"
+
+          git add registry/registry.json
+          git diff --cached --quiet && echo "No registry changes" && exit 0
+
+          PLUGIN_LIST=$(node -e "
+            const d=JSON.parse(require('fs').readFileSync('/tmp/successful-builds.json','utf8'));
+            console.log(d.map(b => b.pluginId + ' v' + b.version).join(', '));
+          ")
+
+          git commit -m "registry: batch update — $PLUGIN_LIST"
+          git push --force origin "$BRANCH"
+
+          PR_URL=$(gh pr create \
+            --title "registry: batch update — $PLUGIN_LIST" \
+            --body "Automated batch registry update from release pipeline." \
+            --base main \
+            --head "$BRANCH")
+          echo "Created PR: $PR_URL"
+
+          gh pr merge "$PR_URL" --squash --delete-branch
+
+      # ── Step 7: Summary ────────────────────────────────────────────────
+      - name: Print summary
+        if: steps.detect.outputs.count != '0'
+        run: |
+          node -e "
+            const fs = require('fs');
+            const successes = JSON.parse(fs.readFileSync('/tmp/successful-builds.json', 'utf8'));
+            const failures = JSON.parse(fs.readFileSync('/tmp/failed-builds.json', 'utf8'));
+            const dryRun = '${{ inputs.dry_run }}' === 'true';
+
+            console.log('');
+            console.log('╔══════════════════════════════════════════════════════════╗');
+            console.log('║                    Release Summary                       ║');
+            console.log('╠══════════════════════════════════════════════════════════╣');
+
+            if (dryRun) {
+              console.log('║  MODE: DRY RUN (no tags, releases, or registry updates) ║');
+              console.log('╠══════════════════════════════════════════════════════════╣');
+            }
+
+            const maxId = Math.max(...[...successes, ...failures].map(r => (r.pluginId || '').length), 10);
+            const maxVer = Math.max(...[...successes, ...failures].map(r => (r.version || '').length), 7);
+
+            console.log('║  ' + 'Plugin'.padEnd(maxId) + '  ' + 'Version'.padEnd(maxVer) + '  Status' + ' '.repeat(20) + '║');
+            console.log('║  ' + '─'.repeat(maxId) + '  ' + '─'.repeat(maxVer) + '  ' + '─'.repeat(20) + ' '.repeat(5) + '║');
+
+            for (const s of successes) {
+              const status = dryRun ? 'Built (dry run)' : 'Released';
+              console.log('║  ' + s.pluginId.padEnd(maxId) + '  ' + s.version.padEnd(maxVer) + '  ✓ ' + status.padEnd(20) + '║');
+            }
+            for (const f of failures) {
+              console.log('║  ' + f.pluginId.padEnd(maxId) + '  ' + f.version.padEnd(maxVer) + '  ✗ FAILED'.padEnd(24) + '║');
+            }
+
+            console.log('╚══════════════════════════════════════════════════════════╝');
+
+            if (failures.length > 0) {
+              console.log('');
+              console.log('Failed plugins can be re-released by running the workflow with:');
+              console.log('  plugins: ' + failures.map(f => f.pluginId).join(','));
+              process.exit(1);
+            }
+          "

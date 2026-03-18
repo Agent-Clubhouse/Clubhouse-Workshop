@@ -1,0 +1,11 @@
+{
+  "id": "bad-plugin",
+  "name": "Bad Plugin",
+  "version": "1.0.0",
+  "description": "A plugin with invalid permissions",
+  "author": "Test Author",
+  "engine": { "api": 0.7 },
+  "scope": "project",
+  "main": "./dist/main.js",
+  "permissions": ["storage", "nonexistent-permission"]
+}
