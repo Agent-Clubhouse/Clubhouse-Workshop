@@ -1,10 +1,12 @@
 {
   "id": "spring-themes",
   "name": "Spring Themes",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "A collection of spring-inspired color themes — cherry blossoms, meadows, wisteria, daffodils, and a moonlit garden.",
   "author": "Clubhouse Workshop",
-  "engine": { "api": 0.7 },
+  "engine": {
+    "api": 0.7
+  },
   "kind": "pack",
   "scope": "app",
   "contributes": {

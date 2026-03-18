@@ -1,10 +1,12 @@
 {
   "id": "summer-themes",
   "name": "Summer Themes",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "A collection of summer-inspired color themes — sunset beach, ocean breeze, tropical, golden hour, and midnight swim.",
   "author": "Clubhouse Workshop",
-  "engine": { "api": 0.7 },
+  "engine": {
+    "api": 0.7
+  },
   "kind": "pack",
   "scope": "app",
   "contributes": {

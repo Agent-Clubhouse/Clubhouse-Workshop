@@ -1,10 +1,12 @@
 {
   "id": "ocean-themes",
   "name": "Ocean Themes",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "A collection of ocean-inspired color themes — coral reef, tide pool, pacific, deep sea, and abyssal.",
   "author": "Clubhouse Workshop",
-  "engine": { "api": 0.7 },
+  "engine": {
+    "api": 0.7
+  },
   "kind": "pack",
   "scope": "app",
   "contributes": {
