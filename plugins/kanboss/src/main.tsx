@@ -5,6 +5,7 @@ import { kanBossState } from './state';
 import { BoardSidebar } from './BoardSidebar';
 import { BoardView } from './BoardView';
 import { initAutomationEngine, shutdownAutomationEngine } from './AutomationEngine';
+import { registerKeyboardShortcuts } from './KeyboardShortcuts';
 import { useTheme } from './use-theme';
 
 // ── activate() ──────────────────────────────────────────────────────────
@@ -29,6 +30,10 @@ export function activate(ctx: PluginContext, api: PluginAPI): void {
   // Initialize automation engine
   const automationSub = initAutomationEngine(api);
   ctx.subscriptions.push(automationSub);
+
+  // Register keyboard shortcuts
+  const shortcutsSub = registerKeyboardShortcuts(api);
+  ctx.subscriptions.push(shortcutsSub);
 }
 
 // ── deactivate() ────────────────────────────────────────────────────────

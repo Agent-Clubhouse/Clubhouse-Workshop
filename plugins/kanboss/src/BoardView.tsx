@@ -11,6 +11,7 @@ import { BoardConfigDialog } from './BoardConfigDialog';
 import { FilterBar } from './FilterBar';
 import { triggerAutomation } from './AutomationEngine';
 import { mutateStorage } from './storageQueue';
+import { ShortcutsHelp } from './ShortcutsHelp';
 import * as S from './styles';
 
 function cardsStorage(api: PluginAPI, board: Board) {
@@ -280,6 +281,45 @@ export function BoardView({ api }: { api: PluginAPI }) {
     kanBossState.triggerRefresh();
   }, [board, api]);
 
+  // ── Delete multiple cards (keyboard shortcut signal) ─────────────────
+  const handleDeleteCardsRef = useRef(async (cardIds: string[]) => {
+    if (!board) return;
+    const updated = await mutateStorage<Card>(cardsStorage(api, board), cardsKey(board.id), (allCards) =>
+      allCards.filter((c) => !cardIds.includes(c.id)));
+    setCards(updated);
+    kanBossState.triggerRefresh();
+  });
+  handleDeleteCardsRef.current = async (cardIds: string[]) => {
+    if (!board) return;
+    const updated = await mutateStorage<Card>(cardsStorage(api, board), cardsKey(board.id), (allCards) =>
+      allCards.filter((c) => !cardIds.includes(c.id)));
+    setCards(updated);
+    kanBossState.triggerRefresh();
+  };
+
+  // ── Handle keyboard shortcut signals ───────────────────────────────
+  useEffect(() => {
+    const unsub = kanBossState.subscribe(() => {
+      // Pending delete from keyboard shortcut
+      if (kanBossState.pendingDeleteIds.length > 0) {
+        const ids = [...kanBossState.pendingDeleteIds];
+        kanBossState.pendingDeleteIds = [];
+        handleDeleteCardsRef.current(ids);
+      }
+
+      // Select all from keyboard shortcut
+      if (kanBossState.selectAllRequested) {
+        kanBossState.selectAllRequested = false;
+        // Select all card IDs from current cards state
+        for (const card of cards) {
+          kanBossState.selectedCardIds.add(card.id);
+        }
+        kanBossState.notify();
+      }
+    });
+    return unsub;
+  }, []);
+
   // ── No board selected ─────────────────────────────────────────────────
   if (!board) {
     return (
@@ -519,6 +559,9 @@ export function BoardView({ api }: { api: PluginAPI }) {
       {/* Dialogs */}
       {showCardDialog && <CardDialog api={api} boardId={board.id} boardLabels={board.labels || []} />}
       {showConfigDialog && <BoardConfigDialog api={api} board={board} />}
+
+      {/* Shortcuts help overlay */}
+      <ShortcutsHelp />
     </div>
   );
 }
