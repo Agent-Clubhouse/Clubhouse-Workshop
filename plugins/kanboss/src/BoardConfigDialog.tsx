@@ -263,9 +263,44 @@ export function BoardConfigDialog({ api, board }: BoardConfigDialogProps) {
                     <span style={{ fontSize: 11, color: S.color.textSecondary }}>Automatic</span>
                   </label>
 
-                  {/* Automation prompts */}
+                  {/* Automation config */}
                   {state.isAutomatic && (
                     <>
+                      {/* Per-state agent assignment */}
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <div style={{ flex: 1 }}>
+                          <label style={{ display: 'block', fontSize: 10, color: S.color.textSecondary, marginBottom: 4 }}>
+                            Execution Agent <span style={{ color: S.color.textTertiary }}>(optional — falls back to swimlane)</span>
+                          </label>
+                          <select
+                            value={state.executionAgentId ?? ''}
+                            onChange={(e) => updateState(state.id, { executionAgentId: e.target.value || null })}
+                            style={S.baseInput}
+                          >
+                            <option value="">Use swimlane agent</option>
+                            {durableAgents.map((agent) => (
+                              <option key={agent.id} value={agent.id}>{agent.name}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <label style={{ display: 'block', fontSize: 10, color: S.color.textSecondary, marginBottom: 4 }}>
+                            Evaluation Agent <span style={{ color: S.color.textTertiary }}>(optional — falls back to swimlane)</span>
+                          </label>
+                          <select
+                            value={state.evaluationAgentId ?? ''}
+                            onChange={(e) => updateState(state.id, { evaluationAgentId: e.target.value || null })}
+                            style={S.baseInput}
+                          >
+                            <option value="">Use swimlane agent</option>
+                            {durableAgents.map((agent) => (
+                              <option key={agent.id} value={agent.id}>{agent.name}</option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+
+                      {/* Prompts */}
                       <div>
                         <label style={{ display: 'block', fontSize: 10, color: S.color.textSecondary, marginBottom: 4 }}>
                           Execution Prompt
