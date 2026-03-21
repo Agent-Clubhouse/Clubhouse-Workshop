@@ -136,6 +136,7 @@ var kanBossState = {
 var BOARDS_KEY = "boards";
 var cardsKey = (boardId) => `cards:${boardId}`;
 var AUTOMATION_RUNS_KEY = "automation-runs";
+var RUN_HISTORY_KEY = "run-history";
 var PRIORITY_CONFIG = {
   none: { label: "None", color: "", hidden: true },
   low: { label: "Low", color: "var(--text-info, #3b82f6)" },
@@ -205,6 +206,18 @@ function formatDueDate(timestamp) {
   const d = new Date(timestamp);
   return d.toLocaleDateString(void 0, { month: "short", day: "numeric" });
 }
+function buildRunHistoryEntry(opts) {
+  return {
+    id: generateId("run"),
+    ...opts,
+    completedAt: Date.now()
+  };
+}
+var RUN_OUTCOME_CONFIG = {
+  passed: { label: "Passed", color: "var(--text-success, #22c55e)" },
+  failed: { label: "Failed", color: "var(--text-error, #f87171)" },
+  stuck: { label: "Stuck", color: "var(--text-warning, #eab308)" }
+};
 
 // src/storageQueue.ts
 var mutexes = /* @__PURE__ */ new Map();
@@ -2732,6 +2745,161 @@ function BoardStats({ cards, board }) {
   ] });
 }
 
+// src/RunHistoryPanel.tsx
+import { jsx as jsx8, jsxs as jsxs8 } from "react/jsx-runtime";
+var React8 = globalThis.React;
+var { useEffect: useEffect4, useState: useState7, useCallback: useCallback7 } = React8;
+function formatTime(ts) {
+  return new Date(ts).toLocaleString(void 0, {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit"
+  });
+}
+function formatDuration(start, end) {
+  const secs = Math.round((end - start) / 1e3);
+  if (secs < 60) return `${secs}s`;
+  const mins = Math.floor(secs / 60);
+  const rem = secs % 60;
+  return rem > 0 ? `${mins}m ${rem}s` : `${mins}m`;
+}
+function OutcomeBadge({ outcome }) {
+  const cfg = RUN_OUTCOME_CONFIG[outcome];
+  return /* @__PURE__ */ jsx8("span", { style: {
+    fontSize: 10,
+    padding: "2px 8px",
+    borderRadius: 99,
+    fontWeight: 600,
+    background: `${cfg.color}20`,
+    color: cfg.color,
+    whiteSpace: "nowrap"
+  }, children: cfg.label });
+}
+function RunEntry({ entry }) {
+  const [expanded, setExpanded] = useState7(false);
+  return /* @__PURE__ */ jsxs8(
+    "div",
+    {
+      onClick: () => setExpanded(!expanded),
+      style: {
+        padding: "10px 12px",
+        background: color.bgSecondary,
+        border: `1px solid ${color.border}`,
+        borderRadius: 10,
+        cursor: "pointer",
+        fontFamily: font.family
+      },
+      children: [
+        /* @__PURE__ */ jsxs8("div", { style: { display: "flex", alignItems: "center", gap: 8 }, children: [
+          /* @__PURE__ */ jsx8(OutcomeBadge, { outcome: entry.outcome }),
+          /* @__PURE__ */ jsx8("span", { style: {
+            flex: 1,
+            minWidth: 0,
+            fontSize: 12,
+            fontWeight: 500,
+            color: color.text,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap"
+          }, children: entry.cardTitle }),
+          /* @__PURE__ */ jsx8("span", { style: { fontSize: 10, color: color.textTertiary, flexShrink: 0 }, children: formatTime(entry.completedAt) })
+        ] }),
+        /* @__PURE__ */ jsxs8("div", { style: { display: "flex", alignItems: "center", gap: 8, marginTop: 4 }, children: [
+          /* @__PURE__ */ jsx8("span", { style: { fontSize: 10, color: color.textTertiary }, children: entry.stateName }),
+          /* @__PURE__ */ jsxs8("span", { style: { fontSize: 10, color: color.textTertiary }, children: [
+            "Attempt ",
+            entry.attempt
+          ] }),
+          /* @__PURE__ */ jsx8("span", { style: { fontSize: 10, color: color.textTertiary }, children: formatDuration(entry.startedAt, entry.completedAt) })
+        ] }),
+        expanded && /* @__PURE__ */ jsxs8("div", { style: { marginTop: 8, paddingTop: 8, borderTop: `1px solid ${color.border}` }, children: [
+          entry.agentSummary && /* @__PURE__ */ jsxs8("div", { style: { marginBottom: 8 }, children: [
+            /* @__PURE__ */ jsx8("div", { style: { fontSize: 10, fontWeight: 500, color: color.textSecondary, marginBottom: 4 }, children: "Agent Summary" }),
+            /* @__PURE__ */ jsx8("div", { style: {
+              fontSize: 11,
+              color: color.text,
+              lineHeight: 1.5,
+              padding: 8,
+              borderRadius: 8,
+              background: color.bg,
+              maxHeight: 120,
+              overflowY: "auto",
+              whiteSpace: "pre-wrap",
+              wordBreak: "break-word",
+              fontFamily: font.mono
+            }, children: entry.agentSummary })
+          ] }),
+          entry.filesModified.length > 0 && /* @__PURE__ */ jsxs8("div", { children: [
+            /* @__PURE__ */ jsxs8("div", { style: { fontSize: 10, fontWeight: 500, color: color.textSecondary, marginBottom: 4 }, children: [
+              "Files Modified (",
+              entry.filesModified.length,
+              ")"
+            ] }),
+            /* @__PURE__ */ jsx8("div", { style: {
+              fontSize: 10,
+              color: color.textTertiary,
+              lineHeight: 1.6,
+              fontFamily: font.mono
+            }, children: entry.filesModified.map((f, i) => /* @__PURE__ */ jsx8("div", { children: f }, i)) })
+          ] }),
+          !entry.agentSummary && entry.filesModified.length === 0 && /* @__PURE__ */ jsx8("div", { style: { fontSize: 11, color: color.textTertiary, fontStyle: "italic" }, children: "No details available" })
+        ] })
+      ]
+    }
+  );
+}
+function RunHistoryPanel({ api, boardId, onClose }) {
+  const [entries, setEntries] = useState7([]);
+  const [loaded, setLoaded] = useState7(false);
+  const loadHistory = useCallback7(async () => {
+    const raw = await api.storage.projectLocal.read(RUN_HISTORY_KEY);
+    const all = Array.isArray(raw) ? raw : [];
+    const boardEntries = all.filter((e) => e.boardId === boardId).sort((a, b) => b.completedAt - a.completedAt);
+    setEntries(boardEntries);
+    setLoaded(true);
+  }, [api, boardId]);
+  useEffect4(() => {
+    loadHistory();
+    const unsub = kanBossState.subscribe(() => {
+      loadHistory();
+    });
+    return unsub;
+  }, [loadHistory]);
+  return /* @__PURE__ */ jsx8("div", { style: overlay, onClick: onClose, children: /* @__PURE__ */ jsxs8(
+    "div",
+    {
+      style: { ...dialogWide, maxWidth: 560, maxHeight: "80vh" },
+      onClick: (e) => e.stopPropagation(),
+      children: [
+        /* @__PURE__ */ jsxs8("div", { style: {
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          padding: "12px 16px",
+          borderBottom: `1px solid ${color.border}`,
+          fontFamily: font.family
+        }, children: [
+          /* @__PURE__ */ jsx8("span", { style: { fontSize: 14, fontWeight: 500, color: color.text }, children: "Automation History" }),
+          /* @__PURE__ */ jsx8(
+            "button",
+            {
+              onClick: onClose,
+              style: { color: color.textTertiary, fontSize: 18, border: "none", background: "transparent", cursor: "pointer" },
+              children: "\xD7"
+            }
+          )
+        ] }),
+        /* @__PURE__ */ jsxs8("div", { style: { flex: 1, overflowY: "auto", padding: 16, display: "flex", flexDirection: "column", gap: 8 }, children: [
+          !loaded && /* @__PURE__ */ jsx8("div", { style: { fontSize: 12, color: color.textTertiary, textAlign: "center", padding: 32 }, children: "Loading..." }),
+          loaded && entries.length === 0 && /* @__PURE__ */ jsx8("div", { style: { fontSize: 12, color: color.textTertiary, textAlign: "center", padding: 32 }, children: "No automation runs yet for this board." }),
+          entries.map((entry) => /* @__PURE__ */ jsx8(RunEntry, { entry }, entry.id))
+        ] })
+      ]
+    }
+  ) });
+}
+
 // src/AutomationEngine.ts
 var engineApi = null;
 async function loadBoard(api, boardId) {
@@ -2759,6 +2927,30 @@ function resolveExecutionAgent(state, swimlane) {
 }
 function resolveEvaluationAgent(state, swimlane) {
   return state.evaluationAgentId ?? swimlane.evaluationAgentId ?? swimlane.managerAgentId ?? null;
+}
+var MAX_HISTORY_ENTRIES = 200;
+async function saveRunHistoryEntry(api, run, card, board, outcome, agentSummary, filesModified) {
+  const state = board.states.find((s) => s.id === run.stateId);
+  const entry = buildRunHistoryEntry({
+    cardId: card.id,
+    cardTitle: card.title,
+    boardId: board.id,
+    stateId: run.stateId,
+    stateName: state?.name ?? "Unknown",
+    swimlaneId: run.swimlaneId,
+    outcome,
+    agentSummary,
+    filesModified,
+    attempt: run.attempt,
+    startedAt: run.startedAt
+  });
+  await mutateStorage(api.storage.projectLocal, RUN_HISTORY_KEY, (entries) => {
+    entries.push(entry);
+    if (entries.length > MAX_HISTORY_ENTRIES) {
+      return entries.slice(entries.length - MAX_HISTORY_ENTRIES);
+    }
+    return entries;
+  });
 }
 async function triggerAutomation(api, card, board) {
   const state = board.states.find((s) => s.id === card.stateId);
@@ -2840,6 +3032,16 @@ async function onAgentCompleted(api, agentId, outcome) {
         }
         return cards;
       });
+      const isStuck = cardSnapshot.automationAttempts + 1 >= board.config.maxRetries;
+      await saveRunHistoryEntry(
+        api,
+        run,
+        cardSnapshot,
+        board,
+        isStuck ? "stuck" : "failed",
+        "Execution agent errored",
+        []
+      );
       kanBossState.triggerRefresh();
       return;
     }
@@ -2879,14 +3081,25 @@ async function onAgentCompleted(api, agentId, outcome) {
         }
         return cards;
       });
+      const execInfo = api.agents.listCompleted().find((c) => c.id === run.executionAgentId);
+      await saveRunHistoryEntry(
+        api,
+        run,
+        cardSnapshot,
+        board,
+        "failed",
+        execInfo?.summary ?? "Failed to spawn evaluation agent",
+        execInfo?.filesModified ?? []
+      );
       kanBossState.triggerRefresh();
     }
     return;
   }
   if (run.phase === "evaluating") {
     const completed = api.agents.listCompleted();
-    const info = completed.find((c) => c.id === agentId);
-    const summary = info?.summary ?? "";
+    const evalInfo = completed.find((c) => c.id === agentId);
+    const execInfo = completed.find((c) => c.id === run.executionAgentId);
+    const summary = evalInfo?.summary ?? "";
     const passed = summary.includes("RESULT: PASS");
     await mutateStorage(api.storage.projectLocal, AUTOMATION_RUNS_KEY, (runs) => runs.filter((r) => r.evaluationAgentId !== agentId || r.phase !== "evaluating"));
     if (passed) {
@@ -2911,6 +3124,15 @@ async function onAgentCompleted(api, agentId, outcome) {
           }
           return cards;
         });
+        await saveRunHistoryEntry(
+          api,
+          run,
+          cardSnapshot,
+          board,
+          "passed",
+          execInfo?.summary ?? summary,
+          execInfo?.filesModified ?? []
+        );
         kanBossState.triggerRefresh();
         if (nextState.isAutomatic) {
           const freshCard = updatedCards.find((c) => c.id === run.cardId);
@@ -2926,6 +3148,15 @@ async function onAgentCompleted(api, agentId, outcome) {
           }
           return cards;
         });
+        await saveRunHistoryEntry(
+          api,
+          run,
+          cardSnapshot,
+          board,
+          "passed",
+          execInfo?.summary ?? summary,
+          execInfo?.filesModified ?? []
+        );
         kanBossState.triggerRefresh();
       }
     } else {
@@ -2938,6 +3169,16 @@ async function onAgentCompleted(api, agentId, outcome) {
         }
         return cards;
       });
+      const isStuck = cardSnapshot.automationAttempts >= board.config.maxRetries;
+      await saveRunHistoryEntry(
+        api,
+        run,
+        cardSnapshot,
+        board,
+        isStuck ? "stuck" : "failed",
+        execInfo?.summary ?? reason,
+        execInfo?.filesModified ?? []
+      );
       kanBossState.triggerRefresh();
       const updatedCard = updatedCards.find((c) => c.id === run.cardId);
       if (updatedCard && updatedCard.automationAttempts < board.config.maxRetries) {
@@ -2971,9 +3212,9 @@ function shutdownAutomationEngine() {
 }
 
 // src/BoardView.tsx
-import { jsx as jsx8, jsxs as jsxs8 } from "react/jsx-runtime";
-var React8 = globalThis.React;
-var { useEffect: useEffect4, useState: useState7, useCallback: useCallback7, useRef: useRef3 } = React8;
+import { jsx as jsx9, jsxs as jsxs9 } from "react/jsx-runtime";
+var React9 = globalThis.React;
+var { useEffect: useEffect5, useState: useState8, useCallback: useCallback8, useRef: useRef3 } = React9;
 function cardsStorage(api, board) {
   return board.config.gitHistory ? api.storage.project : api.storage.projectLocal;
 }
@@ -3002,15 +3243,16 @@ var PULSE_STYLE = `
 `;
 function BoardView({ api }) {
   const boardsStorage = api.storage.projectLocal;
-  const [board, setBoard] = useState7(null);
-  const [cards, setCards] = useState7([]);
-  const [selectedBoardId, setSelectedBoardId] = useState7(null);
-  const [showCardDialog, setShowCardDialog] = useState7(false);
-  const [showConfigDialog, setShowConfigDialog] = useState7(false);
-  const [zoomLevel, setZoomLevel] = useState7(1);
-  const [filter, setFilter] = useState7(kanBossState.filter);
-  const [selectionCount, setSelectionCount] = useState7(0);
-  const loadBoard2 = useCallback7(async () => {
+  const [board, setBoard] = useState8(null);
+  const [cards, setCards] = useState8([]);
+  const [selectedBoardId, setSelectedBoardId] = useState8(null);
+  const [showCardDialog, setShowCardDialog] = useState8(false);
+  const [showConfigDialog, setShowConfigDialog] = useState8(false);
+  const [zoomLevel, setZoomLevel] = useState8(1);
+  const [filter, setFilter] = useState8(kanBossState.filter);
+  const [selectionCount, setSelectionCount] = useState8(0);
+  const [showHistory, setShowHistory] = useState8(false);
+  const loadBoard2 = useCallback8(async () => {
     const boardId = kanBossState.selectedBoardId;
     if (!boardId) {
       setBoard(null);
@@ -3034,7 +3276,7 @@ function BoardView({ api }) {
   loadBoardRef.current = loadBoard2;
   const refreshRef2 = useRef3(kanBossState.refreshCount);
   const prevBoardIdRef = useRef3(kanBossState.selectedBoardId);
-  useEffect4(() => {
+  useEffect5(() => {
     setSelectedBoardId(kanBossState.selectedBoardId);
     prevBoardIdRef.current = kanBossState.selectedBoardId;
     loadBoardRef.current();
@@ -3061,7 +3303,7 @@ function BoardView({ api }) {
   const scrollRef = useRef3(null);
   const zoomRef = useRef3(zoomLevel);
   zoomRef.current = zoomLevel;
-  const adjustZoom = useCallback7(async (delta) => {
+  const adjustZoom = useCallback8(async (delta) => {
     if (!board) return;
     const newZoom = Math.max(0.5, Math.min(2, Math.round((zoomLevel + delta) * 20) / 20));
     setZoomLevel(newZoom);
@@ -3073,7 +3315,7 @@ function BoardView({ api }) {
       return boards;
     });
   }, [board, zoomLevel, boardsStorage]);
-  useEffect4(() => {
+  useEffect5(() => {
     const el = scrollRef.current;
     if (!el) return;
     const onWheel = (e) => {
@@ -3087,7 +3329,7 @@ function BoardView({ api }) {
     el.addEventListener("wheel", onWheel, { passive: false });
     return () => el.removeEventListener("wheel", onWheel);
   }, [adjustZoom]);
-  const handleMoveCard = useCallback7(async (cardId, targetStateId, targetSwimlaneId) => {
+  const handleMoveCard = useCallback8(async (cardId, targetStateId, targetSwimlaneId) => {
     if (!board) return;
     let movedCard = null;
     let toStateAutomatic = false;
@@ -3126,13 +3368,13 @@ function BoardView({ api }) {
       await triggerAutomation(api, movedCard, board);
     }
   }, [board, api]);
-  const handleDeleteCard = useCallback7(async (cardId) => {
+  const handleDeleteCard = useCallback8(async (cardId) => {
     if (!board) return;
     const updated = await mutateStorage(cardsStorage(api, board), cardsKey(board.id), (allCards) => allCards.filter((c) => c.id !== cardId));
     setCards(updated);
     kanBossState.triggerRefresh();
   }, [board, api]);
-  const handleClearRetries = useCallback7(async (cardId) => {
+  const handleClearRetries = useCallback8(async (cardId) => {
     if (!board) return;
     let clearedCard = null;
     const updated = await mutateStorage(cardsStorage(api, board), cardsKey(board.id), (allCards) => {
@@ -3157,7 +3399,7 @@ function BoardView({ api }) {
       await triggerAutomation(api, clearedCard, board);
     }
   }, [board, api]);
-  const handleManualAdvance = useCallback7(async (cardId) => {
+  const handleManualAdvance = useCallback8(async (cardId) => {
     if (!board) return;
     const updated = await mutateStorage(cardsStorage(api, board), cardsKey(board.id), (allCards) => {
       const idx = allCards.findIndex((c) => c.id === cardId);
@@ -3182,7 +3424,7 @@ function BoardView({ api }) {
     setCards([...updated]);
     kanBossState.triggerRefresh();
   }, [board, api]);
-  const handleBatchMove = useCallback7(async (targetStateId) => {
+  const handleBatchMove = useCallback8(async (targetStateId) => {
     if (!board) return;
     const ids = [...kanBossState.selectedCardIds];
     if (ids.length === 0) return;
@@ -3210,7 +3452,7 @@ function BoardView({ api }) {
     kanBossState.clearSelection();
     kanBossState.triggerRefresh();
   }, [board, api]);
-  const handleBatchPriority = useCallback7(async (priority) => {
+  const handleBatchPriority = useCallback8(async (priority) => {
     if (!board) return;
     const ids = [...kanBossState.selectedCardIds];
     if (ids.length === 0) return;
@@ -3234,7 +3476,7 @@ function BoardView({ api }) {
     kanBossState.clearSelection();
     kanBossState.triggerRefresh();
   }, [board, api]);
-  const handleBatchDelete = useCallback7(async () => {
+  const handleBatchDelete = useCallback8(async () => {
     if (!board) return;
     const ids = [...kanBossState.selectedCardIds];
     if (ids.length === 0) return;
@@ -3246,7 +3488,7 @@ function BoardView({ api }) {
     kanBossState.triggerRefresh();
   }, [board, api]);
   if (!board) {
-    return /* @__PURE__ */ jsx8("div", { style: {
+    return /* @__PURE__ */ jsx9("div", { style: {
       flex: 1,
       display: "flex",
       alignItems: "center",
@@ -3262,9 +3504,9 @@ function BoardView({ api }) {
   const sortedLanes = [...board.swimlanes].sort((a, b) => a.order - b.order);
   const lastStateId = sortedStates.length > 0 ? sortedStates[sortedStates.length - 1].id : null;
   const gridCols = `140px repeat(${sortedStates.length}, minmax(220px, 1fr))`;
-  return /* @__PURE__ */ jsxs8("div", { style: { display: "flex", flexDirection: "column", height: "100%", background: color.bg, fontFamily: font.family }, children: [
-    /* @__PURE__ */ jsx8("style", { dangerouslySetInnerHTML: { __html: PULSE_STYLE } }),
-    /* @__PURE__ */ jsxs8("div", { style: {
+  return /* @__PURE__ */ jsxs9("div", { style: { display: "flex", flexDirection: "column", height: "100%", background: color.bg, fontFamily: font.family }, children: [
+    /* @__PURE__ */ jsx9("style", { dangerouslySetInnerHTML: { __html: PULSE_STYLE } }),
+    /* @__PURE__ */ jsxs9("div", { style: {
       display: "flex",
       alignItems: "center",
       gap: 12,
@@ -3273,10 +3515,10 @@ function BoardView({ api }) {
       background: color.bgSecondary,
       flexShrink: 0
     }, children: [
-      /* @__PURE__ */ jsx8("span", { style: { fontSize: 14, fontWeight: 500, color: color.text }, children: board.name }),
-      /* @__PURE__ */ jsx8("div", { style: { flex: 1 } }),
-      /* @__PURE__ */ jsxs8("div", { style: { display: "flex", alignItems: "center", gap: 4 }, children: [
-        /* @__PURE__ */ jsx8(
+      /* @__PURE__ */ jsx9("span", { style: { fontSize: 14, fontWeight: 500, color: color.text }, children: board.name }),
+      /* @__PURE__ */ jsx9("div", { style: { flex: 1 } }),
+      /* @__PURE__ */ jsxs9("div", { style: { display: "flex", alignItems: "center", gap: 4 }, children: [
+        /* @__PURE__ */ jsx9(
           "button",
           {
             onClick: () => adjustZoom(-0.1),
@@ -3294,11 +3536,11 @@ function BoardView({ api }) {
             children: "-"
           }
         ),
-        /* @__PURE__ */ jsxs8("span", { style: { fontSize: 10, color: color.textTertiary, width: 40, textAlign: "center" }, children: [
+        /* @__PURE__ */ jsxs9("span", { style: { fontSize: 10, color: color.textTertiary, width: 40, textAlign: "center" }, children: [
           Math.round(zoomLevel * 100),
           "%"
         ] }),
-        /* @__PURE__ */ jsx8(
+        /* @__PURE__ */ jsx9(
           "button",
           {
             onClick: () => adjustZoom(0.1),
@@ -3317,7 +3559,25 @@ function BoardView({ api }) {
           }
         )
       ] }),
-      /* @__PURE__ */ jsx8(
+      /* @__PURE__ */ jsx9(
+        "button",
+        {
+          onClick: () => setShowHistory(true),
+          title: "Automation history",
+          style: {
+            padding: "4px 10px",
+            fontSize: 11,
+            color: color.textTertiary,
+            background: color.bgTertiary,
+            border: "none",
+            borderRadius: 6,
+            cursor: "pointer",
+            fontFamily: font.family
+          },
+          children: "History"
+        }
+      ),
+      /* @__PURE__ */ jsx9(
         "button",
         {
           onClick: () => kanBossState.openBoardConfig(),
@@ -3339,7 +3599,7 @@ function BoardView({ api }) {
         }
       )
     ] }),
-    selectionCount > 0 && /* @__PURE__ */ jsx8(
+    selectionCount > 0 && /* @__PURE__ */ jsx9(
       BatchActionsBar,
       {
         selectionCount,
@@ -3349,13 +3609,13 @@ function BoardView({ api }) {
         onBatchDelete: handleBatchDelete
       }
     ),
-    /* @__PURE__ */ jsx8(BoardStats, { cards, board }),
-    /* @__PURE__ */ jsx8(FilterBar, { filter, labels: board.labels || [] }),
-    /* @__PURE__ */ jsx8("div", { ref: scrollRef, style: { flex: 1, overflow: "auto" }, children: /* @__PURE__ */ jsx8("div", { style: {
+    /* @__PURE__ */ jsx9(BoardStats, { cards, board }),
+    /* @__PURE__ */ jsx9(FilterBar, { filter, labels: board.labels || [] }),
+    /* @__PURE__ */ jsx9("div", { ref: scrollRef, style: { flex: 1, overflow: "auto" }, children: /* @__PURE__ */ jsx9("div", { style: {
       transform: `scale(${zoomLevel})`,
       transformOrigin: "top left",
       minWidth: `${140 + sortedStates.length * 220}px`
-    }, children: /* @__PURE__ */ jsxs8("div", { style: {
+    }, children: /* @__PURE__ */ jsxs9("div", { style: {
       display: "grid",
       gridTemplateColumns: gridCols,
       gap: 1,
@@ -3363,11 +3623,11 @@ function BoardView({ api }) {
       overflow: "hidden",
       background: `${color.border}50`
     }, children: [
-      /* @__PURE__ */ jsx8("div", { style: { background: color.bgSecondary, padding: 8 } }),
+      /* @__PURE__ */ jsx9("div", { style: { background: color.bgSecondary, padding: 8 } }),
       sortedStates.map((state) => {
         const colCards = filteredCards.filter((c) => c.stateId === state.id);
         const overWip = state.wipLimit > 0 && colCards.length > state.wipLimit;
-        return /* @__PURE__ */ jsx8(
+        return /* @__PURE__ */ jsx9(
           "div",
           {
             style: {
@@ -3377,9 +3637,9 @@ function BoardView({ api }) {
               flexDirection: "column",
               ...overWip ? { borderBottom: `2px solid ${color.textError}` } : {}
             },
-            children: /* @__PURE__ */ jsxs8("div", { style: { display: "flex", alignItems: "center", gap: 6 }, children: [
-              /* @__PURE__ */ jsx8("span", { style: { fontSize: 12, fontWeight: 500, color: color.text }, children: state.name }),
-              state.isAutomatic && /* @__PURE__ */ jsxs8("span", { style: {
+            children: /* @__PURE__ */ jsxs9("div", { style: { display: "flex", alignItems: "center", gap: 6 }, children: [
+              /* @__PURE__ */ jsx9("span", { style: { fontSize: 12, fontWeight: 500, color: color.text }, children: state.name }),
+              state.isAutomatic && /* @__PURE__ */ jsxs9("span", { style: {
                 fontSize: 9,
                 padding: "1px 6px",
                 borderRadius: 99,
@@ -3393,7 +3653,7 @@ function BoardView({ api }) {
                 "\u2699",
                 " auto"
               ] }),
-              state.wipLimit > 0 && /* @__PURE__ */ jsxs8("span", { style: {
+              state.wipLimit > 0 && /* @__PURE__ */ jsxs9("span", { style: {
                 fontSize: 9,
                 color: overWip ? color.textError : color.textTertiary,
                 fontWeight: overWip ? 600 : 400
@@ -3416,7 +3676,7 @@ function BoardView({ api }) {
         const cellBg = laneIndex % 2 === 0 ? color.bg : `${color.bgSecondary}80`;
         return [
           // Swimlane label
-          /* @__PURE__ */ jsxs8(
+          /* @__PURE__ */ jsxs9(
             "div",
             {
               style: {
@@ -3427,8 +3687,8 @@ function BoardView({ api }) {
                 justifyContent: "center"
               },
               children: [
-                /* @__PURE__ */ jsx8("span", { style: { fontSize: 12, fontWeight: 500, color: color.text }, children: lane.name }),
-                managerAgent && /* @__PURE__ */ jsx8("div", { style: { display: "flex", alignItems: "center", gap: 4, marginTop: 4 }, children: /* @__PURE__ */ jsx8("span", { style: { fontSize: 9, color: color.textTertiary, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }, children: managerAgent.name }) })
+                /* @__PURE__ */ jsx9("span", { style: { fontSize: 12, fontWeight: 500, color: color.text }, children: lane.name }),
+                managerAgent && /* @__PURE__ */ jsx9("div", { style: { display: "flex", alignItems: "center", gap: 4, marginTop: 4 }, children: /* @__PURE__ */ jsx9("span", { style: { fontSize: 9, color: color.textTertiary, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }, children: managerAgent.name }) })
               ]
             },
             `lane-${lane.id}`
@@ -3438,11 +3698,11 @@ function BoardView({ api }) {
             const cellCards = filteredCards.filter(
               (c) => c.stateId === state.id && c.swimlaneId === lane.id
             );
-            return /* @__PURE__ */ jsx8(
+            return /* @__PURE__ */ jsx9(
               "div",
               {
                 style: { background: cellBg, display: "flex", flexDirection: "column" },
-                children: /* @__PURE__ */ jsx8(
+                children: /* @__PURE__ */ jsx9(
                   CardCell,
                   {
                     cards: cellCards,
@@ -3466,8 +3726,9 @@ function BoardView({ api }) {
         ];
       })
     ] }) }) }),
-    showCardDialog && /* @__PURE__ */ jsx8(CardDialog, { api, boardId: board.id, boardLabels: board.labels || [] }),
-    showConfigDialog && /* @__PURE__ */ jsx8(BoardConfigDialog, { api, board })
+    showCardDialog && /* @__PURE__ */ jsx9(CardDialog, { api, boardId: board.id, boardLabels: board.labels || [] }),
+    showConfigDialog && /* @__PURE__ */ jsx9(BoardConfigDialog, { api, board }),
+    showHistory && /* @__PURE__ */ jsx9(RunHistoryPanel, { api, boardId: board.id, onClose: () => setShowHistory(false) })
   ] });
 }
 
@@ -3538,14 +3799,14 @@ function mapThemeToCSS(theme) {
   };
 }
 function useTheme(themeApi) {
-  const React10 = globalThis.React;
-  const [theme, setTheme] = React10.useState(() => themeApi.getCurrent());
-  React10.useEffect(() => {
+  const React11 = globalThis.React;
+  const [theme, setTheme] = React11.useState(() => themeApi.getCurrent());
+  React11.useEffect(() => {
     setTheme(themeApi.getCurrent());
     const disposable = themeApi.onDidChange((t) => setTheme(t));
     return () => disposable.dispose();
   }, [themeApi]);
-  const style = React10.useMemo(
+  const style = React11.useMemo(
     () => mapThemeToCSS(theme),
     [theme]
   );
@@ -3553,8 +3814,8 @@ function useTheme(themeApi) {
 }
 
 // src/main.tsx
-import { jsx as jsx9 } from "react/jsx-runtime";
-var React9 = globalThis.React;
+import { jsx as jsx10 } from "react/jsx-runtime";
+var React10 = globalThis.React;
 function activate(ctx, api) {
   kanBossState.switchProject();
   api.logging.info("KanBoss plugin activated");
@@ -3577,11 +3838,11 @@ function deactivate() {
 }
 function SidebarPanel({ api }) {
   const { style: themeStyle } = useTheme(api.theme);
-  return /* @__PURE__ */ jsx9("div", { style: { ...themeStyle, height: "100%" }, children: /* @__PURE__ */ jsx9(BoardSidebar, { api }) });
+  return /* @__PURE__ */ jsx10("div", { style: { ...themeStyle, height: "100%" }, children: /* @__PURE__ */ jsx10(BoardSidebar, { api }) });
 }
 function MainPanel({ api }) {
   const { style: themeStyle } = useTheme(api.theme);
-  return /* @__PURE__ */ jsx9("div", { style: { ...themeStyle }, children: /* @__PURE__ */ jsx9(BoardView, { api }) });
+  return /* @__PURE__ */ jsx10("div", { style: { ...themeStyle }, children: /* @__PURE__ */ jsx10(BoardView, { api }) });
 }
 export {
   MainPanel,
