@@ -48,6 +48,8 @@ export interface BoardState {
   automationPrompt: string;
   evaluationPrompt: string; // separate from execution prompt
   wipLimit: number; // 0 = unlimited
+  executionAgentId: string | null; // per-state override; null = use swimlane agent
+  evaluationAgentId: string | null; // per-state override; null = use swimlane agent
 }
 
 export interface Swimlane {

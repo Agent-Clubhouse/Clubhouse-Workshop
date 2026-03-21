@@ -43,6 +43,8 @@ export function BoardConfigDialog({ api, board }: BoardConfigDialogProps) {
       automationPrompt: '',
       evaluationPrompt: '',
       wipLimit: 0,
+      executionAgentId: null,
+      evaluationAgentId: null,
     }]);
   }, [states]);
 

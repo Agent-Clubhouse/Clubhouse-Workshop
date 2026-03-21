@@ -16,9 +16,9 @@ function createDefaultBoard(name: string, gitHistory: boolean): Board {
     id: generateId('board'),
     name,
     states: [
-      { id: generateId('state'), name: 'Todo',        order: 0, isAutomatic: false, automationPrompt: '', evaluationPrompt: '', wipLimit: 0 },
-      { id: generateId('state'), name: 'In Progress', order: 1, isAutomatic: false, automationPrompt: '', evaluationPrompt: '', wipLimit: 0 },
-      { id: generateId('state'), name: 'Done',        order: 2, isAutomatic: false, automationPrompt: '', evaluationPrompt: '', wipLimit: 0 },
+      { id: generateId('state'), name: 'Todo',        order: 0, isAutomatic: false, automationPrompt: '', evaluationPrompt: '', wipLimit: 0, executionAgentId: null, evaluationAgentId: null },
+      { id: generateId('state'), name: 'In Progress', order: 1, isAutomatic: false, automationPrompt: '', evaluationPrompt: '', wipLimit: 0, executionAgentId: null, evaluationAgentId: null },
+      { id: generateId('state'), name: 'Done',        order: 2, isAutomatic: false, automationPrompt: '', evaluationPrompt: '', wipLimit: 0, executionAgentId: null, evaluationAgentId: null },
     ],
     swimlanes: [
       { id: generateId('lane'), name: 'Default', order: 0, managerAgentId: null, evaluationAgentId: null },
