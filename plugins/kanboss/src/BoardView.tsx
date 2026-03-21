@@ -2,13 +2,14 @@ const React = globalThis.React;
 const { useEffect, useState, useCallback, useRef } = React;
 
 import type { PluginAPI } from '@clubhouse/plugin-types';
-import type { Board, Card } from './types';
+import type { Board, Card, Priority } from './types';
 import { BOARDS_KEY, cardsKey, isCardStuck } from './types';
 import { kanBossState, filtersEqual, type FilterState } from './state';
 import { CardCell } from './CardCell';
 import { CardDialog } from './CardDialog';
 import { BoardConfigDialog } from './BoardConfigDialog';
 import { FilterBar } from './FilterBar';
+import { BatchActionsBar } from './BatchActionsBar';
 import { triggerAutomation } from './AutomationEngine';
 import { mutateStorage } from './storageQueue';
 import * as S from './styles';
@@ -59,6 +60,7 @@ export function BoardView({ api }: { api: PluginAPI }) {
   const [showConfigDialog, setShowConfigDialog] = useState(false);
   const [zoomLevel, setZoomLevel] = useState(1.0);
   const [filter, setFilter] = useState<FilterState>(kanBossState.filter);
+  const [selectionCount, setSelectionCount] = useState(0);
 
   // ── Load board + cards (stable — uses refs, no re-subscribe cascade) ─
   const loadBoard = useCallback(async () => {
@@ -100,6 +102,7 @@ export function BoardView({ api }: { api: PluginAPI }) {
       setShowCardDialog(kanBossState.editingCardId !== null);
       setShowConfigDialog(kanBossState.configuringBoard);
       setFilter(prev => filtersEqual(prev, kanBossState.filter) ? prev : { ...kanBossState.filter });
+      setSelectionCount(kanBossState.selectedCardIds.size);
 
       const boardChanged = kanBossState.selectedBoardId !== prevBoardIdRef.current;
       const refreshed = kanBossState.refreshCount !== refreshRef2.current;
@@ -280,6 +283,82 @@ export function BoardView({ api }: { api: PluginAPI }) {
     kanBossState.triggerRefresh();
   }, [board, api]);
 
+  // ── Batch operations ─────────────────────────────────────────────────
+  const handleBatchMove = useCallback(async (targetStateId: string) => {
+    if (!board) return;
+    const ids = [...kanBossState.selectedCardIds];
+    if (ids.length === 0) return;
+
+    const toState = board.states.find((s) => s.id === targetStateId);
+    if (!toState) return;
+
+    const updated = await mutateStorage<Card>(cardsStorage(api, board), cardsKey(board.id), (allCards) => {
+      for (const cardId of ids) {
+        const idx = allCards.findIndex((c) => c.id === cardId);
+        if (idx === -1) continue;
+        const card = allCards[idx];
+        const fromState = board.states.find((s) => s.id === card.stateId);
+        if (card.stateId === targetStateId) continue;
+        card.stateId = targetStateId;
+        card.automationAttempts = 0;
+        card.updatedAt = Date.now();
+        card.history.push({
+          action: 'moved',
+          timestamp: Date.now(),
+          detail: `Batch moved from "${fromState?.name ?? '?'}" to "${toState.name}"`,
+        });
+      }
+      return allCards;
+    });
+
+    setCards([...updated]);
+    kanBossState.clearSelection();
+    kanBossState.triggerRefresh();
+  }, [board, api]);
+
+  const handleBatchPriority = useCallback(async (priority: Priority) => {
+    if (!board) return;
+    const ids = [...kanBossState.selectedCardIds];
+    if (ids.length === 0) return;
+
+    const updated = await mutateStorage<Card>(cardsStorage(api, board), cardsKey(board.id), (allCards) => {
+      for (const cardId of ids) {
+        const idx = allCards.findIndex((c) => c.id === cardId);
+        if (idx === -1) continue;
+        const card = allCards[idx];
+        if (card.priority === priority) continue;
+        card.history.push({
+          action: 'priority-changed',
+          timestamp: Date.now(),
+          detail: `Batch priority changed from ${card.priority} to ${priority}`,
+        });
+        card.priority = priority;
+        card.updatedAt = Date.now();
+      }
+      return allCards;
+    });
+
+    setCards([...updated]);
+    kanBossState.clearSelection();
+    kanBossState.triggerRefresh();
+  }, [board, api]);
+
+  const handleBatchDelete = useCallback(async () => {
+    if (!board) return;
+    const ids = [...kanBossState.selectedCardIds];
+    if (ids.length === 0) return;
+
+    const ok = await api.ui.showConfirm(`Delete ${ids.length} selected card${ids.length > 1 ? 's' : ''}? This cannot be undone.`);
+    if (!ok) return;
+
+    const updated = await mutateStorage<Card>(cardsStorage(api, board), cardsKey(board.id), (allCards) =>
+      allCards.filter((c) => !ids.includes(c.id)));
+
+    setCards(updated);
+    kanBossState.clearSelection();
+    kanBossState.triggerRefresh();
+  }, [board, api]);
+
   // ── No board selected ─────────────────────────────────────────────────
   if (!board) {
     return (
@@ -382,6 +461,17 @@ export function BoardView({ api }: { api: PluginAPI }) {
           {'\u2699'}
         </button>
       </div>
+
+      {/* Batch actions bar (when cards selected) */}
+      {selectionCount > 0 && (
+        <BatchActionsBar
+          selectionCount={selectionCount}
+          states={[...board.states].sort((a, b) => a.order - b.order)}
+          onBatchMove={handleBatchMove}
+          onBatchPriority={handleBatchPriority}
+          onBatchDelete={handleBatchDelete}
+        />
+      )}
 
       {/* Filter bar */}
       <FilterBar filter={filter} labels={board.labels || []} />
