@@ -16,7 +16,14 @@ interface BatchActionsBarProps {
   onBatchDelete: () => void;
 }
 
-function DropdownButton({ label, children }: { label: string; children: React.ReactNode }) {
+interface DropdownItem {
+  key: string;
+  label: string;
+  color?: string;
+  onClick: () => void;
+}
+
+function DropdownButton({ label, items }: { label: string; items: DropdownItem[] }) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -58,9 +65,18 @@ function DropdownButton({ label, children }: { label: string; children: React.Re
             minWidth: 140,
             zIndex: 50,
           }}>
-            {React.Children.map(children, (child: React.ReactElement) =>
-              React.cloneElement(child, { onClick: (...args: unknown[]) => { child.props.onClick?.(...args); setOpen(false); } })
-            )}
+            {items.map((item) => (
+              <button
+                key={item.key}
+                onClick={() => { item.onClick(); setOpen(false); }}
+                style={{
+                  ...menuItemStyle,
+                  ...(item.color ? { color: item.color } : {}),
+                }}
+              >
+                {item.label}
+              </button>
+            ))}
           </div>
         </>
       )}
@@ -111,33 +127,25 @@ export function BatchActionsBar({ selectionCount, states, onBatchMove, onBatchPr
       </span>
 
       {/* Move To */}
-      <DropdownButton label="Move To">
-        {states.map((state) => (
-          <button
-            key={state.id}
-            onClick={() => onBatchMove(state.id)}
-            style={menuItemStyle}
-          >
-            {state.name}
-          </button>
-        ))}
-      </DropdownButton>
+      <DropdownButton
+        label="Move To"
+        items={states.map((state) => ({
+          key: state.id,
+          label: state.name,
+          onClick: () => onBatchMove(state.id),
+        }))}
+      />
 
       {/* Set Priority */}
-      <DropdownButton label="Set Priority">
-        {PRIORITIES.map((p) => (
-          <button
-            key={p}
-            onClick={() => onBatchPriority(p)}
-            style={{
-              ...menuItemStyle,
-              color: PRIORITY_CONFIG[p].color || S.color.text,
-            }}
-          >
-            {PRIORITY_CONFIG[p].label}
-          </button>
-        ))}
-      </DropdownButton>
+      <DropdownButton
+        label="Set Priority"
+        items={PRIORITIES.map((p) => ({
+          key: p,
+          label: PRIORITY_CONFIG[p].label,
+          color: PRIORITY_CONFIG[p].color || undefined,
+          onClick: () => onBatchPriority(p),
+        }))}
+      />
 
       {/* Delete */}
       <button
