@@ -1,4 +1,4 @@
-// src/state.ts
+// plugins/kanboss/src/state.ts
 function filtersEqual(a, b) {
   return a.searchQuery === b.searchQuery && a.priorityFilter === b.priorityFilter && a.labelFilter === b.labelFilter && a.stuckOnly === b.stuckOnly;
 }
@@ -105,7 +105,7 @@ var kanBossState = {
   }
 };
 
-// src/types.ts
+// plugins/kanboss/src/types.ts
 var BOARDS_KEY = "boards";
 var cardsKey = (boardId) => `cards:${boardId}`;
 var AUTOMATION_RUNS_KEY = "automation-runs";
@@ -160,7 +160,7 @@ function isCardAutomating(card) {
   return false;
 }
 
-// src/storageQueue.ts
+// plugins/kanboss/src/storageQueue.ts
 var mutexes = /* @__PURE__ */ new Map();
 function getMutex(storageRef, key) {
   const compositeKey = `${storageRef.__id ?? "default"}::${key}`;
@@ -191,7 +191,7 @@ async function mutateStorage(storage, key, updater) {
   }
 }
 
-// src/styles.ts
+// plugins/kanboss/src/styles.ts
 var font = {
   family: "var(--font-family, system-ui, -apple-system, sans-serif)",
   mono: "var(--font-mono, ui-monospace, monospace)"
@@ -292,7 +292,7 @@ var dialogWide = {
   flexDirection: "column"
 };
 
-// src/BoardSidebar.tsx
+// plugins/kanboss/src/BoardSidebar.tsx
 import { jsx, jsxs } from "react/jsx-runtime";
 var React = globalThis.React;
 var { useEffect, useState, useCallback, useRef } = React;
@@ -302,9 +302,9 @@ function createDefaultBoard(name, gitHistory) {
     id: generateId("board"),
     name,
     states: [
-      { id: generateId("state"), name: "Todo", order: 0, isAutomatic: false, automationPrompt: "", evaluationPrompt: "", wipLimit: 0 },
-      { id: generateId("state"), name: "In Progress", order: 1, isAutomatic: false, automationPrompt: "", evaluationPrompt: "", wipLimit: 0 },
-      { id: generateId("state"), name: "Done", order: 2, isAutomatic: false, automationPrompt: "", evaluationPrompt: "", wipLimit: 0 }
+      { id: generateId("state"), name: "Todo", order: 0, isAutomatic: false, automationPrompt: "", evaluationPrompt: "", wipLimit: 0, executionAgentId: null, evaluationAgentId: null },
+      { id: generateId("state"), name: "In Progress", order: 1, isAutomatic: false, automationPrompt: "", evaluationPrompt: "", wipLimit: 0, executionAgentId: null, evaluationAgentId: null },
+      { id: generateId("state"), name: "Done", order: 2, isAutomatic: false, automationPrompt: "", evaluationPrompt: "", wipLimit: 0, executionAgentId: null, evaluationAgentId: null }
     ],
     swimlanes: [
       { id: generateId("lane"), name: "Default", order: 0, managerAgentId: null, evaluationAgentId: null }
@@ -593,7 +593,7 @@ function BoardSidebar({ api }) {
   ] });
 }
 
-// src/CardCell.tsx
+// plugins/kanboss/src/CardCell.tsx
 import { Fragment, jsx as jsx2, jsxs as jsxs2 } from "react/jsx-runtime";
 var React2 = globalThis.React;
 var { useState: useState2, useCallback: useCallback2, useRef: useRef2 } = React2;
@@ -1134,7 +1134,7 @@ function CardCell({ cards, stateId, swimlaneId, isLastState, allStates, boardLab
   );
 }
 
-// src/CardDialog.tsx
+// plugins/kanboss/src/CardDialog.tsx
 import { jsx as jsx3, jsxs as jsxs3 } from "react/jsx-runtime";
 var React3 = globalThis.React;
 var { useState: useState3, useCallback: useCallback3, useEffect: useEffect2 } = React3;
@@ -1377,7 +1377,7 @@ function CardDialog({ api, boardId, boardLabels }) {
   ] }) });
 }
 
-// src/BoardConfigDialog.tsx
+// plugins/kanboss/src/BoardConfigDialog.tsx
 import { Fragment as Fragment2, jsx as jsx4, jsxs as jsxs4 } from "react/jsx-runtime";
 var React4 = globalThis.React;
 var { useState: useState4, useCallback: useCallback4, useEffect: useEffect3 } = React4;
@@ -1403,7 +1403,9 @@ function BoardConfigDialog({ api, board }) {
       isAutomatic: false,
       automationPrompt: "",
       evaluationPrompt: "",
-      wipLimit: 0
+      wipLimit: 0,
+      executionAgentId: null,
+      evaluationAgentId: null
     }]);
   }, [states]);
   const removeState = useCallback4((stateId) => {
@@ -1602,6 +1604,44 @@ function BoardConfigDialog({ api, board }) {
                 /* @__PURE__ */ jsx4("span", { style: { fontSize: 11, color: color.textSecondary }, children: "Automatic" })
               ] }),
               state.isAutomatic && /* @__PURE__ */ jsxs4(Fragment2, { children: [
+                /* @__PURE__ */ jsxs4("div", { style: { display: "flex", gap: 8 }, children: [
+                  /* @__PURE__ */ jsxs4("div", { style: { flex: 1 }, children: [
+                    /* @__PURE__ */ jsxs4("label", { style: { display: "block", fontSize: 10, color: color.textSecondary, marginBottom: 4 }, children: [
+                      "Execution Agent ",
+                      /* @__PURE__ */ jsx4("span", { style: { color: color.textTertiary }, children: "(optional \u2014 falls back to swimlane)" })
+                    ] }),
+                    /* @__PURE__ */ jsxs4(
+                      "select",
+                      {
+                        value: state.executionAgentId ?? "",
+                        onChange: (e) => updateState(state.id, { executionAgentId: e.target.value || null }),
+                        style: baseInput,
+                        children: [
+                          /* @__PURE__ */ jsx4("option", { value: "", children: "Use swimlane agent" }),
+                          durableAgents.map((agent) => /* @__PURE__ */ jsx4("option", { value: agent.id, children: agent.name }, agent.id))
+                        ]
+                      }
+                    )
+                  ] }),
+                  /* @__PURE__ */ jsxs4("div", { style: { flex: 1 }, children: [
+                    /* @__PURE__ */ jsxs4("label", { style: { display: "block", fontSize: 10, color: color.textSecondary, marginBottom: 4 }, children: [
+                      "Evaluation Agent ",
+                      /* @__PURE__ */ jsx4("span", { style: { color: color.textTertiary }, children: "(optional \u2014 falls back to swimlane)" })
+                    ] }),
+                    /* @__PURE__ */ jsxs4(
+                      "select",
+                      {
+                        value: state.evaluationAgentId ?? "",
+                        onChange: (e) => updateState(state.id, { evaluationAgentId: e.target.value || null }),
+                        style: baseInput,
+                        children: [
+                          /* @__PURE__ */ jsx4("option", { value: "", children: "Use swimlane agent" }),
+                          durableAgents.map((agent) => /* @__PURE__ */ jsx4("option", { value: agent.id, children: agent.name }, agent.id))
+                        ]
+                      }
+                    )
+                  ] })
+                ] }),
                 /* @__PURE__ */ jsxs4("div", { children: [
                   /* @__PURE__ */ jsx4("label", { style: { display: "block", fontSize: 10, color: color.textSecondary, marginBottom: 4 }, children: "Execution Prompt" }),
                   /* @__PURE__ */ jsx4(
@@ -1892,7 +1932,7 @@ function BoardConfigDialog({ api, board }) {
   ] }) });
 }
 
-// src/FilterBar.tsx
+// plugins/kanboss/src/FilterBar.tsx
 import { jsx as jsx5, jsxs as jsxs5 } from "react/jsx-runtime";
 var React5 = globalThis.React;
 var { useCallback: useCallback5 } = React5;
@@ -1998,7 +2038,7 @@ function FilterBar({ filter, labels }) {
   ] });
 }
 
-// src/AutomationEngine.ts
+// plugins/kanboss/src/AutomationEngine.ts
 var engineApi = null;
 async function loadBoard(api, boardId) {
   const raw = await api.storage.projectLocal.read(BOARDS_KEY);
@@ -2020,11 +2060,19 @@ function addHistory(card, action, detail, agentId) {
   card.history.push({ action, timestamp: Date.now(), detail, agentId });
   card.updatedAt = Date.now();
 }
+function resolveExecutionAgent(state, swimlane) {
+  return state.executionAgentId ?? swimlane.managerAgentId ?? null;
+}
+function resolveEvaluationAgent(state, swimlane) {
+  return state.evaluationAgentId ?? swimlane.evaluationAgentId ?? swimlane.managerAgentId ?? null;
+}
 async function triggerAutomation(api, card, board) {
   const state = board.states.find((s) => s.id === card.stateId);
   if (!state || !state.isAutomatic) return;
   const swimlane = board.swimlanes.find((l) => l.id === card.swimlaneId);
-  if (!swimlane || !swimlane.managerAgentId) return;
+  if (!swimlane) return;
+  const executionAgent = resolveExecutionAgent(state, swimlane);
+  if (!executionAgent) return;
   if (card.automationAttempts >= board.config.maxRetries) {
     return;
   }
@@ -2041,7 +2089,7 @@ async function triggerAutomation(api, card, board) {
   ].join("\n");
   try {
     const executionAgentId = await api.agents.runQuick(prompt);
-    const configuredEvalAgent = swimlane.evaluationAgentId ?? swimlane.managerAgentId;
+    const configuredEvalAgent = resolveEvaluationAgent(state, swimlane);
     await mutateStorage(api.storage.projectLocal, AUTOMATION_RUNS_KEY, (runs) => {
       runs.push({
         cardId: card.id,
@@ -2228,7 +2276,7 @@ function shutdownAutomationEngine() {
   engineApi = null;
 }
 
-// src/BoardView.tsx
+// plugins/kanboss/src/BoardView.tsx
 import { jsx as jsx6, jsxs as jsxs6 } from "react/jsx-runtime";
 var React6 = globalThis.React;
 var { useEffect: useEffect4, useState: useState5, useCallback: useCallback6, useRef: useRef3 } = React6;
@@ -2652,7 +2700,7 @@ function BoardView({ api }) {
   ] });
 }
 
-// src/use-theme.ts
+// plugins/kanboss/src/use-theme.ts
 function hexToRgba(hex, alpha) {
   const r = parseInt(hex.slice(1, 3), 16);
   const g = parseInt(hex.slice(3, 5), 16);
@@ -2733,7 +2781,7 @@ function useTheme(themeApi) {
   return { style, themeType: theme.type };
 }
 
-// src/main.tsx
+// plugins/kanboss/src/main.tsx
 import { jsx as jsx7 } from "react/jsx-runtime";
 var React7 = globalThis.React;
 function activate(ctx, api) {
