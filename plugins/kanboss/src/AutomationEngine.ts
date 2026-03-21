@@ -43,6 +43,26 @@ function addHistory(card: Card, action: Card['history'][0]['action'], detail: st
   card.updatedAt = Date.now();
 }
 
+// ── Agent resolution ────────────────────────────────────────────────────
+
+/**
+ * Resolve the execution agent for a card's current state.
+ * Priority: state.executionAgentId > swimlane.managerAgentId
+ * Returns null if no agent is assigned at either level.
+ */
+export function resolveExecutionAgent(state: Board['states'][0], swimlane: Board['swimlanes'][0]): string | null {
+  return state.executionAgentId ?? swimlane.managerAgentId ?? null;
+}
+
+/**
+ * Resolve the evaluation agent for a card's current state.
+ * Priority: state.evaluationAgentId > swimlane.evaluationAgentId > execution agent
+ * Returns null if no agent is assigned (will use execution agent at call site).
+ */
+export function resolveEvaluationAgent(state: Board['states'][0], swimlane: Board['swimlanes'][0]): string | null {
+  return state.evaluationAgentId ?? swimlane.evaluationAgentId ?? swimlane.managerAgentId ?? null;
+}
+
 // ── Trigger automation for a card ───────────────────────────────────────
 
 export async function triggerAutomation(api: PluginAPI, card: Card, board: Board): Promise<void> {
@@ -50,7 +70,10 @@ export async function triggerAutomation(api: PluginAPI, card: Card, board: Board
   if (!state || !state.isAutomatic) return;
 
   const swimlane = board.swimlanes.find((l) => l.id === card.swimlaneId);
-  if (!swimlane || !swimlane.managerAgentId) return;
+  if (!swimlane) return;
+
+  const executionAgent = resolveExecutionAgent(state, swimlane);
+  if (!executionAgent) return;
 
   if (card.automationAttempts >= board.config.maxRetries) {
     return;
@@ -72,7 +95,7 @@ export async function triggerAutomation(api: PluginAPI, card: Card, board: Board
     const executionAgentId = await api.agents.runQuick(prompt);
 
     // Record run
-    const configuredEvalAgent = swimlane.evaluationAgentId ?? swimlane.managerAgentId;
+    const configuredEvalAgent = resolveEvaluationAgent(state, swimlane);
     await mutateStorage<AutomationRun>(api.storage.projectLocal, AUTOMATION_RUNS_KEY, (runs) => {
       runs.push({
         cardId: card.id,
