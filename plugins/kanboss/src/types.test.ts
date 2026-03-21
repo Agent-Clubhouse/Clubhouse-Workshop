@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { generateId, isCardStuck, isCardAutomating, PRIORITY_CONFIG, PRIORITY_RANK, LABEL_COLORS } from './types';
+import { generateId, isCardStuck, isCardAutomating, subtaskProgress, dueDateStatus, formatDueDate, PRIORITY_CONFIG, PRIORITY_RANK, LABEL_COLORS } from './types';
 import type { Card } from './types';
 
 describe('generateId', () => {
@@ -17,7 +17,7 @@ describe('generateId', () => {
   });
 });
 
-function makeCard(history: Card['history']): Card {
+function makeCard(history: Card['history'], overrides: Partial<Card> = {}): Card {
   return {
     id: 'c1',
     boardId: 'b1',
@@ -29,8 +29,12 @@ function makeCard(history: Card['history']): Card {
     swimlaneId: 'l1',
     history,
     automationAttempts: 3,
+    dueDate: null,
+    subtasks: [],
+    assigneeAgentId: null,
     createdAt: 0,
     updatedAt: 0,
+    ...overrides,
   };
 }
 
@@ -115,5 +119,68 @@ describe('PRIORITY_RANK', () => {
 describe('LABEL_COLORS', () => {
   it('provides at least 6 colors', () => {
     expect(LABEL_COLORS.length).toBeGreaterThanOrEqual(6);
+  });
+});
+
+describe('subtaskProgress', () => {
+  it('returns zero for card with no subtasks', () => {
+    const card = makeCard([]);
+    expect(subtaskProgress(card)).toEqual({ done: 0, total: 0 });
+  });
+
+  it('counts completed and total subtasks', () => {
+    const card = makeCard([], {
+      subtasks: [
+        { id: 's1', title: 'A', completed: true },
+        { id: 's2', title: 'B', completed: false },
+        { id: 's3', title: 'C', completed: true },
+      ],
+    });
+    expect(subtaskProgress(card)).toEqual({ done: 2, total: 3 });
+  });
+
+  it('handles missing subtasks field gracefully', () => {
+    const card = makeCard([]);
+    // Simulate legacy card without subtasks
+    delete (card as unknown as Record<string, unknown>).subtasks;
+    expect(subtaskProgress(card)).toEqual({ done: 0, total: 0 });
+  });
+});
+
+describe('dueDateStatus', () => {
+  const now = new Date('2026-03-20T12:00:00Z').getTime();
+
+  it('returns none when dueDate is null', () => {
+    const card = makeCard([]);
+    expect(dueDateStatus(card, now)).toBe('none');
+  });
+
+  it('returns overdue when due date is in the past', () => {
+    const card = makeCard([], { dueDate: now - 1000 });
+    expect(dueDateStatus(card, now)).toBe('overdue');
+  });
+
+  it('returns due-soon when within 24 hours', () => {
+    const card = makeCard([], { dueDate: now + 12 * 60 * 60 * 1000 }); // +12h
+    expect(dueDateStatus(card, now)).toBe('due-soon');
+  });
+
+  it('returns upcoming when more than 24 hours away', () => {
+    const card = makeCard([], { dueDate: now + 48 * 60 * 60 * 1000 }); // +48h
+    expect(dueDateStatus(card, now)).toBe('upcoming');
+  });
+
+  it('returns due-soon at exactly 23h59m remaining', () => {
+    const card = makeCard([], { dueDate: now + 23 * 60 * 60 * 1000 + 59 * 60 * 1000 });
+    expect(dueDateStatus(card, now)).toBe('due-soon');
+  });
+});
+
+describe('formatDueDate', () => {
+  it('returns a short date string', () => {
+    const ts = new Date('2026-03-20T00:00:00').getTime();
+    const result = formatDueDate(ts);
+    expect(result).toContain('Mar');
+    expect(result).toContain('20');
   });
 });

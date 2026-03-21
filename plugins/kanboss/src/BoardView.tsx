@@ -501,6 +501,7 @@ export function BoardView({ api }: { api: PluginAPI }) {
                         isLastState={state.id === lastStateId}
                         allStates={sortedStates}
                         boardLabels={board.labels || []}
+                        agents={api.agents.list().map((a) => ({ id: a.id, name: a.name }))}
                         wipLimit={state.wipLimit}
                         onMoveCard={handleMoveCard}
                         onDeleteCard={handleDeleteCard}
