@@ -88,11 +88,30 @@ export interface AutomationRun {
   startedAt: number;
 }
 
+export type RunOutcome = 'passed' | 'failed' | 'stuck';
+
+export interface RunHistoryEntry {
+  id: string;
+  cardId: string;
+  cardTitle: string;
+  boardId: string;
+  stateId: string;
+  stateName: string;
+  swimlaneId: string;
+  outcome: RunOutcome;
+  agentSummary: string;
+  filesModified: string[];
+  attempt: number;
+  startedAt: number;
+  completedAt: number;
+}
+
 // ── Storage keys ────────────────────────────────────────────────────────
 
 export const BOARDS_KEY = 'boards';
 export const cardsKey = (boardId: string): string => `cards:${boardId}`;
 export const AUTOMATION_RUNS_KEY = 'automation-runs';
+export const RUN_HISTORY_KEY = 'run-history';
 
 // ── Priority display config ─────────────────────────────────────────────
 
@@ -148,3 +167,29 @@ export function isCardAutomating(card: Card): boolean {
   }
   return false;
 }
+
+export function buildRunHistoryEntry(opts: {
+  cardId: string;
+  cardTitle: string;
+  boardId: string;
+  stateId: string;
+  stateName: string;
+  swimlaneId: string;
+  outcome: RunOutcome;
+  agentSummary: string;
+  filesModified: string[];
+  attempt: number;
+  startedAt: number;
+}): RunHistoryEntry {
+  return {
+    id: generateId('run'),
+    ...opts,
+    completedAt: Date.now(),
+  };
+}
+
+export const RUN_OUTCOME_CONFIG: Record<RunOutcome, { label: string; color: string }> = {
+  passed: { label: 'Passed', color: 'var(--text-success, #22c55e)' },
+  failed: { label: 'Failed', color: 'var(--text-error, #f87171)' },
+  stuck:  { label: 'Stuck',  color: 'var(--text-warning, #eab308)' },
+};
