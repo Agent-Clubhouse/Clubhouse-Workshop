@@ -3,7 +3,7 @@ const { useEffect, useState, useCallback, useRef } = React;
 
 import type { PluginAPI } from '@clubhouse/plugin-types';
 import type { Board, Card } from './types';
-import { BOARDS_KEY, cardsKey, isCardStuck } from './types';
+import { BOARDS_KEY, cardsKey, isCardStuck, PRIORITY_RANK } from './types';
 import { kanBossState, filtersEqual, type FilterState } from './state';
 import { CardCell } from './CardCell';
 import { CardDialog } from './CardDialog';
@@ -59,6 +59,7 @@ export function BoardView({ api }: { api: PluginAPI }) {
   const [showConfigDialog, setShowConfigDialog] = useState(false);
   const [zoomLevel, setZoomLevel] = useState(1.0);
   const [filter, setFilter] = useState<FilterState>(kanBossState.filter);
+  const [selectedCardIds, setSelectedCardIds] = useState<ReadonlySet<string>>(new Set());
 
   // ── Load board + cards (stable — uses refs, no re-subscribe cascade) ─
   const loadBoard = useCallback(async () => {
@@ -100,6 +101,7 @@ export function BoardView({ api }: { api: PluginAPI }) {
       setShowCardDialog(kanBossState.editingCardId !== null);
       setShowConfigDialog(kanBossState.configuringBoard);
       setFilter(prev => filtersEqual(prev, kanBossState.filter) ? prev : { ...kanBossState.filter });
+      setSelectedCardIds(new Set(kanBossState.selectedCardIds));
 
       const boardChanged = kanBossState.selectedBoardId !== prevBoardIdRef.current;
       const refreshed = kanBossState.refreshCount !== refreshRef2.current;
@@ -280,6 +282,49 @@ export function BoardView({ api }: { api: PluginAPI }) {
     kanBossState.triggerRefresh();
   }, [board, api]);
 
+  // ── Move multiple cards (batch) ──────────────────────────────────────
+  const handleMoveCards = useCallback(async (cardIds: string[], targetStateId: string, targetSwimlaneId?: string) => {
+    if (!board) return;
+
+    const updated = await mutateStorage<Card>(cardsStorage(api, board), cardsKey(board.id), (allCards) => {
+      const now = Date.now();
+      for (const cardId of cardIds) {
+        const idx = allCards.findIndex((c) => c.id === cardId);
+        if (idx === -1) continue;
+
+        const card = allCards[idx];
+        const stateChanged = card.stateId !== targetStateId;
+        const laneChanged = targetSwimlaneId != null && card.swimlaneId !== targetSwimlaneId;
+        if (!stateChanged && !laneChanged) continue;
+
+        const fromState = board.states.find((s) => s.id === card.stateId);
+        const toState = board.states.find((s) => s.id === targetStateId);
+        if (!fromState || !toState) continue;
+
+        card.stateId = targetStateId;
+        if (targetSwimlaneId) card.swimlaneId = targetSwimlaneId;
+        card.automationAttempts = 0;
+        card.updatedAt = now;
+
+        let detail = '';
+        if (stateChanged) detail = `Moved from "${fromState.name}" to "${toState.name}"`;
+        if (laneChanged) {
+          const fromLane = board.swimlanes.find((l) => l.id === card.swimlaneId);
+          const toLane = targetSwimlaneId ? board.swimlanes.find((l) => l.id === targetSwimlaneId) : null;
+          if (fromLane && toLane) {
+            detail += detail ? `, lane "${fromLane.name}" \u2192 "${toLane.name}"` : `Moved to lane "${toLane.name}"`;
+          }
+        }
+        card.history.push({ action: 'moved', timestamp: now, detail });
+        allCards[idx] = card;
+      }
+      return allCards;
+    });
+
+    setCards([...updated]);
+    kanBossState.triggerRefresh();
+  }, [board, api]);
+
   // ── No board selected ─────────────────────────────────────────────────
   if (!board) {
     return (
@@ -304,6 +349,16 @@ export function BoardView({ api }: { api: PluginAPI }) {
   const lastStateId = sortedStates.length > 0 ? sortedStates[sortedStates.length - 1].id : null;
   const gridCols = `140px repeat(${sortedStates.length}, minmax(220px, 1fr))`;
 
+  // Ordered card IDs for range selection (by state order, then priority)
+  const allCardIds = sortedStates.flatMap((state) =>
+    sortedLanes.flatMap((lane) =>
+      filteredCards
+        .filter((c) => c.stateId === state.id && c.swimlaneId === lane.id)
+        .sort((a, b) => (PRIORITY_RANK[a.priority] ?? 4) - (PRIORITY_RANK[b.priority] ?? 4))
+        .map((c) => c.id)
+    )
+  );
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: S.color.bg, fontFamily: S.font.family }}>
       {/* Inject keyframe animation */}
@@ -320,6 +375,37 @@ export function BoardView({ api }: { api: PluginAPI }) {
         flexShrink: 0,
       }}>
         <span style={{ fontSize: 14, fontWeight: 500, color: S.color.text }}>{board.name}</span>
+
+        {/* Selection indicator */}
+        {selectedCardIds.size > 0 && (
+          <span style={{
+            fontSize: 11,
+            padding: '2px 10px',
+            borderRadius: 99,
+            background: S.color.accentBg,
+            color: S.color.accent,
+            fontWeight: 500,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+          }}>
+            {selectedCardIds.size} selected
+            <button
+              onClick={() => kanBossState.clearSelection()}
+              style={{
+                fontSize: 10,
+                color: S.color.accent,
+                border: 'none',
+                background: 'transparent',
+                cursor: 'pointer',
+                padding: 0,
+              }}
+            >
+              {'\u00D7'}
+            </button>
+          </span>
+        )}
+
         <div style={{ flex: 1 }} />
 
         {/* Zoom controls */}
@@ -502,7 +588,10 @@ export function BoardView({ api }: { api: PluginAPI }) {
                         allStates={sortedStates}
                         boardLabels={board.labels || []}
                         wipLimit={state.wipLimit}
+                        selectedCardIds={selectedCardIds}
+                        allCardIds={allCardIds}
                         onMoveCard={handleMoveCard}
+                        onMoveCards={handleMoveCards}
                         onDeleteCard={handleDeleteCard}
                         onClearRetries={handleClearRetries}
                         onManualAdvance={handleManualAdvance}
