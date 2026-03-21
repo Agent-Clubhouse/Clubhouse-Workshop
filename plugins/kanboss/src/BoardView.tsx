@@ -9,6 +9,7 @@ import { CardCell } from './CardCell';
 import { CardDialog } from './CardDialog';
 import { BoardConfigDialog } from './BoardConfigDialog';
 import { FilterBar } from './FilterBar';
+import { RunHistoryPanel } from './RunHistoryPanel';
 import { triggerAutomation } from './AutomationEngine';
 import { mutateStorage } from './storageQueue';
 import * as S from './styles';
@@ -59,6 +60,7 @@ export function BoardView({ api }: { api: PluginAPI }) {
   const [showConfigDialog, setShowConfigDialog] = useState(false);
   const [zoomLevel, setZoomLevel] = useState(1.0);
   const [filter, setFilter] = useState<FilterState>(kanBossState.filter);
+  const [showHistory, setShowHistory] = useState(false);
 
   // ── Load board + cards (stable — uses refs, no re-subscribe cascade) ─
   const loadBoard = useCallback(async () => {
@@ -361,6 +363,24 @@ export function BoardView({ api }: { api: PluginAPI }) {
           </button>
         </div>
 
+        {/* History button */}
+        <button
+          onClick={() => setShowHistory(true)}
+          title="Automation history"
+          style={{
+            padding: '4px 10px',
+            fontSize: 11,
+            color: S.color.textTertiary,
+            background: S.color.bgTertiary,
+            border: 'none',
+            borderRadius: 6,
+            cursor: 'pointer',
+            fontFamily: S.font.family,
+          }}
+        >
+          History
+        </button>
+
         {/* Config button */}
         <button
           onClick={() => kanBossState.openBoardConfig()}
@@ -519,6 +539,7 @@ export function BoardView({ api }: { api: PluginAPI }) {
       {/* Dialogs */}
       {showCardDialog && <CardDialog api={api} boardId={board.id} boardLabels={board.labels || []} />}
       {showConfigDialog && <BoardConfigDialog api={api} board={board} />}
+      {showHistory && <RunHistoryPanel api={api} boardId={board.id} onClose={() => setShowHistory(false)} />}
     </div>
   );
 }
