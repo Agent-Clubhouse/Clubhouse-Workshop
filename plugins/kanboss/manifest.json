@@ -25,7 +25,12 @@
     },
     "commands": [
       { "id": "refresh", "title": "Refresh Boards" },
-      { "id": "new-board", "title": "Create New Board" }
+      { "id": "new-board", "title": "Create New Board" },
+      { "id": "kanboss.new-card", "title": "New Card", "defaultBinding": "N" },
+      { "id": "kanboss.delete-cards", "title": "Delete Selected Cards", "defaultBinding": "Delete" },
+      { "id": "kanboss.escape", "title": "Escape", "defaultBinding": "Escape", "global": true },
+      { "id": "kanboss.select-all", "title": "Select All Cards", "defaultBinding": "Meta+A" },
+      { "id": "kanboss.shortcuts-help", "title": "Keyboard Shortcuts", "defaultBinding": "Shift+/" }
     ],
     "help": {
       "topics": [

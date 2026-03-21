@@ -21,6 +21,12 @@ var kanBossState = {
   editingSwimlaneId: null,
   // target swimlane for new card
   configuringBoard: false,
+  // Card selection state (multi-select)
+  selectedCardIds: /* @__PURE__ */ new Set(),
+  lastSelectedCardId: null,
+  // Keyboard shortcut signals (consumed by BoardView)
+  pendingDeleteIds: [],
+  selectAllRequested: false,
   // Filter state
   filter: {
     searchQuery: "",
@@ -28,8 +34,6 @@ var kanBossState = {
     labelFilter: "all",
     stuckOnly: false
   },
-  // Card selection state (for batch operations)
-  selectedCardIds: /* @__PURE__ */ new Set(),
   listeners: /* @__PURE__ */ new Set(),
   selectBoard(id) {
     this.selectedBoardId = id;
@@ -69,35 +73,57 @@ var kanBossState = {
     this.configuringBoard = false;
     this.notify();
   },
+  toggleCardSelection(cardId) {
+    if (this.selectedCardIds.has(cardId)) {
+      this.selectedCardIds.delete(cardId);
+    } else {
+      this.selectedCardIds.add(cardId);
+    }
+    this.lastSelectedCardId = cardId;
+    this.notify();
+  },
+  selectCardRange(cardId, orderedCardIds) {
+    const lastId = this.lastSelectedCardId;
+    if (!lastId) {
+      this.selectedCardIds.add(cardId);
+      this.lastSelectedCardId = cardId;
+      this.notify();
+      return;
+    }
+    const startIdx = orderedCardIds.indexOf(lastId);
+    const endIdx = orderedCardIds.indexOf(cardId);
+    if (startIdx === -1 || endIdx === -1) {
+      this.selectedCardIds.add(cardId);
+      this.lastSelectedCardId = cardId;
+      this.notify();
+      return;
+    }
+    const lo = Math.min(startIdx, endIdx);
+    const hi = Math.max(startIdx, endIdx);
+    for (let i = lo; i <= hi; i++) {
+      this.selectedCardIds.add(orderedCardIds[i]);
+    }
+    this.lastSelectedCardId = cardId;
+    this.notify();
+  },
+  selectCard(cardId) {
+    this.selectedCardIds.clear();
+    this.selectedCardIds.add(cardId);
+    this.lastSelectedCardId = cardId;
+    this.notify();
+  },
+  clearSelection() {
+    if (this.selectedCardIds.size === 0) return;
+    this.selectedCardIds.clear();
+    this.lastSelectedCardId = null;
+    this.notify();
+  },
   setFilter(updates) {
     this.filter = { ...this.filter, ...updates };
     this.notify();
   },
   clearFilter() {
     this.filter = { searchQuery: "", priorityFilter: "all", labelFilter: "all", stuckOnly: false };
-    this.notify();
-  },
-  toggleSelection(cardId) {
-    if (this.selectedCardIds.has(cardId)) {
-      this.selectedCardIds.delete(cardId);
-    } else {
-      this.selectedCardIds.add(cardId);
-    }
-    this.notify();
-  },
-  selectCard(cardId) {
-    if (this.selectedCardIds.has(cardId)) return;
-    this.selectedCardIds.add(cardId);
-    this.notify();
-  },
-  deselectCard(cardId) {
-    if (!this.selectedCardIds.has(cardId)) return;
-    this.selectedCardIds.delete(cardId);
-    this.notify();
-  },
-  clearSelection() {
-    if (this.selectedCardIds.size === 0) return;
-    this.selectedCardIds.clear();
     this.notify();
   },
   triggerRefresh() {
@@ -126,8 +152,11 @@ var kanBossState = {
     this.editingStateId = null;
     this.editingSwimlaneId = null;
     this.configuringBoard = false;
-    this.filter = { searchQuery: "", priorityFilter: "all", labelFilter: "all", stuckOnly: false };
     this.selectedCardIds.clear();
+    this.lastSelectedCardId = null;
+    this.pendingDeleteIds = [];
+    this.selectAllRequested = false;
+    this.filter = { searchQuery: "", priorityFilter: "all", labelFilter: "all", stuckOnly: false };
     this.listeners.clear();
   }
 };
@@ -3211,10 +3240,174 @@ function shutdownAutomationEngine() {
   engineApi = null;
 }
 
-// src/BoardView.tsx
+// src/KeyboardShortcuts.ts
+var SHORTCUTS = [
+  { id: "new-card", title: "New Card", binding: "N", description: "Create a new card" },
+  { id: "delete-cards", title: "Delete Selected", binding: "Delete", description: "Delete selected cards" },
+  { id: "escape", title: "Escape", binding: "Escape", description: "Clear selection / close dialog" },
+  { id: "select-all", title: "Select All", binding: "Meta+A", description: "Select all visible cards" },
+  { id: "shortcuts-help", title: "Keyboard Shortcuts", binding: "Shift+/", description: "Toggle shortcuts help" }
+];
+var showHelp = false;
+var helpListeners = /* @__PURE__ */ new Set();
+function getShowHelp() {
+  return showHelp;
+}
+function toggleHelp() {
+  showHelp = !showHelp;
+  for (const fn of helpListeners) fn();
+}
+function subscribeHelp(fn) {
+  helpListeners.add(fn);
+  return () => {
+    helpListeners.delete(fn);
+  };
+}
+function registerKeyboardShortcuts(api) {
+  const disposables = [];
+  disposables.push(
+    api.commands.registerWithHotkey("kanboss.new-card", "New Card", () => {
+      if (!kanBossState.selectedBoardId) return;
+      const board = kanBossState.boards.find((b) => b.id === kanBossState.selectedBoardId);
+      if (!board || board.states.length === 0 || board.swimlanes.length === 0) return;
+      if (kanBossState.editingCardId !== null) return;
+      const sortedStates = [...board.states].sort((a, b) => a.order - b.order);
+      const sortedLanes = [...board.swimlanes].sort((a, b) => a.order - b.order);
+      kanBossState.openNewCard(sortedStates[0].id, sortedLanes[0].id);
+    }, "N")
+  );
+  disposables.push(
+    api.commands.registerWithHotkey("kanboss.delete-cards", "Delete Selected Cards", async () => {
+      const selected = kanBossState.selectedCardIds;
+      if (selected.size === 0) return;
+      const count = selected.size;
+      const ok = await api.ui.showConfirm(`Delete ${count} selected card${count > 1 ? "s" : ""}? This cannot be undone.`);
+      if (!ok) return;
+      kanBossState.pendingDeleteIds = [...selected];
+      kanBossState.clearSelection();
+      kanBossState.triggerRefresh();
+    }, "Delete")
+  );
+  disposables.push(
+    api.commands.registerWithHotkey("kanboss.escape", "Escape", () => {
+      if (showHelp) {
+        toggleHelp();
+        return;
+      }
+      if (kanBossState.editingCardId !== null) {
+        kanBossState.closeCardDialog();
+        return;
+      }
+      if (kanBossState.configuringBoard) {
+        kanBossState.closeBoardConfig();
+        return;
+      }
+      if (kanBossState.selectedCardIds.size > 0) {
+        kanBossState.clearSelection();
+        return;
+      }
+    }, "Escape", { global: true })
+  );
+  disposables.push(
+    api.commands.registerWithHotkey("kanboss.select-all", "Select All Cards", () => {
+      if (!kanBossState.selectedBoardId) return;
+      if (kanBossState.editingCardId !== null || kanBossState.configuringBoard) return;
+      kanBossState.selectAllRequested = true;
+      kanBossState.notify();
+    }, "Meta+A")
+  );
+  disposables.push(
+    api.commands.registerWithHotkey("kanboss.shortcuts-help", "Keyboard Shortcuts", () => {
+      toggleHelp();
+    }, "Shift+/")
+  );
+  return {
+    dispose() {
+      for (const d of disposables) d.dispose();
+      showHelp = false;
+      helpListeners.clear();
+    }
+  };
+}
+
+// src/ShortcutsHelp.tsx
 import { jsx as jsx9, jsxs as jsxs9 } from "react/jsx-runtime";
 var React9 = globalThis.React;
-var { useEffect: useEffect5, useState: useState8, useCallback: useCallback8, useRef: useRef3 } = React9;
+var { useState: useState8, useEffect: useEffect5 } = React9;
+function ShortcutsHelp() {
+  const [visible, setVisible] = useState8(getShowHelp());
+  useEffect5(() => {
+    return subscribeHelp(() => setVisible(getShowHelp()));
+  }, []);
+  if (!visible) return null;
+  return /* @__PURE__ */ jsx9("div", { style: overlay, onClick: () => toggleHelp(), children: /* @__PURE__ */ jsxs9(
+    "div",
+    {
+      style: {
+        background: color.bg,
+        border: `1px solid ${color.border}`,
+        borderRadius: 12,
+        boxShadow: `0 25px 50px -12px ${color.shadowHeavy}`,
+        padding: "16px 20px",
+        maxWidth: 320,
+        margin: "0 16px",
+        fontFamily: font.family
+      },
+      onClick: (e) => e.stopPropagation(),
+      children: [
+        /* @__PURE__ */ jsxs9("div", { style: {
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          marginBottom: 12
+        }, children: [
+          /* @__PURE__ */ jsx9("span", { style: { fontSize: 13, fontWeight: 600, color: color.text }, children: "Keyboard Shortcuts" }),
+          /* @__PURE__ */ jsx9(
+            "button",
+            {
+              onClick: () => toggleHelp(),
+              style: {
+                color: color.textTertiary,
+                fontSize: 16,
+                border: "none",
+                background: "transparent",
+                cursor: "pointer"
+              },
+              children: "\xD7"
+            }
+          )
+        ] }),
+        /* @__PURE__ */ jsx9("div", { style: { display: "flex", flexDirection: "column", gap: 6 }, children: SHORTCUTS.map((s) => /* @__PURE__ */ jsxs9("div", { style: { display: "flex", alignItems: "center", gap: 10 }, children: [
+          /* @__PURE__ */ jsx9("kbd", { style: {
+            fontSize: 10,
+            fontFamily: font.mono,
+            padding: "2px 6px",
+            borderRadius: 4,
+            background: color.bgTertiary,
+            border: `1px solid ${color.border}`,
+            color: color.text,
+            minWidth: 50,
+            textAlign: "center",
+            flexShrink: 0
+          }, children: s.binding.replace("Meta+", "\u2318").replace("Shift+/", "?") }),
+          /* @__PURE__ */ jsx9("span", { style: { fontSize: 11, color: color.textSecondary }, children: s.description })
+        ] }, s.id)) }),
+        /* @__PURE__ */ jsxs9("div", { style: { marginTop: 10, fontSize: 9, color: color.textTertiary, textAlign: "center" }, children: [
+          "Press ",
+          /* @__PURE__ */ jsx9("kbd", { style: { fontFamily: font.mono, fontSize: 9 }, children: "?" }),
+          " or ",
+          /* @__PURE__ */ jsx9("kbd", { style: { fontFamily: font.mono, fontSize: 9 }, children: "Esc" }),
+          " to close"
+        ] })
+      ]
+    }
+  ) });
+}
+
+// src/BoardView.tsx
+import { jsx as jsx10, jsxs as jsxs10 } from "react/jsx-runtime";
+var React10 = globalThis.React;
+var { useEffect: useEffect6, useState: useState9, useCallback: useCallback8, useRef: useRef3 } = React10;
 function cardsStorage(api, board) {
   return board.config.gitHistory ? api.storage.project : api.storage.projectLocal;
 }
@@ -3243,15 +3436,15 @@ var PULSE_STYLE = `
 `;
 function BoardView({ api }) {
   const boardsStorage = api.storage.projectLocal;
-  const [board, setBoard] = useState8(null);
-  const [cards, setCards] = useState8([]);
-  const [selectedBoardId, setSelectedBoardId] = useState8(null);
-  const [showCardDialog, setShowCardDialog] = useState8(false);
-  const [showConfigDialog, setShowConfigDialog] = useState8(false);
-  const [zoomLevel, setZoomLevel] = useState8(1);
-  const [filter, setFilter] = useState8(kanBossState.filter);
-  const [selectionCount, setSelectionCount] = useState8(0);
-  const [showHistory, setShowHistory] = useState8(false);
+  const [board, setBoard] = useState9(null);
+  const [cards, setCards] = useState9([]);
+  const [selectedBoardId, setSelectedBoardId] = useState9(null);
+  const [showCardDialog, setShowCardDialog] = useState9(false);
+  const [showConfigDialog, setShowConfigDialog] = useState9(false);
+  const [zoomLevel, setZoomLevel] = useState9(1);
+  const [filter, setFilter] = useState9(kanBossState.filter);
+  const [selectionCount, setSelectionCount] = useState9(0);
+  const [showHistory, setShowHistory] = useState9(false);
   const loadBoard2 = useCallback8(async () => {
     const boardId = kanBossState.selectedBoardId;
     if (!boardId) {
@@ -3276,7 +3469,7 @@ function BoardView({ api }) {
   loadBoardRef.current = loadBoard2;
   const refreshRef2 = useRef3(kanBossState.refreshCount);
   const prevBoardIdRef = useRef3(kanBossState.selectedBoardId);
-  useEffect5(() => {
+  useEffect6(() => {
     setSelectedBoardId(kanBossState.selectedBoardId);
     prevBoardIdRef.current = kanBossState.selectedBoardId;
     loadBoardRef.current();
@@ -3315,7 +3508,7 @@ function BoardView({ api }) {
       return boards;
     });
   }, [board, zoomLevel, boardsStorage]);
-  useEffect5(() => {
+  useEffect6(() => {
     const el = scrollRef.current;
     if (!el) return;
     const onWheel = (e) => {
@@ -3487,8 +3680,37 @@ function BoardView({ api }) {
     kanBossState.clearSelection();
     kanBossState.triggerRefresh();
   }, [board, api]);
+  const handleDeleteCardsRef = useRef3(async (cardIds) => {
+    if (!board) return;
+    const updated = await mutateStorage(cardsStorage(api, board), cardsKey(board.id), (allCards) => allCards.filter((c) => !cardIds.includes(c.id)));
+    setCards(updated);
+    kanBossState.triggerRefresh();
+  });
+  handleDeleteCardsRef.current = async (cardIds) => {
+    if (!board) return;
+    const updated = await mutateStorage(cardsStorage(api, board), cardsKey(board.id), (allCards) => allCards.filter((c) => !cardIds.includes(c.id)));
+    setCards(updated);
+    kanBossState.triggerRefresh();
+  };
+  useEffect6(() => {
+    const unsub = kanBossState.subscribe(() => {
+      if (kanBossState.pendingDeleteIds.length > 0) {
+        const ids = [...kanBossState.pendingDeleteIds];
+        kanBossState.pendingDeleteIds = [];
+        handleDeleteCardsRef.current(ids);
+      }
+      if (kanBossState.selectAllRequested) {
+        kanBossState.selectAllRequested = false;
+        for (const card of cards) {
+          kanBossState.selectedCardIds.add(card.id);
+        }
+        kanBossState.notify();
+      }
+    });
+    return unsub;
+  }, []);
   if (!board) {
-    return /* @__PURE__ */ jsx9("div", { style: {
+    return /* @__PURE__ */ jsx10("div", { style: {
       flex: 1,
       display: "flex",
       alignItems: "center",
@@ -3504,9 +3726,9 @@ function BoardView({ api }) {
   const sortedLanes = [...board.swimlanes].sort((a, b) => a.order - b.order);
   const lastStateId = sortedStates.length > 0 ? sortedStates[sortedStates.length - 1].id : null;
   const gridCols = `140px repeat(${sortedStates.length}, minmax(220px, 1fr))`;
-  return /* @__PURE__ */ jsxs9("div", { style: { display: "flex", flexDirection: "column", height: "100%", background: color.bg, fontFamily: font.family }, children: [
-    /* @__PURE__ */ jsx9("style", { dangerouslySetInnerHTML: { __html: PULSE_STYLE } }),
-    /* @__PURE__ */ jsxs9("div", { style: {
+  return /* @__PURE__ */ jsxs10("div", { style: { display: "flex", flexDirection: "column", height: "100%", background: color.bg, fontFamily: font.family }, children: [
+    /* @__PURE__ */ jsx10("style", { dangerouslySetInnerHTML: { __html: PULSE_STYLE } }),
+    /* @__PURE__ */ jsxs10("div", { style: {
       display: "flex",
       alignItems: "center",
       gap: 12,
@@ -3515,10 +3737,10 @@ function BoardView({ api }) {
       background: color.bgSecondary,
       flexShrink: 0
     }, children: [
-      /* @__PURE__ */ jsx9("span", { style: { fontSize: 14, fontWeight: 500, color: color.text }, children: board.name }),
-      /* @__PURE__ */ jsx9("div", { style: { flex: 1 } }),
-      /* @__PURE__ */ jsxs9("div", { style: { display: "flex", alignItems: "center", gap: 4 }, children: [
-        /* @__PURE__ */ jsx9(
+      /* @__PURE__ */ jsx10("span", { style: { fontSize: 14, fontWeight: 500, color: color.text }, children: board.name }),
+      /* @__PURE__ */ jsx10("div", { style: { flex: 1 } }),
+      /* @__PURE__ */ jsxs10("div", { style: { display: "flex", alignItems: "center", gap: 4 }, children: [
+        /* @__PURE__ */ jsx10(
           "button",
           {
             onClick: () => adjustZoom(-0.1),
@@ -3536,11 +3758,11 @@ function BoardView({ api }) {
             children: "-"
           }
         ),
-        /* @__PURE__ */ jsxs9("span", { style: { fontSize: 10, color: color.textTertiary, width: 40, textAlign: "center" }, children: [
+        /* @__PURE__ */ jsxs10("span", { style: { fontSize: 10, color: color.textTertiary, width: 40, textAlign: "center" }, children: [
           Math.round(zoomLevel * 100),
           "%"
         ] }),
-        /* @__PURE__ */ jsx9(
+        /* @__PURE__ */ jsx10(
           "button",
           {
             onClick: () => adjustZoom(0.1),
@@ -3559,7 +3781,7 @@ function BoardView({ api }) {
           }
         )
       ] }),
-      /* @__PURE__ */ jsx9(
+      /* @__PURE__ */ jsx10(
         "button",
         {
           onClick: () => setShowHistory(true),
@@ -3577,7 +3799,7 @@ function BoardView({ api }) {
           children: "History"
         }
       ),
-      /* @__PURE__ */ jsx9(
+      /* @__PURE__ */ jsx10(
         "button",
         {
           onClick: () => kanBossState.openBoardConfig(),
@@ -3599,7 +3821,7 @@ function BoardView({ api }) {
         }
       )
     ] }),
-    selectionCount > 0 && /* @__PURE__ */ jsx9(
+    selectionCount > 0 && /* @__PURE__ */ jsx10(
       BatchActionsBar,
       {
         selectionCount,
@@ -3609,13 +3831,13 @@ function BoardView({ api }) {
         onBatchDelete: handleBatchDelete
       }
     ),
-    /* @__PURE__ */ jsx9(BoardStats, { cards, board }),
-    /* @__PURE__ */ jsx9(FilterBar, { filter, labels: board.labels || [] }),
-    /* @__PURE__ */ jsx9("div", { ref: scrollRef, style: { flex: 1, overflow: "auto" }, children: /* @__PURE__ */ jsx9("div", { style: {
+    /* @__PURE__ */ jsx10(BoardStats, { cards, board }),
+    /* @__PURE__ */ jsx10(FilterBar, { filter, labels: board.labels || [] }),
+    /* @__PURE__ */ jsx10("div", { ref: scrollRef, style: { flex: 1, overflow: "auto" }, children: /* @__PURE__ */ jsx10("div", { style: {
       transform: `scale(${zoomLevel})`,
       transformOrigin: "top left",
       minWidth: `${140 + sortedStates.length * 220}px`
-    }, children: /* @__PURE__ */ jsxs9("div", { style: {
+    }, children: /* @__PURE__ */ jsxs10("div", { style: {
       display: "grid",
       gridTemplateColumns: gridCols,
       gap: 1,
@@ -3623,11 +3845,11 @@ function BoardView({ api }) {
       overflow: "hidden",
       background: `${color.border}50`
     }, children: [
-      /* @__PURE__ */ jsx9("div", { style: { background: color.bgSecondary, padding: 8 } }),
+      /* @__PURE__ */ jsx10("div", { style: { background: color.bgSecondary, padding: 8 } }),
       sortedStates.map((state) => {
         const colCards = filteredCards.filter((c) => c.stateId === state.id);
         const overWip = state.wipLimit > 0 && colCards.length > state.wipLimit;
-        return /* @__PURE__ */ jsx9(
+        return /* @__PURE__ */ jsx10(
           "div",
           {
             style: {
@@ -3637,9 +3859,9 @@ function BoardView({ api }) {
               flexDirection: "column",
               ...overWip ? { borderBottom: `2px solid ${color.textError}` } : {}
             },
-            children: /* @__PURE__ */ jsxs9("div", { style: { display: "flex", alignItems: "center", gap: 6 }, children: [
-              /* @__PURE__ */ jsx9("span", { style: { fontSize: 12, fontWeight: 500, color: color.text }, children: state.name }),
-              state.isAutomatic && /* @__PURE__ */ jsxs9("span", { style: {
+            children: /* @__PURE__ */ jsxs10("div", { style: { display: "flex", alignItems: "center", gap: 6 }, children: [
+              /* @__PURE__ */ jsx10("span", { style: { fontSize: 12, fontWeight: 500, color: color.text }, children: state.name }),
+              state.isAutomatic && /* @__PURE__ */ jsxs10("span", { style: {
                 fontSize: 9,
                 padding: "1px 6px",
                 borderRadius: 99,
@@ -3653,7 +3875,7 @@ function BoardView({ api }) {
                 "\u2699",
                 " auto"
               ] }),
-              state.wipLimit > 0 && /* @__PURE__ */ jsxs9("span", { style: {
+              state.wipLimit > 0 && /* @__PURE__ */ jsxs10("span", { style: {
                 fontSize: 9,
                 color: overWip ? color.textError : color.textTertiary,
                 fontWeight: overWip ? 600 : 400
@@ -3676,7 +3898,7 @@ function BoardView({ api }) {
         const cellBg = laneIndex % 2 === 0 ? color.bg : `${color.bgSecondary}80`;
         return [
           // Swimlane label
-          /* @__PURE__ */ jsxs9(
+          /* @__PURE__ */ jsxs10(
             "div",
             {
               style: {
@@ -3687,8 +3909,8 @@ function BoardView({ api }) {
                 justifyContent: "center"
               },
               children: [
-                /* @__PURE__ */ jsx9("span", { style: { fontSize: 12, fontWeight: 500, color: color.text }, children: lane.name }),
-                managerAgent && /* @__PURE__ */ jsx9("div", { style: { display: "flex", alignItems: "center", gap: 4, marginTop: 4 }, children: /* @__PURE__ */ jsx9("span", { style: { fontSize: 9, color: color.textTertiary, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }, children: managerAgent.name }) })
+                /* @__PURE__ */ jsx10("span", { style: { fontSize: 12, fontWeight: 500, color: color.text }, children: lane.name }),
+                managerAgent && /* @__PURE__ */ jsx10("div", { style: { display: "flex", alignItems: "center", gap: 4, marginTop: 4 }, children: /* @__PURE__ */ jsx10("span", { style: { fontSize: 9, color: color.textTertiary, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }, children: managerAgent.name }) })
               ]
             },
             `lane-${lane.id}`
@@ -3698,11 +3920,11 @@ function BoardView({ api }) {
             const cellCards = filteredCards.filter(
               (c) => c.stateId === state.id && c.swimlaneId === lane.id
             );
-            return /* @__PURE__ */ jsx9(
+            return /* @__PURE__ */ jsx10(
               "div",
               {
                 style: { background: cellBg, display: "flex", flexDirection: "column" },
-                children: /* @__PURE__ */ jsx9(
+                children: /* @__PURE__ */ jsx10(
                   CardCell,
                   {
                     cards: cellCards,
@@ -3726,9 +3948,10 @@ function BoardView({ api }) {
         ];
       })
     ] }) }) }),
-    showCardDialog && /* @__PURE__ */ jsx9(CardDialog, { api, boardId: board.id, boardLabels: board.labels || [] }),
-    showConfigDialog && /* @__PURE__ */ jsx9(BoardConfigDialog, { api, board }),
-    showHistory && /* @__PURE__ */ jsx9(RunHistoryPanel, { api, boardId: board.id, onClose: () => setShowHistory(false) })
+    showCardDialog && /* @__PURE__ */ jsx10(CardDialog, { api, boardId: board.id, boardLabels: board.labels || [] }),
+    showConfigDialog && /* @__PURE__ */ jsx10(BoardConfigDialog, { api, board }),
+    showHistory && /* @__PURE__ */ jsx10(RunHistoryPanel, { api, boardId: board.id, onClose: () => setShowHistory(false) }),
+    /* @__PURE__ */ jsx10(ShortcutsHelp, {})
   ] });
 }
 
@@ -3799,14 +4022,14 @@ function mapThemeToCSS(theme) {
   };
 }
 function useTheme(themeApi) {
-  const React11 = globalThis.React;
-  const [theme, setTheme] = React11.useState(() => themeApi.getCurrent());
-  React11.useEffect(() => {
+  const React12 = globalThis.React;
+  const [theme, setTheme] = React12.useState(() => themeApi.getCurrent());
+  React12.useEffect(() => {
     setTheme(themeApi.getCurrent());
     const disposable = themeApi.onDidChange((t) => setTheme(t));
     return () => disposable.dispose();
   }, [themeApi]);
-  const style = React11.useMemo(
+  const style = React12.useMemo(
     () => mapThemeToCSS(theme),
     [theme]
   );
@@ -3814,8 +4037,8 @@ function useTheme(themeApi) {
 }
 
 // src/main.tsx
-import { jsx as jsx10 } from "react/jsx-runtime";
-var React10 = globalThis.React;
+import { jsx as jsx11 } from "react/jsx-runtime";
+var React11 = globalThis.React;
 function activate(ctx, api) {
   kanBossState.switchProject();
   api.logging.info("KanBoss plugin activated");
@@ -3831,6 +4054,8 @@ function activate(ctx, api) {
   ctx.subscriptions.push(newBoardCmd);
   const automationSub = initAutomationEngine(api);
   ctx.subscriptions.push(automationSub);
+  const shortcutsSub = registerKeyboardShortcuts(api);
+  ctx.subscriptions.push(shortcutsSub);
 }
 function deactivate() {
   shutdownAutomationEngine();
@@ -3838,11 +4063,11 @@ function deactivate() {
 }
 function SidebarPanel({ api }) {
   const { style: themeStyle } = useTheme(api.theme);
-  return /* @__PURE__ */ jsx10("div", { style: { ...themeStyle, height: "100%" }, children: /* @__PURE__ */ jsx10(BoardSidebar, { api }) });
+  return /* @__PURE__ */ jsx11("div", { style: { ...themeStyle, height: "100%" }, children: /* @__PURE__ */ jsx11(BoardSidebar, { api }) });
 }
 function MainPanel({ api }) {
   const { style: themeStyle } = useTheme(api.theme);
-  return /* @__PURE__ */ jsx10("div", { style: { ...themeStyle }, children: /* @__PURE__ */ jsx10(BoardView, { api }) });
+  return /* @__PURE__ */ jsx11("div", { style: { ...themeStyle }, children: /* @__PURE__ */ jsx11(BoardView, { api }) });
 }
 export {
   MainPanel,
