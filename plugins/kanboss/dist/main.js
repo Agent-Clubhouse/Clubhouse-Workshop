@@ -21,6 +21,10 @@ var kanBossState = {
   editingSwimlaneId: null,
   // target swimlane for new card
   configuringBoard: false,
+  // Card selection state (multi-select)
+  selectedCardIds: /* @__PURE__ */ new Set(),
+  lastSelectedCardId: null,
+  // for shift-click range selection
   // Filter state
   filter: {
     searchQuery: "",
@@ -66,6 +70,51 @@ var kanBossState = {
     this.configuringBoard = false;
     this.notify();
   },
+  toggleCardSelection(cardId) {
+    if (this.selectedCardIds.has(cardId)) {
+      this.selectedCardIds.delete(cardId);
+    } else {
+      this.selectedCardIds.add(cardId);
+    }
+    this.lastSelectedCardId = cardId;
+    this.notify();
+  },
+  selectCardRange(cardId, orderedCardIds) {
+    const lastId = this.lastSelectedCardId;
+    if (!lastId) {
+      this.selectedCardIds.add(cardId);
+      this.lastSelectedCardId = cardId;
+      this.notify();
+      return;
+    }
+    const startIdx = orderedCardIds.indexOf(lastId);
+    const endIdx = orderedCardIds.indexOf(cardId);
+    if (startIdx === -1 || endIdx === -1) {
+      this.selectedCardIds.add(cardId);
+      this.lastSelectedCardId = cardId;
+      this.notify();
+      return;
+    }
+    const lo = Math.min(startIdx, endIdx);
+    const hi = Math.max(startIdx, endIdx);
+    for (let i = lo; i <= hi; i++) {
+      this.selectedCardIds.add(orderedCardIds[i]);
+    }
+    this.lastSelectedCardId = cardId;
+    this.notify();
+  },
+  selectCard(cardId) {
+    this.selectedCardIds.clear();
+    this.selectedCardIds.add(cardId);
+    this.lastSelectedCardId = cardId;
+    this.notify();
+  },
+  clearSelection() {
+    if (this.selectedCardIds.size === 0) return;
+    this.selectedCardIds.clear();
+    this.lastSelectedCardId = null;
+    this.notify();
+  },
   setFilter(updates) {
     this.filter = { ...this.filter, ...updates };
     this.notify();
@@ -100,6 +149,8 @@ var kanBossState = {
     this.editingStateId = null;
     this.editingSwimlaneId = null;
     this.configuringBoard = false;
+    this.selectedCardIds.clear();
+    this.lastSelectedCardId = null;
     this.filter = { searchQuery: "", priorityFilter: "all", labelFilter: "all", stuckOnly: false };
     this.listeners.clear();
   }
@@ -598,6 +649,13 @@ import { Fragment, jsx as jsx2, jsxs as jsxs2 } from "react/jsx-runtime";
 var React2 = globalThis.React;
 var { useState: useState2, useCallback: useCallback2, useRef: useRef2 } = React2;
 var MAX_VISIBLE = 5;
+var MIME_SINGLE = "application/x-kanboss-card";
+var MIME_MULTI = "application/x-kanboss-cards";
+var dropIndicatorStyle = {
+  background: `${color.bgInfo}`,
+  boxShadow: `inset 0 0 0 2px ${color.borderInfo}`,
+  borderRadius: 10
+};
 function MoveButton({ card, allStates, onMove }) {
   const [open, setOpen] = useState2(false);
   const otherStates = allStates.filter((s) => s.id !== card.stateId);
@@ -659,22 +717,43 @@ function MoveButton({ card, allStates, onMove }) {
     )) })
   ] });
 }
-function CardTile({ card, allStates, boardLabels, onMoveCard, onDeleteCard, onClearRetries, onManualAdvance }) {
+function CardTile({ card, allStates, boardLabels, isSelected, selectedCount, allCardIds, onMoveCard, onDeleteCard, onClearRetries, onManualAdvance }) {
   const stuck = isCardStuck(card);
   const automating = !stuck && isCardAutomating(card);
   const hasRetries = !stuck && !automating && card.automationAttempts > 0;
   const [contextMenu, setContextMenu] = useState2(null);
   const config = PRIORITY_CONFIG[card.priority];
   const cardLabels = card.labels.map((lid) => boardLabels.find((l) => l.id === lid)).filter(Boolean);
+  const handleClick = useCallback2((e) => {
+    e.stopPropagation();
+    if (e.metaKey || e.ctrlKey) {
+      kanBossState.toggleCardSelection(card.id);
+    } else if (e.shiftKey) {
+      kanBossState.selectCardRange(card.id, allCardIds);
+    } else if (kanBossState.selectedCardIds.size > 0) {
+      kanBossState.clearSelection();
+      kanBossState.openEditCard(card.id);
+    } else {
+      kanBossState.openEditCard(card.id);
+    }
+  }, [card.id, allCardIds]);
+  const handleDragStart = useCallback2((e) => {
+    if (isSelected && selectedCount > 1) {
+      const ids = [...kanBossState.selectedCardIds];
+      e.dataTransfer.setData(MIME_MULTI, JSON.stringify(ids));
+      e.dataTransfer.setData(MIME_SINGLE, card.id);
+    } else {
+      e.dataTransfer.setData(MIME_SINGLE, card.id);
+    }
+    e.dataTransfer.effectAllowed = "move";
+  }, [card.id, isSelected, selectedCount]);
+  const selectionBorder = isSelected ? `2px solid ${color.accent}` : `1px solid ${stuck ? color.textError : automating ? color.accent : color.border}`;
   return /* @__PURE__ */ jsxs2(
     "div",
     {
       draggable: true,
-      onDragStart: (e) => {
-        e.dataTransfer.setData("application/x-kanboss-card", card.id);
-        e.dataTransfer.effectAllowed = "move";
-      },
-      onClick: () => kanBossState.openEditCard(card.id),
+      onDragStart: handleDragStart,
+      onClick: handleClick,
       onContextMenu: (e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -683,19 +762,31 @@ function CardTile({ card, allStates, boardLabels, onMoveCard, onDeleteCard, onCl
       },
       style: {
         position: "relative",
-        background: color.bgSecondary,
-        border: `1px solid ${stuck ? color.textError : automating ? color.accent : color.border}`,
+        background: isSelected ? color.accentBg : color.bgSecondary,
+        border: selectionBorder,
         borderRadius: 10,
         padding: "8px 10px",
         cursor: "grab",
-        transition: "border-color 0.2s, box-shadow 0.2s",
-        boxShadow: stuck ? `0 0 8px ${color.glowError}` : automating ? `0 0 8px ${color.glowAccent}` : `0 1px 3px ${color.shadowLight}`,
+        transition: "border-color 0.2s, box-shadow 0.2s, background 0.15s",
+        boxShadow: isSelected ? `0 0 8px ${color.glowAccent}` : stuck ? `0 0 8px ${color.glowError}` : automating ? `0 0 8px ${color.glowAccent}` : `0 1px 3px ${color.shadowLight}`,
         fontFamily: font.family,
         ...automating ? {
           animation: "kanboss-pulse 2s ease-in-out infinite"
         } : {}
       },
       children: [
+        isSelected && selectedCount > 1 && /* @__PURE__ */ jsx2("div", { style: {
+          position: "absolute",
+          top: -6,
+          left: -6,
+          padding: "2px 7px",
+          borderRadius: 99,
+          fontSize: 8,
+          fontWeight: 700,
+          color: color.textOnBadge,
+          background: color.accent,
+          zIndex: 5
+        }, children: selectedCount }),
         (!config.hidden || cardLabels.length > 0) && /* @__PURE__ */ jsxs2("div", { style: { display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 6 }, children: [
           !config.hidden && /* @__PURE__ */ jsx2("span", { style: {
             fontSize: 10,
@@ -947,9 +1038,10 @@ function CardTile({ card, allStates, boardLabels, onMoveCard, onDeleteCard, onCl
     }
   );
 }
-function CardCell({ cards, stateId, swimlaneId, isLastState, allStates, boardLabels, wipLimit, onMoveCard, onDeleteCard, onClearRetries, onManualAdvance }) {
+function CardCell({ cards, stateId, swimlaneId, isLastState, allStates, boardLabels, wipLimit, selectedCardIds, allCardIds, onMoveCard, onMoveCards, onDeleteCard, onClearRetries, onManualAdvance }) {
   const [expanded, setExpanded] = useState2(false);
   const [isDragOver, setIsDragOver] = useState2(false);
+  const [dragCardCount, setDragCardCount] = useState2(0);
   const dragCounter = useRef2(0);
   const sorted = [...cards].sort((a, b) => (PRIORITY_RANK[a.priority] ?? 4) - (PRIORITY_RANK[b.priority] ?? 4));
   const overWip = wipLimit > 0 && sorted.length > wipLimit;
@@ -958,6 +1050,9 @@ function CardCell({ cards, stateId, swimlaneId, isLastState, allStates, boardLab
     e.stopPropagation();
     kanBossState.openNewCard(stateId, swimlaneId);
   }, [stateId, swimlaneId]);
+  const handleCellClick = useCallback2(() => {
+    kanBossState.clearSelection();
+  }, []);
   const handleDragOver = useCallback2((e) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = "move";
@@ -965,30 +1060,55 @@ function CardCell({ cards, stateId, swimlaneId, isLastState, allStates, boardLab
   const handleDragEnter = useCallback2((e) => {
     e.preventDefault();
     dragCounter.current++;
-    if (dragCounter.current === 1) setIsDragOver(true);
+    if (dragCounter.current === 1) {
+      setIsDragOver(true);
+      const multiData = e.dataTransfer.types.includes(MIME_MULTI);
+      setDragCardCount(multiData ? 2 : 1);
+    }
   }, []);
   const handleDragLeave = useCallback2(() => {
     dragCounter.current--;
-    if (dragCounter.current === 0) setIsDragOver(false);
+    if (dragCounter.current === 0) {
+      setIsDragOver(false);
+      setDragCardCount(0);
+    }
   }, []);
   const handleDrop = useCallback2((e) => {
     e.preventDefault();
     dragCounter.current = 0;
     setIsDragOver(false);
-    const cardId = e.dataTransfer.getData("application/x-kanboss-card");
-    if (cardId) onMoveCard(cardId, stateId, swimlaneId);
-  }, [onMoveCard, stateId, swimlaneId]);
+    setDragCardCount(0);
+    const multiRaw = e.dataTransfer.getData(MIME_MULTI);
+    if (multiRaw) {
+      try {
+        const ids = JSON.parse(multiRaw);
+        if (Array.isArray(ids) && ids.length > 0) {
+          onMoveCards(ids, stateId, swimlaneId);
+          kanBossState.clearSelection();
+          return;
+        }
+      } catch {
+      }
+    }
+    const cardId = e.dataTransfer.getData(MIME_SINGLE);
+    if (cardId) {
+      onMoveCard(cardId, stateId, swimlaneId);
+      kanBossState.clearSelection();
+    }
+  }, [onMoveCard, onMoveCards, stateId, swimlaneId]);
   const dropProps = {
     onDragOver: handleDragOver,
     onDragEnter: handleDragEnter,
     onDragLeave: handleDragLeave,
     onDrop: handleDrop
   };
+  const selectedCount = selectedCardIds.size;
   if (isLastState && sorted.length > 0 && !expanded) {
-    return /* @__PURE__ */ jsx2(
+    return /* @__PURE__ */ jsxs2(
       "div",
       {
         ...dropProps,
+        onClick: handleCellClick,
         style: {
           flex: 1,
           padding: 8,
@@ -996,32 +1116,43 @@ function CardCell({ cards, stateId, swimlaneId, isLastState, allStates, boardLab
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          transition: "background 0.2s",
-          ...isDragOver ? {
-            background: color.bgInfo,
-            boxShadow: `inset 0 0 0 1px ${color.borderInfo}`,
-            borderRadius: 10
-          } : {}
+          transition: "background 0.2s, box-shadow 0.2s",
+          ...isDragOver ? dropIndicatorStyle : {}
         },
-        children: /* @__PURE__ */ jsxs2(
-          "button",
-          {
-            onClick: () => setExpanded(true),
-            style: {
-              padding: "4px 12px",
-              fontSize: 11,
-              borderRadius: 99,
-              background: color.bgSuccess,
-              color: color.textSuccess,
-              border: "none",
-              cursor: "pointer"
-            },
-            children: [
-              sorted.length,
-              " done"
-            ]
-          }
-        )
+        children: [
+          /* @__PURE__ */ jsxs2(
+            "button",
+            {
+              onClick: (e) => {
+                e.stopPropagation();
+                setExpanded(true);
+              },
+              style: {
+                padding: "4px 12px",
+                fontSize: 11,
+                borderRadius: 99,
+                background: color.bgSuccess,
+                color: color.textSuccess,
+                border: "none",
+                cursor: "pointer"
+              },
+              children: [
+                sorted.length,
+                " done"
+              ]
+            }
+          ),
+          isDragOver && dragCardCount > 1 && /* @__PURE__ */ jsxs2("span", { style: {
+            marginLeft: 6,
+            fontSize: 9,
+            color: color.textInfo,
+            fontWeight: 600
+          }, children: [
+            "+",
+            dragCardCount,
+            " cards"
+          ] })
+        ]
       }
     );
   }
@@ -1031,6 +1162,7 @@ function CardCell({ cards, stateId, swimlaneId, isLastState, allStates, boardLab
     "div",
     {
       ...dropProps,
+      onClick: handleCellClick,
       style: {
         flex: 1,
         padding: 8,
@@ -1038,15 +1170,22 @@ function CardCell({ cards, stateId, swimlaneId, isLastState, allStates, boardLab
         flexDirection: "column",
         gap: 6,
         minHeight: 60,
-        transition: "background 0.2s",
+        transition: "background 0.2s, box-shadow 0.2s",
         ...overWip ? { background: color.bgErrorSubtle } : {},
-        ...isDragOver ? {
-          background: color.bgInfo,
-          boxShadow: `inset 0 0 0 1px ${color.borderInfo}`,
-          borderRadius: 10
-        } : {}
+        ...isDragOver ? dropIndicatorStyle : {}
       },
       children: [
+        isDragOver && dragCardCount > 1 && /* @__PURE__ */ jsxs2("div", { style: {
+          fontSize: 9,
+          color: color.textInfo,
+          fontWeight: 600,
+          textAlign: "center",
+          padding: "2px 0"
+        }, children: [
+          "Drop ",
+          dragCardCount,
+          "+ cards here"
+        ] }),
         wipLimit > 0 && /* @__PURE__ */ jsxs2("div", { style: {
           fontSize: 9,
           color: overWip ? color.textError : atWip ? color.textWarning : color.textTertiary,
@@ -1063,6 +1202,9 @@ function CardCell({ cards, stateId, swimlaneId, isLastState, allStates, boardLab
             card,
             allStates,
             boardLabels,
+            isSelected: selectedCardIds.has(card.id),
+            selectedCount,
+            allCardIds,
             onMoveCard,
             onDeleteCard,
             onClearRetries,
@@ -1073,7 +1215,10 @@ function CardCell({ cards, stateId, swimlaneId, isLastState, allStates, boardLab
         hiddenCount > 0 && /* @__PURE__ */ jsxs2(
           "button",
           {
-            onClick: () => setExpanded(true),
+            onClick: (e) => {
+              e.stopPropagation();
+              setExpanded(true);
+            },
             style: {
               width: "100%",
               textAlign: "center",
@@ -1095,7 +1240,10 @@ function CardCell({ cards, stateId, swimlaneId, isLastState, allStates, boardLab
         isLastState && expanded && /* @__PURE__ */ jsx2(
           "button",
           {
-            onClick: () => setExpanded(false),
+            onClick: (e) => {
+              e.stopPropagation();
+              setExpanded(false);
+            },
             style: {
               width: "100%",
               textAlign: "center",
@@ -1113,7 +1261,10 @@ function CardCell({ cards, stateId, swimlaneId, isLastState, allStates, boardLab
         /* @__PURE__ */ jsx2(
           "button",
           {
-            onClick: handleAdd,
+            onClick: (e) => {
+              e.stopPropagation();
+              handleAdd(e);
+            },
             style: {
               width: "100%",
               textAlign: "center",
@@ -2267,6 +2418,7 @@ function BoardView({ api }) {
   const [showConfigDialog, setShowConfigDialog] = useState5(false);
   const [zoomLevel, setZoomLevel] = useState5(1);
   const [filter, setFilter] = useState5(kanBossState.filter);
+  const [selectedCardIds, setSelectedCardIds] = useState5(/* @__PURE__ */ new Set());
   const loadBoard2 = useCallback6(async () => {
     const boardId = kanBossState.selectedBoardId;
     if (!boardId) {
@@ -2300,6 +2452,7 @@ function BoardView({ api }) {
       setShowCardDialog(kanBossState.editingCardId !== null);
       setShowConfigDialog(kanBossState.configuringBoard);
       setFilter((prev) => filtersEqual(prev, kanBossState.filter) ? prev : { ...kanBossState.filter });
+      setSelectedCardIds(new Set(kanBossState.selectedCardIds));
       const boardChanged = kanBossState.selectedBoardId !== prevBoardIdRef.current;
       const refreshed = kanBossState.refreshCount !== refreshRef2.current;
       if (boardChanged) {
@@ -2438,6 +2591,41 @@ function BoardView({ api }) {
     setCards([...updated]);
     kanBossState.triggerRefresh();
   }, [board, api]);
+  const handleMoveCards = useCallback6(async (cardIds, targetStateId, targetSwimlaneId) => {
+    if (!board) return;
+    const updated = await mutateStorage(cardsStorage(api, board), cardsKey(board.id), (allCards) => {
+      const now = Date.now();
+      for (const cardId of cardIds) {
+        const idx = allCards.findIndex((c) => c.id === cardId);
+        if (idx === -1) continue;
+        const card = allCards[idx];
+        const stateChanged = card.stateId !== targetStateId;
+        const laneChanged = targetSwimlaneId != null && card.swimlaneId !== targetSwimlaneId;
+        if (!stateChanged && !laneChanged) continue;
+        const fromState = board.states.find((s) => s.id === card.stateId);
+        const toState = board.states.find((s) => s.id === targetStateId);
+        if (!fromState || !toState) continue;
+        card.stateId = targetStateId;
+        if (targetSwimlaneId) card.swimlaneId = targetSwimlaneId;
+        card.automationAttempts = 0;
+        card.updatedAt = now;
+        let detail = "";
+        if (stateChanged) detail = `Moved from "${fromState.name}" to "${toState.name}"`;
+        if (laneChanged) {
+          const fromLane = board.swimlanes.find((l) => l.id === card.swimlaneId);
+          const toLane = targetSwimlaneId ? board.swimlanes.find((l) => l.id === targetSwimlaneId) : null;
+          if (fromLane && toLane) {
+            detail += detail ? `, lane "${fromLane.name}" \u2192 "${toLane.name}"` : `Moved to lane "${toLane.name}"`;
+          }
+        }
+        card.history.push({ action: "moved", timestamp: now, detail });
+        allCards[idx] = card;
+      }
+      return allCards;
+    });
+    setCards([...updated]);
+    kanBossState.triggerRefresh();
+  }, [board, api]);
   if (!board) {
     return /* @__PURE__ */ jsx6("div", { style: {
       flex: 1,
@@ -2455,6 +2643,11 @@ function BoardView({ api }) {
   const sortedLanes = [...board.swimlanes].sort((a, b) => a.order - b.order);
   const lastStateId = sortedStates.length > 0 ? sortedStates[sortedStates.length - 1].id : null;
   const gridCols = `140px repeat(${sortedStates.length}, minmax(220px, 1fr))`;
+  const allCardIds = sortedStates.flatMap(
+    (state) => sortedLanes.flatMap(
+      (lane) => filteredCards.filter((c) => c.stateId === state.id && c.swimlaneId === lane.id).sort((a, b) => (PRIORITY_RANK[a.priority] ?? 4) - (PRIORITY_RANK[b.priority] ?? 4)).map((c) => c.id)
+    )
+  );
   return /* @__PURE__ */ jsxs6("div", { style: { display: "flex", flexDirection: "column", height: "100%", background: color.bg, fontFamily: font.family }, children: [
     /* @__PURE__ */ jsx6("style", { dangerouslySetInnerHTML: { __html: PULSE_STYLE } }),
     /* @__PURE__ */ jsxs6("div", { style: {
@@ -2467,6 +2660,35 @@ function BoardView({ api }) {
       flexShrink: 0
     }, children: [
       /* @__PURE__ */ jsx6("span", { style: { fontSize: 14, fontWeight: 500, color: color.text }, children: board.name }),
+      selectedCardIds.size > 0 && /* @__PURE__ */ jsxs6("span", { style: {
+        fontSize: 11,
+        padding: "2px 10px",
+        borderRadius: 99,
+        background: color.accentBg,
+        color: color.accent,
+        fontWeight: 500,
+        display: "flex",
+        alignItems: "center",
+        gap: 6
+      }, children: [
+        selectedCardIds.size,
+        " selected",
+        /* @__PURE__ */ jsx6(
+          "button",
+          {
+            onClick: () => kanBossState.clearSelection(),
+            style: {
+              fontSize: 10,
+              color: color.accent,
+              border: "none",
+              background: "transparent",
+              cursor: "pointer",
+              padding: 0
+            },
+            children: "\xD7"
+          }
+        )
+      ] }),
       /* @__PURE__ */ jsx6("div", { style: { flex: 1 } }),
       /* @__PURE__ */ jsxs6("div", { style: { display: "flex", alignItems: "center", gap: 4 }, children: [
         /* @__PURE__ */ jsx6(
@@ -2634,7 +2856,10 @@ function BoardView({ api }) {
                     allStates: sortedStates,
                     boardLabels: board.labels || [],
                     wipLimit: state.wipLimit,
+                    selectedCardIds,
+                    allCardIds,
                     onMoveCard: handleMoveCard,
+                    onMoveCards: handleMoveCards,
                     onDeleteCard: handleDeleteCard,
                     onClearRetries: handleClearRetries,
                     onManualAdvance: handleManualAdvance

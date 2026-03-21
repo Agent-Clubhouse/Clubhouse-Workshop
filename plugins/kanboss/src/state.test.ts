@@ -247,6 +247,87 @@ describe('kanBossState', () => {
   });
 });
 
+describe('card selection', () => {
+  beforeEach(() => {
+    kanBossState.reset();
+  });
+
+  it('starts with empty selection', () => {
+    expect(kanBossState.selectedCardIds.size).toBe(0);
+    expect(kanBossState.lastSelectedCardId).toBeNull();
+  });
+
+  it('selectCard sets a single card and clears previous', () => {
+    kanBossState.selectCard('c1');
+    kanBossState.selectCard('c2');
+    expect(kanBossState.selectedCardIds.size).toBe(1);
+    expect(kanBossState.selectedCardIds.has('c2')).toBe(true);
+    expect(kanBossState.lastSelectedCardId).toBe('c2');
+  });
+
+  it('toggleCardSelection adds and removes cards', () => {
+    kanBossState.toggleCardSelection('c1');
+    expect(kanBossState.selectedCardIds.has('c1')).toBe(true);
+
+    kanBossState.toggleCardSelection('c2');
+    expect(kanBossState.selectedCardIds.size).toBe(2);
+
+    kanBossState.toggleCardSelection('c1');
+    expect(kanBossState.selectedCardIds.has('c1')).toBe(false);
+    expect(kanBossState.selectedCardIds.size).toBe(1);
+  });
+
+  it('selectCardRange selects a range of cards', () => {
+    const ordered = ['c1', 'c2', 'c3', 'c4', 'c5'];
+    kanBossState.selectCard('c2'); // set lastSelectedCardId
+    kanBossState.selectCardRange('c4', ordered);
+    expect([...kanBossState.selectedCardIds].sort()).toEqual(['c2', 'c3', 'c4']);
+  });
+
+  it('selectCardRange works in reverse direction', () => {
+    const ordered = ['c1', 'c2', 'c3', 'c4', 'c5'];
+    kanBossState.selectCard('c4');
+    kanBossState.selectCardRange('c2', ordered);
+    expect([...kanBossState.selectedCardIds].sort()).toEqual(['c2', 'c3', 'c4']);
+  });
+
+  it('selectCardRange falls back to single select when no lastSelectedCardId', () => {
+    const ordered = ['c1', 'c2', 'c3'];
+    kanBossState.selectCardRange('c2', ordered);
+    expect(kanBossState.selectedCardIds.size).toBe(1);
+    expect(kanBossState.selectedCardIds.has('c2')).toBe(true);
+  });
+
+  it('selectCardRange falls back when card not in ordered list', () => {
+    const ordered = ['c1', 'c2', 'c3'];
+    kanBossState.selectCard('c1');
+    kanBossState.selectCardRange('c999', ordered);
+    expect(kanBossState.selectedCardIds.has('c999')).toBe(true);
+  });
+
+  it('clearSelection empties the set', () => {
+    kanBossState.selectCard('c1');
+    kanBossState.toggleCardSelection('c2');
+    kanBossState.clearSelection();
+    expect(kanBossState.selectedCardIds.size).toBe(0);
+    expect(kanBossState.lastSelectedCardId).toBeNull();
+  });
+
+  it('clearSelection does not notify when already empty', () => {
+    let callCount = 0;
+    kanBossState.subscribe(() => { callCount++; });
+    kanBossState.clearSelection();
+    expect(callCount).toBe(0);
+  });
+
+  it('reset clears selection', () => {
+    kanBossState.selectCard('c1');
+    kanBossState.reset();
+    expect(kanBossState.selectedCardIds.size).toBe(0);
+    expect(kanBossState.lastSelectedCardId).toBeNull();
+  });
+});
+
 describe('filtersEqual', () => {
   const base = { searchQuery: '', priorityFilter: 'all' as const, labelFilter: 'all' as const, stuckOnly: false };
 
