@@ -10,6 +10,7 @@ import { CardDialog } from './CardDialog';
 import { BoardConfigDialog } from './BoardConfigDialog';
 import { FilterBar } from './FilterBar';
 import { BatchActionsBar } from './BatchActionsBar';
+import { BoardStats } from './BoardStats';
 import { triggerAutomation } from './AutomationEngine';
 import { mutateStorage } from './storageQueue';
 import * as S from './styles';
@@ -472,6 +473,9 @@ export function BoardView({ api }: { api: PluginAPI }) {
           onBatchDelete={handleBatchDelete}
         />
       )}
+
+      {/* Stats panel */}
+      <BoardStats cards={cards} board={board} />
 
       {/* Filter bar */}
       <FilterBar filter={filter} labels={board.labels || []} />
