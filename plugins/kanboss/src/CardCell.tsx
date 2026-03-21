@@ -2,11 +2,16 @@ const React = globalThis.React;
 const { useState, useCallback, useRef } = React;
 
 import type { Card, BoardState, Label } from './types';
-import { PRIORITY_CONFIG, PRIORITY_RANK, isCardStuck, isCardAutomating } from './types';
+import { PRIORITY_CONFIG, PRIORITY_RANK, isCardStuck, isCardAutomating, subtaskProgress, dueDateStatus, formatDueDate } from './types';
 import { kanBossState } from './state';
 import * as S from './styles';
 
 const MAX_VISIBLE = 5;
+
+export interface AgentInfo {
+  id: string;
+  name: string;
+}
 
 export interface CardCellProps {
   cards: Card[];
@@ -15,6 +20,7 @@ export interface CardCellProps {
   isLastState: boolean;
   allStates: BoardState[];
   boardLabels: Label[];
+  agents: AgentInfo[];
   wipLimit: number;
   onMoveCard: (cardId: string, targetStateId: string, targetSwimlaneId?: string) => void;
   onDeleteCard: (cardId: string) => void;
@@ -90,10 +96,11 @@ function MoveButton({ card, allStates, onMove }: {
 
 // ── Card tile ───────────────────────────────────────────────────────────
 
-function CardTile({ card, allStates, boardLabels, onMoveCard, onDeleteCard, onClearRetries, onManualAdvance }: {
+function CardTile({ card, allStates, boardLabels, agents, onMoveCard, onDeleteCard, onClearRetries, onManualAdvance }: {
   card: Card;
   allStates: BoardState[];
   boardLabels: Label[];
+  agents: AgentInfo[];
   onMoveCard: (cardId: string, targetStateId: string) => void;
   onDeleteCard: (cardId: string) => void;
   onClearRetries: (cardId: string) => void;
@@ -200,6 +207,69 @@ function CardTile({ card, allStates, boardLabels, onMoveCard, onDeleteCard, onCl
           WebkitBoxOrient: 'vertical' as never,
         }}>
           {card.body}
+        </div>
+      )}
+
+      {/* Due date, subtasks, assignee row */}
+      {(card.dueDate != null || (card.subtasks ?? []).length > 0 || card.assigneeAgentId) && (
+        <div style={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          alignItems: 'center',
+          gap: 6,
+          marginTop: 6,
+        }}>
+          {/* Due date badge */}
+          {card.dueDate != null && (() => {
+            const status = dueDateStatus(card);
+            const badgeColor = status === 'overdue' ? S.color.textError
+              : status === 'due-soon' ? S.color.textWarning
+              : S.color.textTertiary;
+            return (
+              <span style={{
+                fontSize: 9,
+                padding: '1px 6px',
+                borderRadius: 99,
+                background: `${badgeColor}20`,
+                color: badgeColor,
+                fontWeight: 500,
+              }}>
+                {formatDueDate(card.dueDate)}
+              </span>
+            );
+          })()}
+
+          {/* Subtask progress */}
+          {(card.subtasks ?? []).length > 0 && (() => {
+            const prog = subtaskProgress(card);
+            const allDone = prog.done === prog.total;
+            return (
+              <span style={{
+                fontSize: 9,
+                color: allDone ? S.color.textSuccess : S.color.textTertiary,
+                fontWeight: allDone ? 500 : 400,
+              }}>
+                {'\u2611'} {prog.done}/{prog.total}
+              </span>
+            );
+          })()}
+
+          {/* Assignee */}
+          {card.assigneeAgentId && (() => {
+            const agent = agents.find((a) => a.id === card.assigneeAgentId);
+            return agent ? (
+              <span style={{
+                fontSize: 9,
+                color: S.color.textTertiary,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+                maxWidth: 80,
+              }}>
+                {agent.name}
+              </span>
+            ) : null;
+          })()}
         </div>
       )}
 
@@ -391,7 +461,7 @@ function CardTile({ card, allStates, boardLabels, onMoveCard, onDeleteCard, onCl
 
 // ── CardCell ────────────────────────────────────────────────────────────
 
-export function CardCell({ cards, stateId, swimlaneId, isLastState, allStates, boardLabels, wipLimit, onMoveCard, onDeleteCard, onClearRetries, onManualAdvance }: CardCellProps) {
+export function CardCell({ cards, stateId, swimlaneId, isLastState, allStates, boardLabels, agents, wipLimit, onMoveCard, onDeleteCard, onClearRetries, onManualAdvance }: CardCellProps) {
   const [expanded, setExpanded] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
   const dragCounter = useRef(0);
@@ -518,6 +588,7 @@ export function CardCell({ cards, stateId, swimlaneId, isLastState, allStates, b
           card={card}
           allStates={allStates}
           boardLabels={boardLabels}
+          agents={agents}
           onMoveCard={onMoveCard}
           onDeleteCard={onDeleteCard}
           onClearRetries={onClearRetries}
