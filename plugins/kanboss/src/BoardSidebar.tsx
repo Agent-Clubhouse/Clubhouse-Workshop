@@ -6,23 +6,20 @@ import type { Board } from './types';
 import { BOARDS_KEY, cardsKey, generateId } from './types';
 import { kanBossState } from './state';
 import { mutateStorage } from './storageQueue';
+import { BOARD_TEMPLATES } from './templates';
+import type { BoardTemplate } from './templates';
 import * as S from './styles';
 
-// ── Default board factory ───────────────────────────────────────────────
+// ── Board factory ───────────────────────────────────────────────────────
 
-function createDefaultBoard(name: string, gitHistory: boolean): Board {
+function createBoardFromTemplate(name: string, gitHistory: boolean, template: BoardTemplate): Board {
   const now = Date.now();
+  const { states, swimlanes } = template.create();
   return {
     id: generateId('board'),
     name,
-    states: [
-      { id: generateId('state'), name: 'Todo',        order: 0, isAutomatic: false, automationPrompt: '', evaluationPrompt: '', wipLimit: 0 },
-      { id: generateId('state'), name: 'In Progress', order: 1, isAutomatic: false, automationPrompt: '', evaluationPrompt: '', wipLimit: 0 },
-      { id: generateId('state'), name: 'Done',        order: 2, isAutomatic: false, automationPrompt: '', evaluationPrompt: '', wipLimit: 0 },
-    ],
-    swimlanes: [
-      { id: generateId('lane'), name: 'Default', order: 0, managerAgentId: null, evaluationAgentId: null },
-    ],
+    states,
+    swimlanes,
     labels: [],
     config: { maxRetries: 3, zoomLevel: 1.0, gitHistory },
     createdAt: now,
@@ -33,11 +30,12 @@ function createDefaultBoard(name: string, gitHistory: boolean): Board {
 // ── Create Board Dialog ─────────────────────────────────────────────────
 
 function CreateBoardDialog({ onSave, onCancel }: {
-  onSave: (name: string, gitHistory: boolean) => void;
+  onSave: (name: string, gitHistory: boolean, templateId: string) => void;
   onCancel: () => void;
 }) {
   const [name, setName] = useState('');
   const [gitHistory, setGitHistory] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState('default');
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -47,22 +45,69 @@ function CreateBoardDialog({ onSave, onCancel }: {
   const handleSubmit = useCallback(() => {
     const trimmed = name.trim();
     if (!trimmed) return;
-    onSave(trimmed, gitHistory);
-  }, [name, gitHistory, onSave]);
+    onSave(trimmed, gitHistory, selectedTemplate);
+  }, [name, gitHistory, selectedTemplate, onSave]);
 
   return (
     <div style={S.overlay} onClick={onCancel}>
-      <div style={{ ...S.dialog, maxWidth: 380 }} onClick={(e) => e.stopPropagation()}>
+      <div style={{ ...S.dialog, maxWidth: 480 }} onClick={(e) => e.stopPropagation()}>
         {/* Header */}
         <div style={{ padding: '16px 20px 8px', fontFamily: S.font.family }}>
           <h2 style={{ fontSize: 14, fontWeight: 600, color: S.color.text, margin: 0 }}>Create Board</h2>
           <p style={{ fontSize: 11, color: S.color.textTertiary, marginTop: 4 }}>
-            Set up a new Kanban board for your project.
+            Choose a template and name your board.
           </p>
         </div>
 
         {/* Form */}
         <div style={{ padding: '12px 20px', display: 'flex', flexDirection: 'column', gap: 12, fontFamily: S.font.family }}>
+          {/* Template picker */}
+          <div>
+            <label style={{ display: 'block', fontSize: 11, fontWeight: 500, color: S.color.textSecondary, marginBottom: 6 }}>
+              Template
+            </label>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+              {BOARD_TEMPLATES.map((tmpl) => {
+                const isSelected = selectedTemplate === tmpl.id;
+                return (
+                  <button
+                    key={tmpl.id}
+                    onClick={() => setSelectedTemplate(tmpl.id)}
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'flex-start',
+                      gap: 4,
+                      padding: '10px 12px',
+                      borderRadius: 10,
+                      border: `1.5px solid ${isSelected ? S.color.accent : S.color.border}`,
+                      background: isSelected ? S.color.accentBg : S.color.bgSecondary,
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                      fontFamily: S.font.family,
+                      transition: 'border-color 0.15s, background 0.15s',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span style={{ fontSize: 14 }}>{tmpl.icon}</span>
+                      <span style={{
+                        fontSize: 12,
+                        fontWeight: 500,
+                        color: isSelected ? S.color.accent : S.color.text,
+                      }}>
+                        {tmpl.name}
+                      </span>
+                    </div>
+                    <span style={{ fontSize: 10, color: S.color.textTertiary, lineHeight: 1.4 }}>
+                      {tmpl.description}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Board name */}
           <div>
             <label style={{ display: 'block', fontSize: 11, fontWeight: 500, color: S.color.textSecondary, marginBottom: 4 }}>
               Board Name
@@ -78,6 +123,7 @@ function CreateBoardDialog({ onSave, onCancel }: {
             />
           </div>
 
+          {/* Git history */}
           <div style={{
             display: 'flex',
             alignItems: 'flex-start',
@@ -176,8 +222,9 @@ export function BoardSidebar({ api }: { api: PluginAPI }) {
     return unsub;
   }, []);
 
-  const handleCreate = useCallback(async (name: string, gitHistory: boolean) => {
-    const board = createDefaultBoard(name, gitHistory);
+  const handleCreate = useCallback(async (name: string, gitHistory: boolean, templateId: string) => {
+    const template = BOARD_TEMPLATES.find((t) => t.id === templateId) ?? BOARD_TEMPLATES[0];
+    const board = createBoardFromTemplate(name, gitHistory, template);
     const next = await mutateStorage<Board>(boardsStorage, BOARDS_KEY, (boards) => {
       boards.push(board);
       return boards;

@@ -1,4 +1,4 @@
-// src/state.ts
+// plugins/kanboss/src/state.ts
 function filtersEqual(a, b) {
   return a.searchQuery === b.searchQuery && a.priorityFilter === b.priorityFilter && a.labelFilter === b.labelFilter && a.stuckOnly === b.stuckOnly;
 }
@@ -105,7 +105,7 @@ var kanBossState = {
   }
 };
 
-// src/types.ts
+// plugins/kanboss/src/types.ts
 var BOARDS_KEY = "boards";
 var cardsKey = (boardId) => `cards:${boardId}`;
 var AUTOMATION_RUNS_KEY = "automation-runs";
@@ -160,7 +160,7 @@ function isCardAutomating(card) {
   return false;
 }
 
-// src/storageQueue.ts
+// plugins/kanboss/src/storageQueue.ts
 var mutexes = /* @__PURE__ */ new Map();
 function getMutex(storageRef, key) {
   const compositeKey = `${storageRef.__id ?? "default"}::${key}`;
@@ -191,7 +191,103 @@ async function mutateStorage(storage, key, updater) {
   }
 }
 
-// src/styles.ts
+// plugins/kanboss/src/templates.ts
+function makeState(name, order, overrides = {}) {
+  return {
+    id: generateId("state"),
+    name,
+    order,
+    isAutomatic: false,
+    automationPrompt: "",
+    evaluationPrompt: "",
+    wipLimit: 0,
+    ...overrides
+  };
+}
+function makeDefaultSwimlane() {
+  return [{ id: generateId("lane"), name: "Default", order: 0, managerAgentId: null, evaluationAgentId: null }];
+}
+var BOARD_TEMPLATES = [
+  {
+    id: "default",
+    name: "Default",
+    description: "Simple three-column board for general task tracking.",
+    icon: "\u25A6",
+    create: () => ({
+      states: [
+        makeState("Todo", 0),
+        makeState("In Progress", 1),
+        makeState("Done", 2)
+      ],
+      swimlanes: makeDefaultSwimlane()
+    })
+  },
+  {
+    id: "bug-triage",
+    name: "Bug Triage",
+    description: "Track bugs from report through fix and verification.",
+    icon: "\u{1F41B}",
+    create: () => ({
+      states: [
+        makeState("Reported", 0),
+        makeState("Triaging", 1),
+        makeState("Fixing", 2),
+        makeState("Verifying", 3),
+        makeState("Closed", 4)
+      ],
+      swimlanes: makeDefaultSwimlane()
+    })
+  },
+  {
+    id: "sprint",
+    name: "Sprint",
+    description: "Agile sprint board with backlog, review, and done columns.",
+    icon: "\u{1F3C3}",
+    create: () => ({
+      states: [
+        makeState("Backlog", 0),
+        makeState("Todo", 1),
+        makeState("In Progress", 2),
+        makeState("In Review", 3),
+        makeState("Done", 4)
+      ],
+      swimlanes: makeDefaultSwimlane()
+    })
+  },
+  {
+    id: "cicd-pipeline",
+    name: "CI/CD Pipeline",
+    description: "Automated build, test, and deploy pipeline with agent-driven stages.",
+    icon: "\u{1F680}",
+    create: () => ({
+      states: [
+        makeState("Queued", 0),
+        makeState("Building", 1, {
+          isAutomatic: true,
+          automationPrompt: "Build the project. Run the build command and ensure the output compiles without errors. Report any build failures with the exact error messages.",
+          evaluationPrompt: "Verify the build completed successfully with no compilation errors."
+        }),
+        makeState("Testing", 2, {
+          isAutomatic: true,
+          automationPrompt: "Run the full test suite. Execute all unit and integration tests. Report test results including any failures with file, test name, and error details.",
+          evaluationPrompt: "Verify all tests pass. Fail if any test is broken or skipped without justification."
+        }),
+        makeState("Deploying", 3, {
+          isAutomatic: true,
+          automationPrompt: "Deploy the changes to the target environment. Follow the deployment procedure and verify the deployment completes successfully.",
+          evaluationPrompt: "Verify the deployment completed without errors and the service is responding correctly."
+        }),
+        makeState("Deployed", 4)
+      ],
+      swimlanes: [
+        { id: generateId("lane"), name: "Production", order: 0, managerAgentId: null, evaluationAgentId: null },
+        { id: generateId("lane"), name: "Staging", order: 1, managerAgentId: null, evaluationAgentId: null }
+      ]
+    })
+  }
+];
+
+// plugins/kanboss/src/styles.ts
 var font = {
   family: "var(--font-family, system-ui, -apple-system, sans-serif)",
   mono: "var(--font-mono, ui-monospace, monospace)"
@@ -292,23 +388,18 @@ var dialogWide = {
   flexDirection: "column"
 };
 
-// src/BoardSidebar.tsx
+// plugins/kanboss/src/BoardSidebar.tsx
 import { jsx, jsxs } from "react/jsx-runtime";
 var React = globalThis.React;
 var { useEffect, useState, useCallback, useRef } = React;
-function createDefaultBoard(name, gitHistory) {
+function createBoardFromTemplate(name, gitHistory, template) {
   const now = Date.now();
+  const { states, swimlanes } = template.create();
   return {
     id: generateId("board"),
     name,
-    states: [
-      { id: generateId("state"), name: "Todo", order: 0, isAutomatic: false, automationPrompt: "", evaluationPrompt: "", wipLimit: 0 },
-      { id: generateId("state"), name: "In Progress", order: 1, isAutomatic: false, automationPrompt: "", evaluationPrompt: "", wipLimit: 0 },
-      { id: generateId("state"), name: "Done", order: 2, isAutomatic: false, automationPrompt: "", evaluationPrompt: "", wipLimit: 0 }
-    ],
-    swimlanes: [
-      { id: generateId("lane"), name: "Default", order: 0, managerAgentId: null, evaluationAgentId: null }
-    ],
+    states,
+    swimlanes,
     labels: [],
     config: { maxRetries: 3, zoomLevel: 1, gitHistory },
     createdAt: now,
@@ -318,6 +409,7 @@ function createDefaultBoard(name, gitHistory) {
 function CreateBoardDialog({ onSave, onCancel }) {
   const [name, setName] = useState("");
   const [gitHistory, setGitHistory] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState("default");
   const inputRef = useRef(null);
   useEffect(() => {
     setTimeout(() => inputRef.current?.focus(), 50);
@@ -325,14 +417,52 @@ function CreateBoardDialog({ onSave, onCancel }) {
   const handleSubmit = useCallback(() => {
     const trimmed = name.trim();
     if (!trimmed) return;
-    onSave(trimmed, gitHistory);
-  }, [name, gitHistory, onSave]);
-  return /* @__PURE__ */ jsx("div", { style: overlay, onClick: onCancel, children: /* @__PURE__ */ jsxs("div", { style: { ...dialog, maxWidth: 380 }, onClick: (e) => e.stopPropagation(), children: [
+    onSave(trimmed, gitHistory, selectedTemplate);
+  }, [name, gitHistory, selectedTemplate, onSave]);
+  return /* @__PURE__ */ jsx("div", { style: overlay, onClick: onCancel, children: /* @__PURE__ */ jsxs("div", { style: { ...dialog, maxWidth: 480 }, onClick: (e) => e.stopPropagation(), children: [
     /* @__PURE__ */ jsxs("div", { style: { padding: "16px 20px 8px", fontFamily: font.family }, children: [
       /* @__PURE__ */ jsx("h2", { style: { fontSize: 14, fontWeight: 600, color: color.text, margin: 0 }, children: "Create Board" }),
-      /* @__PURE__ */ jsx("p", { style: { fontSize: 11, color: color.textTertiary, marginTop: 4 }, children: "Set up a new Kanban board for your project." })
+      /* @__PURE__ */ jsx("p", { style: { fontSize: 11, color: color.textTertiary, marginTop: 4 }, children: "Choose a template and name your board." })
     ] }),
     /* @__PURE__ */ jsxs("div", { style: { padding: "12px 20px", display: "flex", flexDirection: "column", gap: 12, fontFamily: font.family }, children: [
+      /* @__PURE__ */ jsxs("div", { children: [
+        /* @__PURE__ */ jsx("label", { style: { display: "block", fontSize: 11, fontWeight: 500, color: color.textSecondary, marginBottom: 6 }, children: "Template" }),
+        /* @__PURE__ */ jsx("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }, children: BOARD_TEMPLATES.map((tmpl) => {
+          const isSelected = selectedTemplate === tmpl.id;
+          return /* @__PURE__ */ jsxs(
+            "button",
+            {
+              onClick: () => setSelectedTemplate(tmpl.id),
+              style: {
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "flex-start",
+                gap: 4,
+                padding: "10px 12px",
+                borderRadius: 10,
+                border: `1.5px solid ${isSelected ? color.accent : color.border}`,
+                background: isSelected ? color.accentBg : color.bgSecondary,
+                cursor: "pointer",
+                textAlign: "left",
+                fontFamily: font.family,
+                transition: "border-color 0.15s, background 0.15s"
+              },
+              children: [
+                /* @__PURE__ */ jsxs("div", { style: { display: "flex", alignItems: "center", gap: 6 }, children: [
+                  /* @__PURE__ */ jsx("span", { style: { fontSize: 14 }, children: tmpl.icon }),
+                  /* @__PURE__ */ jsx("span", { style: {
+                    fontSize: 12,
+                    fontWeight: 500,
+                    color: isSelected ? color.accent : color.text
+                  }, children: tmpl.name })
+                ] }),
+                /* @__PURE__ */ jsx("span", { style: { fontSize: 10, color: color.textTertiary, lineHeight: 1.4 }, children: tmpl.description })
+              ]
+            },
+            tmpl.id
+          );
+        }) })
+      ] }),
       /* @__PURE__ */ jsxs("div", { children: [
         /* @__PURE__ */ jsx("label", { style: { display: "block", fontSize: 11, fontWeight: 500, color: color.textSecondary, marginBottom: 4 }, children: "Board Name" }),
         /* @__PURE__ */ jsx(
@@ -435,8 +565,9 @@ function BoardSidebar({ api }) {
     });
     return unsub;
   }, []);
-  const handleCreate = useCallback(async (name, gitHistory) => {
-    const board = createDefaultBoard(name, gitHistory);
+  const handleCreate = useCallback(async (name, gitHistory, templateId) => {
+    const template = BOARD_TEMPLATES.find((t) => t.id === templateId) ?? BOARD_TEMPLATES[0];
+    const board = createBoardFromTemplate(name, gitHistory, template);
     const next = await mutateStorage(boardsStorage, BOARDS_KEY, (boards2) => {
       boards2.push(board);
       return boards2;
@@ -593,7 +724,7 @@ function BoardSidebar({ api }) {
   ] });
 }
 
-// src/CardCell.tsx
+// plugins/kanboss/src/CardCell.tsx
 import { Fragment, jsx as jsx2, jsxs as jsxs2 } from "react/jsx-runtime";
 var React2 = globalThis.React;
 var { useState: useState2, useCallback: useCallback2, useRef: useRef2 } = React2;
@@ -1134,7 +1265,7 @@ function CardCell({ cards, stateId, swimlaneId, isLastState, allStates, boardLab
   );
 }
 
-// src/CardDialog.tsx
+// plugins/kanboss/src/CardDialog.tsx
 import { jsx as jsx3, jsxs as jsxs3 } from "react/jsx-runtime";
 var React3 = globalThis.React;
 var { useState: useState3, useCallback: useCallback3, useEffect: useEffect2 } = React3;
@@ -1377,7 +1508,7 @@ function CardDialog({ api, boardId, boardLabels }) {
   ] }) });
 }
 
-// src/BoardConfigDialog.tsx
+// plugins/kanboss/src/BoardConfigDialog.tsx
 import { Fragment as Fragment2, jsx as jsx4, jsxs as jsxs4 } from "react/jsx-runtime";
 var React4 = globalThis.React;
 var { useState: useState4, useCallback: useCallback4, useEffect: useEffect3 } = React4;
@@ -1892,7 +2023,7 @@ function BoardConfigDialog({ api, board }) {
   ] }) });
 }
 
-// src/FilterBar.tsx
+// plugins/kanboss/src/FilterBar.tsx
 import { jsx as jsx5, jsxs as jsxs5 } from "react/jsx-runtime";
 var React5 = globalThis.React;
 var { useCallback: useCallback5 } = React5;
@@ -1998,7 +2129,7 @@ function FilterBar({ filter, labels }) {
   ] });
 }
 
-// src/AutomationEngine.ts
+// plugins/kanboss/src/AutomationEngine.ts
 var engineApi = null;
 async function loadBoard(api, boardId) {
   const raw = await api.storage.projectLocal.read(BOARDS_KEY);
@@ -2228,7 +2359,7 @@ function shutdownAutomationEngine() {
   engineApi = null;
 }
 
-// src/BoardView.tsx
+// plugins/kanboss/src/BoardView.tsx
 import { jsx as jsx6, jsxs as jsxs6 } from "react/jsx-runtime";
 var React6 = globalThis.React;
 var { useEffect: useEffect4, useState: useState5, useCallback: useCallback6, useRef: useRef3 } = React6;
@@ -2652,7 +2783,7 @@ function BoardView({ api }) {
   ] });
 }
 
-// src/use-theme.ts
+// plugins/kanboss/src/use-theme.ts
 function hexToRgba(hex, alpha) {
   const r = parseInt(hex.slice(1, 3), 16);
   const g = parseInt(hex.slice(3, 5), 16);
@@ -2733,7 +2864,7 @@ function useTheme(themeApi) {
   return { style, themeType: theme.type };
 }
 
-// src/main.tsx
+// plugins/kanboss/src/main.tsx
 import { jsx as jsx7 } from "react/jsx-runtime";
 var React7 = globalThis.React;
 function activate(ctx, api) {
