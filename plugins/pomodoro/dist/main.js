@@ -324,8 +324,105 @@ var S = {
     fontSize: 11,
     color: "var(--text-success, #2ecc71)",
     fontWeight: 500
+  },
+  gearBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: "50%",
+    border: "1px solid var(--border-primary, #3f3f46)",
+    background: "transparent",
+    color: "var(--text-secondary, #a1a1aa)",
+    cursor: "pointer",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 12,
+    transition: "opacity 0.15s ease"
+  },
+  settingsSection: {
+    marginTop: 12,
+    padding: "12px 16px",
+    background: "var(--bg-surface, #27272a)",
+    borderRadius: 10,
+    border: "1px solid var(--border-primary, #3f3f46)",
+    width: "100%",
+    maxWidth: 260
+  },
+  settingRow: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: "6px 0"
+  },
+  settingLabel: {
+    fontSize: 12,
+    color: "var(--text-secondary, #a1a1aa)"
+  },
+  stepperBtn: (disabled) => ({
+    width: 28,
+    height: 28,
+    borderRadius: 6,
+    border: "1px solid var(--border-primary, #3f3f46)",
+    background: "var(--bg-surface-hover, #3f3f46)",
+    color: "var(--text-primary, #e4e4e7)",
+    cursor: disabled ? "default" : "pointer",
+    opacity: disabled ? 0.4 : 1,
+    fontSize: 16,
+    fontWeight: 600,
+    fontFamily: "inherit",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 0
+  }),
+  stepperValue: {
+    fontSize: 14,
+    fontWeight: 600,
+    color: "var(--text-primary, #e4e4e7)",
+    minWidth: 36,
+    textAlign: "center"
   }
 };
+function DurationStepper({
+  label,
+  value,
+  settingKey,
+  api,
+  min = 1,
+  max = 120
+}) {
+  const atMin = value <= min;
+  const atMax = value >= max;
+  return /* @__PURE__ */ jsxs("div", { style: S.settingRow, children: [
+    /* @__PURE__ */ jsx("span", { style: S.settingLabel, children: label }),
+    /* @__PURE__ */ jsxs("div", { style: { display: "flex", alignItems: "center", gap: 8 }, children: [
+      /* @__PURE__ */ jsx(
+        "button",
+        {
+          style: S.stepperBtn(atMin),
+          onClick: () => api.settings.set(settingKey, Math.max(min, value - 1)),
+          disabled: atMin,
+          "aria-label": `Decrease ${label.toLowerCase()}`,
+          children: "\u2212"
+        }
+      ),
+      /* @__PURE__ */ jsxs("span", { style: S.stepperValue, children: [
+        value,
+        "m"
+      ] }),
+      /* @__PURE__ */ jsx(
+        "button",
+        {
+          style: S.stepperBtn(atMax),
+          onClick: () => api.settings.set(settingKey, Math.min(max, value + 1)),
+          disabled: atMax,
+          "aria-label": `Increase ${label.toLowerCase()}`,
+          children: "+"
+        }
+      )
+    ] })
+  ] });
+}
 function MainPanel({ api }) {
   const { style: themeStyle } = useTheme(api.theme);
   const [phase, setPhase] = useState("idle");
@@ -333,7 +430,11 @@ function MainPanel({ api }) {
   const [totalDuration, setTotalDuration] = useState(0);
   const [todaySessions, setTodaySessions] = useState(0);
   const [durations, setDurations] = useState(() => getDurations(api));
+  const [showSettings, setShowSettings] = useState(false);
   const intervalRef = useRef(null);
+  useEffect(() => {
+    if (phase !== "idle") setShowSettings(false);
+  }, [phase]);
   useEffect(() => {
     if (phase === "idle") {
       setRemaining(durations.work);
@@ -518,6 +619,48 @@ function MainPanel({ api }) {
         )
       ] }),
       phase !== "idle" && /* @__PURE__ */ jsx("button", { onClick: stop, style: S.btn("danger"), children: "Stop" })
+    ] }),
+    phase === "idle" && /* @__PURE__ */ jsx(
+      "button",
+      {
+        onClick: () => setShowSettings((v) => !v),
+        style: S.gearBtn,
+        title: "Timer settings",
+        "aria-label": "Timer settings",
+        children: /* @__PURE__ */ jsxs("svg", { width: "16", height: "16", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", children: [
+          /* @__PURE__ */ jsx("circle", { cx: "12", cy: "12", r: "3" }),
+          /* @__PURE__ */ jsx("path", { d: "M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" })
+        ] })
+      }
+    ),
+    phase === "idle" && showSettings && /* @__PURE__ */ jsxs("div", { style: S.settingsSection, children: [
+      /* @__PURE__ */ jsx(
+        DurationStepper,
+        {
+          label: "Work",
+          value: Math.round(durations.work / 60),
+          settingKey: "workDuration",
+          api
+        }
+      ),
+      /* @__PURE__ */ jsx(
+        DurationStepper,
+        {
+          label: "Short Break",
+          value: Math.round(durations.shortBreak / 60),
+          settingKey: "shortBreakDuration",
+          api
+        }
+      ),
+      /* @__PURE__ */ jsx(
+        DurationStepper,
+        {
+          label: "Long Break",
+          value: Math.round(durations.longBreak / 60),
+          settingKey: "longBreakDuration",
+          api
+        }
+      )
     ] }),
     phase === "idle" && isLongBreakDue && /* @__PURE__ */ jsxs("div", { style: S.longBreakHint, children: [
       durations.cycle,

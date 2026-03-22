@@ -247,6 +247,35 @@ describe("pomodoro timer persistence", () => {
     unmount();
   });
 
+  it("records session with correct date and count", async () => {
+    const now = 1700000000000;
+    vi.setSystemTime(now);
+
+    const { getButtonByText, unmount } = renderPanel(api);
+    await flush();
+
+    // Start and complete a work timer
+    act(() => {
+      getButtonByText("Start Work")!.click();
+    });
+    act(() => {
+      vi.advanceTimersByTime(DEFAULT_WORK * 1000 + 1000);
+    });
+    await flush();
+
+    // Verify the session record content
+    const writeCall = (globalStorage.write as ReturnType<typeof vi.fn>).mock.calls.find(
+      (c: unknown[]) => c[0] === SESSIONS_KEY,
+    );
+    expect(writeCall).toBeDefined();
+    const records = writeCall![1] as Array<{ date: string; completedWork: number }>;
+    expect(records).toHaveLength(1);
+    expect(records[0].date).toBe(new Date(now).toISOString().split("T")[0]);
+    expect(records[0].completedWork).toBe(1);
+
+    unmount();
+  });
+
   it("notifies when break timer expired while away", async () => {
     const now = 1700000000000;
     vi.setSystemTime(now);
@@ -302,6 +331,36 @@ describe("pomodoro timer persistence", () => {
     expect(api.ui.showNotice).toHaveBeenCalledWith(
       "Pomodoro complete! Time for a break.",
     );
+
+    unmount();
+  });
+
+  it("clears timer state when break timer naturally completes", async () => {
+    const now = 1700000000000;
+    vi.setSystemTime(now);
+
+    const { getButtonByText, getText, unmount } = renderPanel(api);
+    await flush();
+
+    // Start a short break
+    const breakBtn = getButtonByText("Short Break");
+    act(() => {
+      breakBtn!.click();
+    });
+    (globalStorage.delete as ReturnType<typeof vi.fn>).mockClear();
+
+    // Advance past break duration
+    act(() => {
+      vi.advanceTimersByTime(DEFAULT_SHORT_BREAK * 1000 + 1000);
+    });
+    await flush();
+
+    expect(globalStorage.delete).toHaveBeenCalledWith(TIMER_STATE_KEY);
+    expect(api.ui.showNotice).toHaveBeenCalledWith(
+      "Break over! Ready for another round?",
+    );
+    // Should be back to idle showing work duration
+    expect(getButtonByText("Start Work")).not.toBeNull();
 
     unmount();
   });
@@ -411,6 +470,42 @@ describe("session visualization", () => {
     unmount();
   });
 
+  it("renders correct number of session dot elements", async () => {
+    const key = new Date().toISOString().split("T")[0];
+    globalStorage._data.set(SESSIONS_KEY, [
+      { date: key, completedWork: 5, completedBreaks: 0 },
+    ]);
+
+    const { container, unmount } = renderPanel(api);
+    await flush();
+
+    // Session dots are spans with border-radius 50% and a title starting with "Session"
+    const dots = container.querySelectorAll("span[title^='Session']");
+    expect(dots).toHaveLength(5);
+    // 4th dot should be a long break marker (default cycle=4)
+    expect(dots[3].getAttribute("title")).toContain("long break");
+    // 5th dot should not be a long break marker
+    expect(dots[4].getAttribute("title")).not.toContain("long break");
+
+    unmount();
+  });
+
+  it("caps dots at 20 and shows overflow text", async () => {
+    const key = new Date().toISOString().split("T")[0];
+    globalStorage._data.set(SESSIONS_KEY, [
+      { date: key, completedWork: 25, completedBreaks: 0 },
+    ]);
+
+    const { container, getText, unmount } = renderPanel(api);
+    await flush();
+
+    const dots = container.querySelectorAll("span[title^='Session']");
+    expect(dots).toHaveLength(20);
+    expect(getText()).toContain("+5");
+
+    unmount();
+  });
+
   it("shows singular session text", async () => {
     const key = new Date().toISOString().split("T")[0];
     globalStorage._data.set(SESSIONS_KEY, [
@@ -424,6 +519,188 @@ describe("session visualization", () => {
     // Should not show "1 sessions"
     expect(getText()).not.toContain("1 sessions");
 
+    unmount();
+  });
+});
+
+// ── Inline duration controls ────────────────────────────────────────────
+
+describe("inline duration controls", () => {
+  let api: PluginAPI;
+  let globalStorage: ReturnType<typeof createMapStorage>;
+  let settingsStore: Map<string, unknown>;
+  let settingsListeners: Array<(key: string, value: unknown) => void>;
+
+  function createStoreBackedSettings() {
+    settingsStore = new Map<string, unknown>();
+    settingsListeners = [];
+    return {
+      get: vi.fn((key: string) => settingsStore.get(key)),
+      getAll: vi.fn(() => Object.fromEntries(settingsStore)),
+      set: vi.fn((key: string, value: unknown) => {
+        settingsStore.set(key, value);
+        settingsListeners.forEach((fn) => fn(key, value));
+      }),
+      onChange: vi.fn((cb: (key: string, value: unknown) => void) => {
+        settingsListeners.push(cb);
+        return { dispose: () => { settingsListeners = settingsListeners.filter((l) => l !== cb); } };
+      }),
+    };
+  }
+
+  function getByAriaLabel(container: HTMLElement, label: string): HTMLElement | null {
+    return container.querySelector(`[aria-label="${label}"]`);
+  }
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    globalStorage = createMapStorage();
+    const settings = createStoreBackedSettings();
+    api = createMockAPI({
+      storage: { global: globalStorage },
+      settings,
+    });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("shows gear button when idle", async () => {
+    const { container, unmount } = renderPanel(api);
+    await flush();
+
+    expect(getByAriaLabel(container, "Timer settings")).not.toBeNull();
+    unmount();
+  });
+
+  it("hides gear button when timer is running", async () => {
+    const { container, getButtonByText, unmount } = renderPanel(api);
+    await flush();
+
+    act(() => {
+      getButtonByText("Start Work")!.click();
+    });
+
+    expect(getByAriaLabel(container, "Timer settings")).toBeNull();
+    unmount();
+  });
+
+  it("toggles settings section on gear click", async () => {
+    const { container, unmount } = renderPanel(api);
+    await flush();
+
+    const gear = getByAriaLabel(container, "Timer settings")!;
+
+    // Open
+    act(() => { gear.click(); });
+    expect(getByAriaLabel(container, "Decrease work")).not.toBeNull();
+    expect(getByAriaLabel(container, "Decrease short break")).not.toBeNull();
+    expect(getByAriaLabel(container, "Decrease long break")).not.toBeNull();
+
+    // Close
+    act(() => { gear.click(); });
+    expect(getByAriaLabel(container, "Decrease work")).toBeNull();
+
+    unmount();
+  });
+
+  it("increments work duration via + button", async () => {
+    const { container, unmount } = renderPanel(api);
+    await flush();
+
+    act(() => { getByAriaLabel(container, "Timer settings")!.click(); });
+    act(() => { getByAriaLabel(container, "Increase work")!.click(); });
+
+    expect(api.settings.set).toHaveBeenCalledWith("workDuration", 26);
+    unmount();
+  });
+
+  it("decrements short break duration via - button", async () => {
+    const { container, unmount } = renderPanel(api);
+    await flush();
+
+    act(() => { getByAriaLabel(container, "Timer settings")!.click(); });
+    act(() => { getByAriaLabel(container, "Decrease short break")!.click(); });
+
+    expect(api.settings.set).toHaveBeenCalledWith("shortBreakDuration", 4);
+    unmount();
+  });
+
+  it("disables decrement button at minimum value", async () => {
+    settingsStore.set("shortBreakDuration", 1);
+    const { container, unmount } = renderPanel(api);
+    await flush();
+
+    act(() => { getByAriaLabel(container, "Timer settings")!.click(); });
+
+    const decreaseBtn = getByAriaLabel(container, "Decrease short break") as HTMLButtonElement;
+    expect(decreaseBtn.disabled).toBe(true);
+    unmount();
+  });
+
+  it("hides settings section when timer starts", async () => {
+    const { container, getButtonByText, unmount } = renderPanel(api);
+    await flush();
+
+    act(() => { getByAriaLabel(container, "Timer settings")!.click(); });
+    expect(getByAriaLabel(container, "Decrease work")).not.toBeNull();
+
+    act(() => { getButtonByText("Start Work")!.click(); });
+    expect(getByAriaLabel(container, "Decrease work")).toBeNull();
+
+    unmount();
+  });
+
+  it("timer starts with custom duration from settings", async () => {
+    const now = 1700000000000;
+    vi.setSystemTime(now);
+
+    settingsStore.set("workDuration", 10);
+    const { getButtonByText, getText, unmount } = renderPanel(api);
+    await flush();
+
+    // Idle display should show custom duration
+    expect(getText()).toContain("10m work");
+
+    act(() => { getButtonByText("Start Work")!.click(); });
+
+    // Timer should persist the custom 10-minute duration
+    expect(globalStorage.write).toHaveBeenCalledWith(TIMER_STATE_KEY, {
+      phase: "work",
+      startedAt: now,
+      durationMs: 10 * 60 * 1000,
+    });
+
+    // Display should show 10:00
+    expect(getText()).toContain("10:00");
+    unmount();
+  });
+
+  it("disables increment button at maximum value", async () => {
+    settingsStore.set("workDuration", 120);
+    const { container, unmount } = renderPanel(api);
+    await flush();
+
+    act(() => { getByAriaLabel(container, "Timer settings")!.click(); });
+
+    const increaseBtn = getByAriaLabel(container, "Increase work") as HTMLButtonElement;
+    expect(increaseBtn.disabled).toBe(true);
+    unmount();
+  });
+
+  it("reflects updated durations after settings change", async () => {
+    const { container, getText, unmount } = renderPanel(api);
+    await flush();
+
+    // Default shows 25m work
+    expect(getText()).toContain("25m work");
+
+    // Change work duration to 30
+    act(() => { api.settings.set("workDuration", 30); });
+    await flush();
+
+    expect(getText()).toContain("30m work");
     unmount();
   });
 });
