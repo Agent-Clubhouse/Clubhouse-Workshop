@@ -319,7 +319,112 @@ const S = {
     color: "var(--text-success, #2ecc71)",
     fontWeight: 500,
   },
+  gearBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: "50%",
+    border: "1px solid var(--border-primary, #3f3f46)",
+    background: "transparent",
+    color: "var(--text-secondary, #a1a1aa)",
+    cursor: "pointer",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 12,
+    transition: "opacity 0.15s ease",
+  } as React.CSSProperties,
+  settingsSection: {
+    marginTop: 12,
+    padding: "12px 16px",
+    background: "var(--bg-surface, #27272a)",
+    borderRadius: 10,
+    border: "1px solid var(--border-primary, #3f3f46)",
+    width: "100%",
+    maxWidth: 260,
+  } as React.CSSProperties,
+  settingRow: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: "6px 0",
+  } as React.CSSProperties,
+  settingLabel: {
+    fontSize: 12,
+    color: "var(--text-secondary, #a1a1aa)",
+  },
+  stepperBtn: (disabled: boolean): React.CSSProperties => ({
+    width: 28,
+    height: 28,
+    borderRadius: 6,
+    border: "1px solid var(--border-primary, #3f3f46)",
+    background: "var(--bg-surface-hover, #3f3f46)",
+    color: "var(--text-primary, #e4e4e7)",
+    cursor: disabled ? "default" : "pointer",
+    opacity: disabled ? 0.4 : 1,
+    fontSize: 16,
+    fontWeight: 600,
+    fontFamily: "inherit",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 0,
+  }),
+  stepperValue: {
+    fontSize: 14,
+    fontWeight: 600,
+    color: "var(--text-primary, #e4e4e7)",
+    minWidth: 36,
+    textAlign: "center" as const,
+  },
 };
+
+// ---------------------------------------------------------------------------
+// Duration stepper (inline settings control)
+// ---------------------------------------------------------------------------
+
+function DurationStepper({
+  label,
+  value,
+  settingKey,
+  api,
+  min = 1,
+  max = 120,
+}: {
+  label: string;
+  value: number;
+  settingKey: string;
+  api: PluginAPI;
+  min?: number;
+  max?: number;
+}) {
+  const atMin = value <= min;
+  const atMax = value >= max;
+
+  return (
+    <div style={S.settingRow}>
+      <span style={S.settingLabel}>{label}</span>
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <button
+          style={S.stepperBtn(atMin)}
+          onClick={() => api.settings.set(settingKey, Math.max(min, value - 1))}
+          disabled={atMin}
+          aria-label={`Decrease ${label.toLowerCase()}`}
+        >
+          &minus;
+        </button>
+        <span style={S.stepperValue}>{value}m</span>
+        <button
+          style={S.stepperBtn(atMax)}
+          onClick={() => api.settings.set(settingKey, Math.min(max, value + 1))}
+          disabled={atMax}
+          aria-label={`Increase ${label.toLowerCase()}`}
+        >
+          +
+        </button>
+      </div>
+    </div>
+  );
+}
 
 // ---------------------------------------------------------------------------
 // Main panel
@@ -332,7 +437,13 @@ export function MainPanel({ api }: PanelProps) {
   const [totalDuration, setTotalDuration] = useState(0);
   const [todaySessions, setTodaySessions] = useState(0);
   const [durations, setDurations] = useState<Durations>(() => getDurations(api));
+  const [showSettings, setShowSettings] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Auto-close settings when timer starts
+  useEffect(() => {
+    if (phase !== "idle") setShowSettings(false);
+  }, [phase]);
 
   // Initialise remaining to work duration once durations are loaded
   useEffect(() => {
@@ -542,6 +653,45 @@ export function MainPanel({ api }: PanelProps) {
           </button>
         )}
       </div>
+
+      {/* Settings gear toggle */}
+      {phase === "idle" && (
+        <button
+          onClick={() => setShowSettings((v) => !v)}
+          style={S.gearBtn}
+          title="Timer settings"
+          aria-label="Timer settings"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="3" />
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+          </svg>
+        </button>
+      )}
+
+      {/* Inline duration settings */}
+      {phase === "idle" && showSettings && (
+        <div style={S.settingsSection}>
+          <DurationStepper
+            label="Work"
+            value={Math.round(durations.work / 60)}
+            settingKey="workDuration"
+            api={api}
+          />
+          <DurationStepper
+            label="Short Break"
+            value={Math.round(durations.shortBreak / 60)}
+            settingKey="shortBreakDuration"
+            api={api}
+          />
+          <DurationStepper
+            label="Long Break"
+            value={Math.round(durations.longBreak / 60)}
+            settingKey="longBreakDuration"
+            api={api}
+          />
+        </div>
+      )}
 
       {/* Long break hint */}
       {phase === "idle" && isLongBreakDue && (
