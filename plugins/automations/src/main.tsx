@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
-import type { PluginContext, PluginAPI, PluginModule, ModelOption, CompletedQuickAgentInfo, PluginOrchestratorInfo } from '@clubhouse/plugin-types';
-import type { Automation, RunRecord, MissedRunPolicy } from './types';
+import type { PluginContext, PluginAPI, PluginModule, ModelOption, CompletedQuickAgentInfo, PluginOrchestratorInfo, AgentInfo } from '@clubhouse/plugin-types';
+import type { Automation, RunRecord, MissedRunPolicy, ExecutionMode } from './types';
 import { matchesCron, describeSchedule, validateCronExpression, countMissedFireTimes, PRESETS } from './cron';
 import * as S from './styles';
 import { useTheme } from './use-theme';
@@ -35,11 +35,29 @@ export function activate(ctx: PluginContext, api: PluginAPI): void {
 
   // Shared helper: fire an agent for an automation and record the run
   async function fireAutomation(auto: Automation, automations: Automation[]): Promise<void> {
-    const agentId = await api.agents.runQuick(auto.prompt, {
-      model: auto.model || undefined,
-      orchestrator: auto.orchestrator || undefined,
-      freeAgentMode: auto.freeAgentMode || undefined,
-    });
+    let agentId: string;
+
+    if (auto.executionMode === 'durable' && auto.targetAgentId) {
+      // Check if the durable agent exists and is sleeping
+      const agents = api.agents.list();
+      const target = agents.find((a) => a.id === auto.targetAgentId);
+      if (!target) {
+        api.logging.warn(`Automation "${auto.name}": target agent not found, skipping`);
+        return;
+      }
+      if (target.status === 'running') {
+        api.logging.info(`Automation "${auto.name}": target agent is busy, skipping`);
+        return;
+      }
+      await api.agents.resume(auto.targetAgentId, { mission: auto.prompt });
+      agentId = auto.targetAgentId;
+    } else {
+      agentId = await api.agents.runQuick(auto.prompt, {
+        model: auto.model || undefined,
+        orchestrator: auto.orchestrator || undefined,
+        freeAgentMode: auto.freeAgentMode || undefined,
+      });
+    }
 
     pendingRuns.set(agentId, auto.id);
 
@@ -295,6 +313,9 @@ export function MainPanel({ api }: { api: PluginAPI }) {
   const [editPrompt, setEditPrompt] = useState('');
   const [editEnabled, setEditEnabled] = useState(true);
   const [editMissedRunPolicy, setEditMissedRunPolicy] = useState<MissedRunPolicy>('ignore');
+  const [editExecutionMode, setEditExecutionMode] = useState<ExecutionMode>('quick');
+  const [editTargetAgentId, setEditTargetAgentId] = useState('');
+  const [durableAgents, setDurableAgents] = useState<AgentInfo[]>([]);
   const [cronError, setCronError] = useState<string | null>(null);
 
   // ── Load automations on mount + poll ────────────────────────────────
@@ -343,9 +364,22 @@ export function MainPanel({ api }: { api: PluginAPI }) {
       setEditPrompt(selected.prompt);
       setEditEnabled(selected.enabled);
       setEditMissedRunPolicy(selected.missedRunPolicy ?? 'ignore');
+      setEditExecutionMode(selected.executionMode ?? 'quick');
+      setEditTargetAgentId(selected.targetAgentId ?? '');
       setCronError(null);
     }
   }, [selected?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Load durable agents ─────────────────────────────────────────────
+  useEffect(() => {
+    const updateDurableAgents = () => {
+      const all = api.agents.list();
+      setDurableAgents(all.filter((a) => a.kind === 'durable'));
+    };
+    updateDurableAgents();
+    const sub = api.agents.onAnyChange(updateDurableAgents);
+    return () => sub.dispose();
+  }, [api]);
 
   // ── Load runs for selected automation ───────────────────────────────
   const loadRuns = useCallback(async () => {
@@ -373,6 +407,7 @@ export function MainPanel({ api }: { api: PluginAPI }) {
       prompt: '',
       enabled: false,
       missedRunPolicy: 'ignore',
+      executionMode: 'quick',
       createdAt: Date.now(),
       lastRunAt: null,
     };
@@ -392,12 +427,12 @@ export function MainPanel({ api }: { api: PluginAPI }) {
     setCronError(null);
     const next = automations.map((a) =>
       a.id === selectedId
-        ? { ...a, name: editName, cronExpression: editCron, orchestrator: editOrchestrator, model: editModel, freeAgentMode: editFreeAgent, prompt: editPrompt, enabled: editEnabled, missedRunPolicy: editMissedRunPolicy }
+        ? { ...a, name: editName, cronExpression: editCron, orchestrator: editOrchestrator, model: editModel, freeAgentMode: editFreeAgent, prompt: editPrompt, enabled: editEnabled, missedRunPolicy: editMissedRunPolicy, executionMode: editExecutionMode, targetAgentId: editExecutionMode === 'durable' ? editTargetAgentId : undefined }
         : a,
     );
     await storage.write(AUTOMATIONS_KEY, next);
     setAutomations(next);
-  }, [selectedId, automations, storage, editName, editCron, editOrchestrator, editModel, editFreeAgent, editPrompt, editEnabled, editMissedRunPolicy]);
+  }, [selectedId, automations, storage, editName, editCron, editOrchestrator, editModel, editFreeAgent, editPrompt, editEnabled, editMissedRunPolicy, editExecutionMode, editTargetAgentId]);
 
   const deleteAutomation = useCallback(async () => {
     if (!selectedId) return;
@@ -667,8 +702,72 @@ export function MainPanel({ api }: { api: PluginAPI }) {
                 {editMissedRunPolicy === 'run-all' && 'Fires up to 10 catch-up runs when the app resumes'}
               </div>
             </div>
+            {/* Execution Mode */}
+            <div>
+              <label style={S.label}>Execution Mode</label>
+              <div style={{ display: 'flex', gap: 6 }}>
+                {(['quick', 'durable'] as const).map((mode) => (
+                  <button
+                    key={mode}
+                    style={{
+                      padding: '4px 12px',
+                      fontSize: 12,
+                      borderRadius: 6,
+                      cursor: 'pointer',
+                      transition: 'all 0.15s',
+                      background: editExecutionMode === mode ? S.color.blueBg : S.color.bgSurface,
+                      color: editExecutionMode === mode ? S.color.blue : S.color.textSecondary,
+                      border: editExecutionMode === mode
+                        ? `1px solid ${S.color.blueBorder}`
+                        : `1px solid ${S.color.borderSecondary}`,
+                    }}
+                    onClick={() => setEditExecutionMode(mode)}
+                  >
+                    {mode === 'quick' ? 'Quick Agent' : 'Durable Agent'}
+                  </button>
+                ))}
+              </div>
+              <div style={{ fontSize: 10, color: S.color.textTertiary, marginTop: 4 }}>
+                {editExecutionMode === 'quick' && 'Spawns a new ephemeral agent for each run'}
+                {editExecutionMode === 'durable' && 'Resumes an existing durable agent with the prompt as its mission'}
+              </div>
+            </div>
+            {/* Durable Agent Picker */}
+            {editExecutionMode === 'durable' && (
+              <div>
+                <label style={S.label}>Target Agent</label>
+                <select
+                  style={{ ...S.baseInput, cursor: 'pointer' }}
+                  value={editTargetAgentId}
+                  onChange={(e) => setEditTargetAgentId(e.target.value)}
+                >
+                  <option value="">Select a durable agent...</option>
+                  {durableAgents.map((agent) => (
+                    <option key={agent.id} value={agent.id}>
+                      {agent.name}{agent.branch ? ` (${agent.branch})` : ''}{agent.status === 'running' ? ' — busy' : ''}
+                    </option>
+                  ))}
+                </select>
+                {editTargetAgentId && (() => {
+                  const target = durableAgents.find((a) => a.id === editTargetAgentId);
+                  if (!target) return <div style={{ fontSize: 10, color: S.color.error, marginTop: 4 }}>Agent no longer available</div>;
+                  return (
+                    <div style={{ fontSize: 10, color: S.color.textTertiary, marginTop: 4 }}>
+                      {target.worktreePath && <>Worktree: {target.worktreePath}<br /></>}
+                      Status: {target.status}
+                      {target.status === 'running' && <span style={{ color: S.color.warning }}> — will skip runs while busy</span>}
+                    </div>
+                  );
+                })()}
+                {durableAgents.length === 0 && (
+                  <div style={{ fontSize: 10, color: S.color.textTertiary, marginTop: 4 }}>
+                    No durable agents found in this project
+                  </div>
+                )}
+              </div>
+            )}
             {/* Orchestrator */}
-            {orchestrators.length > 0 && (
+            {editExecutionMode === 'quick' && orchestrators.length > 0 && (
               <div>
                 <label style={S.label}>Orchestrator</label>
                 <select
@@ -689,8 +788,8 @@ export function MainPanel({ api }: { api: PluginAPI }) {
                 </select>
               </div>
             )}
-            {/* Model */}
-            <div>
+            {/* Model (quick mode only) */}
+            {editExecutionMode === 'quick' && <div>
               <label style={S.label}>Model</label>
               <select
                 style={{ ...S.baseInput, cursor: 'pointer' }}
@@ -702,9 +801,9 @@ export function MainPanel({ api }: { api: PluginAPI }) {
                   <option key={m.id} value={m.id}>{m.label}</option>
                 ))}
               </select>
-            </div>
-            {/* Free Agent Mode */}
-            <div>
+            </div>}
+            {/* Free Agent Mode (quick mode only) */}
+            {editExecutionMode === 'quick' && <div>
               <label
                 style={{ ...S.label, display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}
                 onClick={() => setEditFreeAgent(!editFreeAgent)}
@@ -734,7 +833,7 @@ export function MainPanel({ api }: { api: PluginAPI }) {
               <div style={{ fontSize: 10, color: S.color.textTertiary, marginTop: 2, marginLeft: 24 }}>
                 Agent runs with full autonomy — no permission prompts
               </div>
-            </div>
+            </div>}
             {/* Prompt */}
             <div>
               <label style={S.label}>Prompt</label>

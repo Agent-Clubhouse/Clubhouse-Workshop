@@ -489,7 +489,7 @@ function useTheme(themeApi) {
 }
 
 // src/main.tsx
-import { jsx, jsxs } from "react/jsx-runtime";
+import { Fragment, jsx, jsxs } from "react/jsx-runtime";
 var refreshSignal = {
   count: 0,
   listeners: /* @__PURE__ */ new Set(),
@@ -512,11 +512,27 @@ function activate(ctx, api) {
   const storage = api.storage.projectLocal;
   const pendingRuns = /* @__PURE__ */ new Map();
   async function fireAutomation(auto, automations) {
-    const agentId = await api.agents.runQuick(auto.prompt, {
-      model: auto.model || void 0,
-      orchestrator: auto.orchestrator || void 0,
-      freeAgentMode: auto.freeAgentMode || void 0
-    });
+    let agentId;
+    if (auto.executionMode === "durable" && auto.targetAgentId) {
+      const agents = api.agents.list();
+      const target = agents.find((a) => a.id === auto.targetAgentId);
+      if (!target) {
+        api.logging.warn(`Automation "${auto.name}": target agent not found, skipping`);
+        return;
+      }
+      if (target.status === "running") {
+        api.logging.info(`Automation "${auto.name}": target agent is busy, skipping`);
+        return;
+      }
+      await api.agents.resume(auto.targetAgentId, { mission: auto.prompt });
+      agentId = auto.targetAgentId;
+    } else {
+      agentId = await api.agents.runQuick(auto.prompt, {
+        model: auto.model || void 0,
+        orchestrator: auto.orchestrator || void 0,
+        freeAgentMode: auto.freeAgentMode || void 0
+      });
+    }
     pendingRuns.set(agentId, auto.id);
     const runsRaw = await storage.read(runsKey(auto.id));
     const runs = Array.isArray(runsRaw) ? runsRaw : [];
@@ -696,6 +712,9 @@ function MainPanel({ api }) {
   const [editPrompt, setEditPrompt] = useState("");
   const [editEnabled, setEditEnabled] = useState(true);
   const [editMissedRunPolicy, setEditMissedRunPolicy] = useState("ignore");
+  const [editExecutionMode, setEditExecutionMode] = useState("quick");
+  const [editTargetAgentId, setEditTargetAgentId] = useState("");
+  const [durableAgents, setDurableAgents] = useState([]);
   const [cronError, setCronError] = useState(null);
   const loadAutomations = useCallback(async () => {
     const raw = await storage.read(AUTOMATIONS_KEY);
@@ -736,9 +755,20 @@ function MainPanel({ api }) {
       setEditPrompt(selected.prompt);
       setEditEnabled(selected.enabled);
       setEditMissedRunPolicy(selected.missedRunPolicy ?? "ignore");
+      setEditExecutionMode(selected.executionMode ?? "quick");
+      setEditTargetAgentId(selected.targetAgentId ?? "");
       setCronError(null);
     }
   }, [selected?.id]);
+  useEffect(() => {
+    const updateDurableAgents = () => {
+      const all = api.agents.list();
+      setDurableAgents(all.filter((a) => a.kind === "durable"));
+    };
+    updateDurableAgents();
+    const sub = api.agents.onAnyChange(updateDurableAgents);
+    return () => sub.dispose();
+  }, [api]);
   const loadRuns = useCallback(async () => {
     if (!selectedId) {
       setRuns([]);
@@ -764,6 +794,7 @@ function MainPanel({ api }) {
       prompt: "",
       enabled: false,
       missedRunPolicy: "ignore",
+      executionMode: "quick",
       createdAt: Date.now(),
       lastRunAt: null
     };
@@ -781,11 +812,11 @@ function MainPanel({ api }) {
     }
     setCronError(null);
     const next = automations.map(
-      (a) => a.id === selectedId ? { ...a, name: editName, cronExpression: editCron, orchestrator: editOrchestrator, model: editModel, freeAgentMode: editFreeAgent, prompt: editPrompt, enabled: editEnabled, missedRunPolicy: editMissedRunPolicy } : a
+      (a) => a.id === selectedId ? { ...a, name: editName, cronExpression: editCron, orchestrator: editOrchestrator, model: editModel, freeAgentMode: editFreeAgent, prompt: editPrompt, enabled: editEnabled, missedRunPolicy: editMissedRunPolicy, executionMode: editExecutionMode, targetAgentId: editExecutionMode === "durable" ? editTargetAgentId : void 0 } : a
     );
     await storage.write(AUTOMATIONS_KEY, next);
     setAutomations(next);
-  }, [selectedId, automations, storage, editName, editCron, editOrchestrator, editModel, editFreeAgent, editPrompt, editEnabled, editMissedRunPolicy]);
+  }, [selectedId, automations, storage, editName, editCron, editOrchestrator, editModel, editFreeAgent, editPrompt, editEnabled, editMissedRunPolicy, editExecutionMode, editTargetAgentId]);
   const deleteAutomation = useCallback(async () => {
     if (!selectedId) return;
     const next = automations.filter((a) => a.id !== selectedId);
@@ -1022,7 +1053,66 @@ function MainPanel({ api }) {
             editMissedRunPolicy === "run-all" && "Fires up to 10 catch-up runs when the app resumes"
           ] })
         ] }),
-        orchestrators.length > 0 && /* @__PURE__ */ jsxs("div", { children: [
+        /* @__PURE__ */ jsxs("div", { children: [
+          /* @__PURE__ */ jsx("label", { style: label, children: "Execution Mode" }),
+          /* @__PURE__ */ jsx("div", { style: { display: "flex", gap: 6 }, children: ["quick", "durable"].map((mode) => /* @__PURE__ */ jsx(
+            "button",
+            {
+              style: {
+                padding: "4px 12px",
+                fontSize: 12,
+                borderRadius: 6,
+                cursor: "pointer",
+                transition: "all 0.15s",
+                background: editExecutionMode === mode ? color.blueBg : color.bgSurface,
+                color: editExecutionMode === mode ? color.blue : color.textSecondary,
+                border: editExecutionMode === mode ? `1px solid ${color.blueBorder}` : `1px solid ${color.borderSecondary}`
+              },
+              onClick: () => setEditExecutionMode(mode),
+              children: mode === "quick" ? "Quick Agent" : "Durable Agent"
+            },
+            mode
+          )) }),
+          /* @__PURE__ */ jsxs("div", { style: { fontSize: 10, color: color.textTertiary, marginTop: 4 }, children: [
+            editExecutionMode === "quick" && "Spawns a new ephemeral agent for each run",
+            editExecutionMode === "durable" && "Resumes an existing durable agent with the prompt as its mission"
+          ] })
+        ] }),
+        editExecutionMode === "durable" && /* @__PURE__ */ jsxs("div", { children: [
+          /* @__PURE__ */ jsx("label", { style: label, children: "Target Agent" }),
+          /* @__PURE__ */ jsxs(
+            "select",
+            {
+              style: { ...baseInput, cursor: "pointer" },
+              value: editTargetAgentId,
+              onChange: (e) => setEditTargetAgentId(e.target.value),
+              children: [
+                /* @__PURE__ */ jsx("option", { value: "", children: "Select a durable agent..." }),
+                durableAgents.map((agent) => /* @__PURE__ */ jsxs("option", { value: agent.id, children: [
+                  agent.name,
+                  agent.branch ? ` (${agent.branch})` : "",
+                  agent.status === "running" ? " \u2014 busy" : ""
+                ] }, agent.id))
+              ]
+            }
+          ),
+          editTargetAgentId && (() => {
+            const target = durableAgents.find((a) => a.id === editTargetAgentId);
+            if (!target) return /* @__PURE__ */ jsx("div", { style: { fontSize: 10, color: color.error, marginTop: 4 }, children: "Agent no longer available" });
+            return /* @__PURE__ */ jsxs("div", { style: { fontSize: 10, color: color.textTertiary, marginTop: 4 }, children: [
+              target.worktreePath && /* @__PURE__ */ jsxs(Fragment, { children: [
+                "Worktree: ",
+                target.worktreePath,
+                /* @__PURE__ */ jsx("br", {})
+              ] }),
+              "Status: ",
+              target.status,
+              target.status === "running" && /* @__PURE__ */ jsx("span", { style: { color: color.warning }, children: " \u2014 will skip runs while busy" })
+            ] });
+          })(),
+          durableAgents.length === 0 && /* @__PURE__ */ jsx("div", { style: { fontSize: 10, color: color.textTertiary, marginTop: 4 }, children: "No durable agents found in this project" })
+        ] }),
+        editExecutionMode === "quick" && orchestrators.length > 0 && /* @__PURE__ */ jsxs("div", { children: [
           /* @__PURE__ */ jsx("label", { style: label, children: "Orchestrator" }),
           /* @__PURE__ */ jsxs(
             "select",
@@ -1043,7 +1133,7 @@ function MainPanel({ api }) {
             }
           )
         ] }),
-        /* @__PURE__ */ jsxs("div", { children: [
+        editExecutionMode === "quick" && /* @__PURE__ */ jsxs("div", { children: [
           /* @__PURE__ */ jsx("label", { style: label, children: "Model" }),
           /* @__PURE__ */ jsxs(
             "select",
@@ -1058,7 +1148,7 @@ function MainPanel({ api }) {
             }
           )
         ] }),
-        /* @__PURE__ */ jsxs("div", { children: [
+        editExecutionMode === "quick" && /* @__PURE__ */ jsxs("div", { children: [
           /* @__PURE__ */ jsxs(
             "label",
             {
