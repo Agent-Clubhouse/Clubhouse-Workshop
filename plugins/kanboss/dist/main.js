@@ -2325,6 +2325,173 @@ function BatchActionsBar({ selectionCount, states, onBatchMove, onBatchPriority,
   ] });
 }
 
+// src/boardStatsUtils.ts
+function computeBoardStats(cards, board) {
+  const sortedStates = [...board.states].sort((a, b) => a.order - b.order);
+  const cardsPerState = sortedStates.map((state) => ({
+    stateId: state.id,
+    stateName: state.name,
+    count: cards.filter((c) => c.stateId === state.id).length
+  }));
+  const priorities = ["critical", "high", "medium", "low", "none"];
+  const priorityBreakdown = priorities.map((p) => ({
+    priority: p,
+    label: PRIORITY_CONFIG[p].label,
+    color: PRIORITY_CONFIG[p].color,
+    count: cards.filter((c) => c.priority === p).length
+  }));
+  const stuckCount = cards.filter(isCardStuck).length;
+  const totalCards = cards.length;
+  const stuckRatio = totalCards > 0 ? stuckCount / totalCards : 0;
+  let automationSuccesses = 0;
+  let automationTotal = 0;
+  for (const card of cards) {
+    for (const entry of card.history) {
+      if (entry.action === "automation-succeeded") {
+        automationSuccesses++;
+        automationTotal++;
+      } else if (entry.action === "automation-failed") {
+        automationTotal++;
+      }
+    }
+  }
+  const automationSuccessRate = automationTotal > 0 ? automationSuccesses / automationTotal : NaN;
+  return {
+    totalCards,
+    cardsPerState,
+    priorityBreakdown,
+    stuckCount,
+    stuckRatio,
+    automationSuccessRate,
+    automationTotal,
+    automationSuccesses
+  };
+}
+
+// src/BoardStats.tsx
+import { jsx as jsx7, jsxs as jsxs7 } from "react/jsx-runtime";
+var React7 = globalThis.React;
+var { useState: useState6, useMemo } = React7;
+function MiniBar({ items, colorFn }) {
+  const max = Math.max(...items.map((i) => i.count), 1);
+  return /* @__PURE__ */ jsx7("div", { style: { display: "flex", flexDirection: "column", gap: 3 }, children: items.map((item, i) => /* @__PURE__ */ jsxs7("div", { style: { display: "flex", alignItems: "center", gap: 6 }, children: [
+    /* @__PURE__ */ jsx7("span", { style: { fontSize: 10, color: color.textTertiary, width: 70, textAlign: "right", flexShrink: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }, children: item.label }),
+    /* @__PURE__ */ jsx7("div", { style: { flex: 1, height: 10, background: color.bgTertiary, borderRadius: 4, overflow: "hidden" }, children: item.count > 0 && /* @__PURE__ */ jsx7("div", { style: {
+      width: `${item.count / max * 100}%`,
+      height: "100%",
+      background: colorFn(i),
+      borderRadius: 4,
+      transition: "width 0.3s ease"
+    } }) }),
+    /* @__PURE__ */ jsx7("span", { style: { fontSize: 10, color: color.textSecondary, width: 20, flexShrink: 0 }, children: item.count })
+  ] }, i)) });
+}
+function StatPill({ label, value, color: color2 }) {
+  return /* @__PURE__ */ jsxs7("div", { style: {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    padding: "6px 12px",
+    borderRadius: 8,
+    background: color.bgTertiary,
+    minWidth: 60
+  }, children: [
+    /* @__PURE__ */ jsx7("span", { style: { fontSize: 16, fontWeight: 600, color: color2 || color.text }, children: value }),
+    /* @__PURE__ */ jsx7("span", { style: { fontSize: 9, color: color.textTertiary, marginTop: 2 }, children: label })
+  ] });
+}
+var STATE_COLORS = [
+  "var(--text-info, #3b82f6)",
+  "var(--text-warning, #eab308)",
+  "var(--text-success, #22c55e)",
+  "var(--text-accent, #8b5cf6)",
+  "var(--text-error, #f87171)",
+  "#06b6d4",
+  "#ec4899",
+  "#f97316"
+];
+function BoardStats({ cards, board }) {
+  const [expanded, setExpanded] = useState6(false);
+  const stats = useMemo(() => computeBoardStats(cards, board), [cards, board]);
+  const successRateStr = isNaN(stats.automationSuccessRate) ? "N/A" : `${Math.round(stats.automationSuccessRate * 100)}%`;
+  const successRateColor = isNaN(stats.automationSuccessRate) ? color.textTertiary : stats.automationSuccessRate >= 0.8 ? color.textSuccess : stats.automationSuccessRate >= 0.5 ? color.textWarning : color.textError;
+  const stuckColor = stats.stuckCount > 0 ? color.textError : color.textSuccess;
+  return /* @__PURE__ */ jsxs7("div", { style: { borderBottom: `1px solid ${color.border}`, fontFamily: font.family }, children: [
+    /* @__PURE__ */ jsxs7(
+      "button",
+      {
+        onClick: () => setExpanded(!expanded),
+        style: {
+          width: "100%",
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          padding: "4px 16px",
+          background: "transparent",
+          border: "none",
+          cursor: "pointer",
+          fontFamily: font.family
+        },
+        children: [
+          /* @__PURE__ */ jsx7("span", { style: { fontSize: 10, color: color.textTertiary, transform: expanded ? "rotate(90deg)" : "none", transition: "transform 0.15s" }, children: "\u25B6" }),
+          /* @__PURE__ */ jsx7("span", { style: { fontSize: 11, color: color.textSecondary, fontWeight: 500 }, children: "Stats" }),
+          !expanded && /* @__PURE__ */ jsxs7("span", { style: { fontSize: 10, color: color.textTertiary }, children: [
+            stats.totalCards,
+            " cards",
+            stats.stuckCount > 0 && /* @__PURE__ */ jsxs7("span", { style: { color: color.textError }, children: [
+              " \xB7 ",
+              stats.stuckCount,
+              " stuck"
+            ] }),
+            !isNaN(stats.automationSuccessRate) && /* @__PURE__ */ jsxs7("span", { children: [
+              " \xB7 ",
+              successRateStr,
+              " auto"
+            ] })
+          ] })
+        ]
+      }
+    ),
+    expanded && /* @__PURE__ */ jsxs7("div", { style: { padding: "8px 16px 12px", display: "flex", flexDirection: "column", gap: 12 }, children: [
+      /* @__PURE__ */ jsxs7("div", { style: { display: "flex", gap: 8, flexWrap: "wrap" }, children: [
+        /* @__PURE__ */ jsx7(StatPill, { label: "Total", value: String(stats.totalCards) }),
+        /* @__PURE__ */ jsx7(StatPill, { label: "Stuck", value: String(stats.stuckCount), color: stuckColor }),
+        /* @__PURE__ */ jsx7(StatPill, { label: "Auto Rate", value: successRateStr, color: successRateColor }),
+        !isNaN(stats.automationSuccessRate) && /* @__PURE__ */ jsx7(
+          StatPill,
+          {
+            label: "Auto Runs",
+            value: `${stats.automationSuccesses}/${stats.automationTotal}`
+          }
+        )
+      ] }),
+      /* @__PURE__ */ jsxs7("div", { children: [
+        /* @__PURE__ */ jsx7("div", { style: { fontSize: 10, fontWeight: 500, color: color.textSecondary, marginBottom: 4 }, children: "Cards by State" }),
+        /* @__PURE__ */ jsx7(
+          MiniBar,
+          {
+            items: stats.cardsPerState.map((s) => ({ label: s.stateName, count: s.count })),
+            colorFn: (i) => STATE_COLORS[i % STATE_COLORS.length]
+          }
+        )
+      ] }),
+      /* @__PURE__ */ jsxs7("div", { children: [
+        /* @__PURE__ */ jsx7("div", { style: { fontSize: 10, fontWeight: 500, color: color.textSecondary, marginBottom: 4 }, children: "Priority Breakdown" }),
+        /* @__PURE__ */ jsx7(
+          MiniBar,
+          {
+            items: stats.priorityBreakdown.filter((p) => p.count > 0).map((p) => ({ label: p.label, count: p.count })),
+            colorFn: (i) => {
+              const visible = stats.priorityBreakdown.filter((p) => p.count > 0);
+              return visible[i]?.color || color.textTertiary;
+            }
+          }
+        )
+      ] })
+    ] })
+  ] });
+}
+
 // src/AutomationEngine.ts
 var engineApi = null;
 async function loadBoard(api, boardId) {
@@ -2556,9 +2723,9 @@ function shutdownAutomationEngine() {
 }
 
 // src/BoardView.tsx
-import { jsx as jsx7, jsxs as jsxs7 } from "react/jsx-runtime";
-var React7 = globalThis.React;
-var { useEffect: useEffect4, useState: useState6, useCallback: useCallback7, useRef: useRef3 } = React7;
+import { jsx as jsx8, jsxs as jsxs8 } from "react/jsx-runtime";
+var React8 = globalThis.React;
+var { useEffect: useEffect4, useState: useState7, useCallback: useCallback7, useRef: useRef3 } = React8;
 function cardsStorage(api, board) {
   return board.config.gitHistory ? api.storage.project : api.storage.projectLocal;
 }
@@ -2587,14 +2754,14 @@ var PULSE_STYLE = `
 `;
 function BoardView({ api }) {
   const boardsStorage = api.storage.projectLocal;
-  const [board, setBoard] = useState6(null);
-  const [cards, setCards] = useState6([]);
-  const [selectedBoardId, setSelectedBoardId] = useState6(null);
-  const [showCardDialog, setShowCardDialog] = useState6(false);
-  const [showConfigDialog, setShowConfigDialog] = useState6(false);
-  const [zoomLevel, setZoomLevel] = useState6(1);
-  const [filter, setFilter] = useState6(kanBossState.filter);
-  const [selectionCount, setSelectionCount] = useState6(0);
+  const [board, setBoard] = useState7(null);
+  const [cards, setCards] = useState7([]);
+  const [selectedBoardId, setSelectedBoardId] = useState7(null);
+  const [showCardDialog, setShowCardDialog] = useState7(false);
+  const [showConfigDialog, setShowConfigDialog] = useState7(false);
+  const [zoomLevel, setZoomLevel] = useState7(1);
+  const [filter, setFilter] = useState7(kanBossState.filter);
+  const [selectionCount, setSelectionCount] = useState7(0);
   const loadBoard2 = useCallback7(async () => {
     const boardId = kanBossState.selectedBoardId;
     if (!boardId) {
@@ -2831,7 +2998,7 @@ function BoardView({ api }) {
     kanBossState.triggerRefresh();
   }, [board, api]);
   if (!board) {
-    return /* @__PURE__ */ jsx7("div", { style: {
+    return /* @__PURE__ */ jsx8("div", { style: {
       flex: 1,
       display: "flex",
       alignItems: "center",
@@ -2847,9 +3014,9 @@ function BoardView({ api }) {
   const sortedLanes = [...board.swimlanes].sort((a, b) => a.order - b.order);
   const lastStateId = sortedStates.length > 0 ? sortedStates[sortedStates.length - 1].id : null;
   const gridCols = `140px repeat(${sortedStates.length}, minmax(220px, 1fr))`;
-  return /* @__PURE__ */ jsxs7("div", { style: { display: "flex", flexDirection: "column", height: "100%", background: color.bg, fontFamily: font.family }, children: [
-    /* @__PURE__ */ jsx7("style", { dangerouslySetInnerHTML: { __html: PULSE_STYLE } }),
-    /* @__PURE__ */ jsxs7("div", { style: {
+  return /* @__PURE__ */ jsxs8("div", { style: { display: "flex", flexDirection: "column", height: "100%", background: color.bg, fontFamily: font.family }, children: [
+    /* @__PURE__ */ jsx8("style", { dangerouslySetInnerHTML: { __html: PULSE_STYLE } }),
+    /* @__PURE__ */ jsxs8("div", { style: {
       display: "flex",
       alignItems: "center",
       gap: 12,
@@ -2858,10 +3025,10 @@ function BoardView({ api }) {
       background: color.bgSecondary,
       flexShrink: 0
     }, children: [
-      /* @__PURE__ */ jsx7("span", { style: { fontSize: 14, fontWeight: 500, color: color.text }, children: board.name }),
-      /* @__PURE__ */ jsx7("div", { style: { flex: 1 } }),
-      /* @__PURE__ */ jsxs7("div", { style: { display: "flex", alignItems: "center", gap: 4 }, children: [
-        /* @__PURE__ */ jsx7(
+      /* @__PURE__ */ jsx8("span", { style: { fontSize: 14, fontWeight: 500, color: color.text }, children: board.name }),
+      /* @__PURE__ */ jsx8("div", { style: { flex: 1 } }),
+      /* @__PURE__ */ jsxs8("div", { style: { display: "flex", alignItems: "center", gap: 4 }, children: [
+        /* @__PURE__ */ jsx8(
           "button",
           {
             onClick: () => adjustZoom(-0.1),
@@ -2879,11 +3046,11 @@ function BoardView({ api }) {
             children: "-"
           }
         ),
-        /* @__PURE__ */ jsxs7("span", { style: { fontSize: 10, color: color.textTertiary, width: 40, textAlign: "center" }, children: [
+        /* @__PURE__ */ jsxs8("span", { style: { fontSize: 10, color: color.textTertiary, width: 40, textAlign: "center" }, children: [
           Math.round(zoomLevel * 100),
           "%"
         ] }),
-        /* @__PURE__ */ jsx7(
+        /* @__PURE__ */ jsx8(
           "button",
           {
             onClick: () => adjustZoom(0.1),
@@ -2902,7 +3069,7 @@ function BoardView({ api }) {
           }
         )
       ] }),
-      /* @__PURE__ */ jsx7(
+      /* @__PURE__ */ jsx8(
         "button",
         {
           onClick: () => kanBossState.openBoardConfig(),
@@ -2924,7 +3091,7 @@ function BoardView({ api }) {
         }
       )
     ] }),
-    selectionCount > 0 && /* @__PURE__ */ jsx7(
+    selectionCount > 0 && /* @__PURE__ */ jsx8(
       BatchActionsBar,
       {
         selectionCount,
@@ -2934,12 +3101,13 @@ function BoardView({ api }) {
         onBatchDelete: handleBatchDelete
       }
     ),
-    /* @__PURE__ */ jsx7(FilterBar, { filter, labels: board.labels || [] }),
-    /* @__PURE__ */ jsx7("div", { ref: scrollRef, style: { flex: 1, overflow: "auto" }, children: /* @__PURE__ */ jsx7("div", { style: {
+    /* @__PURE__ */ jsx8(BoardStats, { cards, board }),
+    /* @__PURE__ */ jsx8(FilterBar, { filter, labels: board.labels || [] }),
+    /* @__PURE__ */ jsx8("div", { ref: scrollRef, style: { flex: 1, overflow: "auto" }, children: /* @__PURE__ */ jsx8("div", { style: {
       transform: `scale(${zoomLevel})`,
       transformOrigin: "top left",
       minWidth: `${140 + sortedStates.length * 220}px`
-    }, children: /* @__PURE__ */ jsxs7("div", { style: {
+    }, children: /* @__PURE__ */ jsxs8("div", { style: {
       display: "grid",
       gridTemplateColumns: gridCols,
       gap: 1,
@@ -2947,11 +3115,11 @@ function BoardView({ api }) {
       overflow: "hidden",
       background: `${color.border}50`
     }, children: [
-      /* @__PURE__ */ jsx7("div", { style: { background: color.bgSecondary, padding: 8 } }),
+      /* @__PURE__ */ jsx8("div", { style: { background: color.bgSecondary, padding: 8 } }),
       sortedStates.map((state) => {
         const colCards = filteredCards.filter((c) => c.stateId === state.id);
         const overWip = state.wipLimit > 0 && colCards.length > state.wipLimit;
-        return /* @__PURE__ */ jsx7(
+        return /* @__PURE__ */ jsx8(
           "div",
           {
             style: {
@@ -2961,9 +3129,9 @@ function BoardView({ api }) {
               flexDirection: "column",
               ...overWip ? { borderBottom: `2px solid ${color.textError}` } : {}
             },
-            children: /* @__PURE__ */ jsxs7("div", { style: { display: "flex", alignItems: "center", gap: 6 }, children: [
-              /* @__PURE__ */ jsx7("span", { style: { fontSize: 12, fontWeight: 500, color: color.text }, children: state.name }),
-              state.isAutomatic && /* @__PURE__ */ jsxs7("span", { style: {
+            children: /* @__PURE__ */ jsxs8("div", { style: { display: "flex", alignItems: "center", gap: 6 }, children: [
+              /* @__PURE__ */ jsx8("span", { style: { fontSize: 12, fontWeight: 500, color: color.text }, children: state.name }),
+              state.isAutomatic && /* @__PURE__ */ jsxs8("span", { style: {
                 fontSize: 9,
                 padding: "1px 6px",
                 borderRadius: 99,
@@ -2977,7 +3145,7 @@ function BoardView({ api }) {
                 "\u2699",
                 " auto"
               ] }),
-              state.wipLimit > 0 && /* @__PURE__ */ jsxs7("span", { style: {
+              state.wipLimit > 0 && /* @__PURE__ */ jsxs8("span", { style: {
                 fontSize: 9,
                 color: overWip ? color.textError : color.textTertiary,
                 fontWeight: overWip ? 600 : 400
@@ -3000,7 +3168,7 @@ function BoardView({ api }) {
         const cellBg = laneIndex % 2 === 0 ? color.bg : `${color.bgSecondary}80`;
         return [
           // Swimlane label
-          /* @__PURE__ */ jsxs7(
+          /* @__PURE__ */ jsxs8(
             "div",
             {
               style: {
@@ -3011,8 +3179,8 @@ function BoardView({ api }) {
                 justifyContent: "center"
               },
               children: [
-                /* @__PURE__ */ jsx7("span", { style: { fontSize: 12, fontWeight: 500, color: color.text }, children: lane.name }),
-                managerAgent && /* @__PURE__ */ jsx7("div", { style: { display: "flex", alignItems: "center", gap: 4, marginTop: 4 }, children: /* @__PURE__ */ jsx7("span", { style: { fontSize: 9, color: color.textTertiary, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }, children: managerAgent.name }) })
+                /* @__PURE__ */ jsx8("span", { style: { fontSize: 12, fontWeight: 500, color: color.text }, children: lane.name }),
+                managerAgent && /* @__PURE__ */ jsx8("div", { style: { display: "flex", alignItems: "center", gap: 4, marginTop: 4 }, children: /* @__PURE__ */ jsx8("span", { style: { fontSize: 9, color: color.textTertiary, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }, children: managerAgent.name }) })
               ]
             },
             `lane-${lane.id}`
@@ -3022,11 +3190,11 @@ function BoardView({ api }) {
             const cellCards = filteredCards.filter(
               (c) => c.stateId === state.id && c.swimlaneId === lane.id
             );
-            return /* @__PURE__ */ jsx7(
+            return /* @__PURE__ */ jsx8(
               "div",
               {
                 style: { background: cellBg, display: "flex", flexDirection: "column" },
-                children: /* @__PURE__ */ jsx7(
+                children: /* @__PURE__ */ jsx8(
                   CardCell,
                   {
                     cards: cellCards,
@@ -3049,8 +3217,8 @@ function BoardView({ api }) {
         ];
       })
     ] }) }) }),
-    showCardDialog && /* @__PURE__ */ jsx7(CardDialog, { api, boardId: board.id, boardLabels: board.labels || [] }),
-    showConfigDialog && /* @__PURE__ */ jsx7(BoardConfigDialog, { api, board })
+    showCardDialog && /* @__PURE__ */ jsx8(CardDialog, { api, boardId: board.id, boardLabels: board.labels || [] }),
+    showConfigDialog && /* @__PURE__ */ jsx8(BoardConfigDialog, { api, board })
   ] });
 }
 
@@ -3121,14 +3289,14 @@ function mapThemeToCSS(theme) {
   };
 }
 function useTheme(themeApi) {
-  const React9 = globalThis.React;
-  const [theme, setTheme] = React9.useState(() => themeApi.getCurrent());
-  React9.useEffect(() => {
+  const React10 = globalThis.React;
+  const [theme, setTheme] = React10.useState(() => themeApi.getCurrent());
+  React10.useEffect(() => {
     setTheme(themeApi.getCurrent());
     const disposable = themeApi.onDidChange((t) => setTheme(t));
     return () => disposable.dispose();
   }, [themeApi]);
-  const style = React9.useMemo(
+  const style = React10.useMemo(
     () => mapThemeToCSS(theme),
     [theme]
   );
@@ -3136,8 +3304,8 @@ function useTheme(themeApi) {
 }
 
 // src/main.tsx
-import { jsx as jsx8 } from "react/jsx-runtime";
-var React8 = globalThis.React;
+import { jsx as jsx9 } from "react/jsx-runtime";
+var React9 = globalThis.React;
 function activate(ctx, api) {
   kanBossState.switchProject();
   api.logging.info("KanBoss plugin activated");
@@ -3160,11 +3328,11 @@ function deactivate() {
 }
 function SidebarPanel({ api }) {
   const { style: themeStyle } = useTheme(api.theme);
-  return /* @__PURE__ */ jsx8("div", { style: { ...themeStyle, height: "100%" }, children: /* @__PURE__ */ jsx8(BoardSidebar, { api }) });
+  return /* @__PURE__ */ jsx9("div", { style: { ...themeStyle, height: "100%" }, children: /* @__PURE__ */ jsx9(BoardSidebar, { api }) });
 }
 function MainPanel({ api }) {
   const { style: themeStyle } = useTheme(api.theme);
-  return /* @__PURE__ */ jsx8("div", { style: { ...themeStyle }, children: /* @__PURE__ */ jsx8(BoardView, { api }) });
+  return /* @__PURE__ */ jsx9("div", { style: { ...themeStyle }, children: /* @__PURE__ */ jsx9(BoardView, { api }) });
 }
 export {
   MainPanel,
