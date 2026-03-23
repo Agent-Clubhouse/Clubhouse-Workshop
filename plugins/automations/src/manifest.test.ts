@@ -10,8 +10,8 @@ describe('automations plugin manifest', () => {
     expect(manifest.scope).toBe('project');
   });
 
-  it('targets API v0.6', () => {
-    expect(manifest.engine.api).toBe(0.6);
+  it('targets API v0.7', () => {
+    expect(manifest.engine.api).toBe(0.7);
   });
 
   it('declares required permissions', () => {
