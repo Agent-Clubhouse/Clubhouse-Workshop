@@ -63,10 +63,10 @@ export async function validateRegistry({ checkAssets = false } = {}) {
   // Validate supportedApis consistency with sdk/versions.json
   if (sdkVersions && registry.supportedApis) {
     if (registry.supportedApis.latest !== sdkVersions.latest) {
-      warnings.push(`supportedApis.latest (${registry.supportedApis.latest}) doesn't match sdk/versions.json latest (${sdkVersions.latest})`);
+      errors.push(`supportedApis.latest (${registry.supportedApis.latest}) doesn't match sdk/versions.json latest (${sdkVersions.latest})`);
     }
     if (registry.supportedApis.minimum !== sdkVersions.minimum) {
-      warnings.push(`supportedApis.minimum (${registry.supportedApis.minimum}) doesn't match sdk/versions.json minimum (${sdkVersions.minimum})`);
+      errors.push(`supportedApis.minimum (${registry.supportedApis.minimum}) doesn't match sdk/versions.json minimum (${sdkVersions.minimum})`);
     }
   }
 

@@ -1,4 +1,5 @@
 export type MissedRunPolicy = 'ignore' | 'run-once' | 'run-all';
+export type ExecutionMode = 'quick' | 'durable';
 
 export interface Automation {
   id: string;
@@ -10,6 +11,8 @@ export interface Automation {
   prompt: string;
   enabled: boolean;
   missedRunPolicy: MissedRunPolicy;
+  executionMode: ExecutionMode;
+  targetAgentId?: string;
   createdAt: number;
   lastRunAt: number | null;
 }

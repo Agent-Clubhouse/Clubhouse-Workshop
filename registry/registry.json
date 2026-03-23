@@ -2,11 +2,12 @@
   "version": 1,
   "updated": "2026-03-18T05:22:45.876Z",
   "supportedApis": {
-    "latest": "0.7",
+    "latest": "0.8",
     "minimum": "0.6",
     "versions": [
       "0.6",
-      "0.7"
+      "0.7",
+      "0.8"
     ]
   },
   "plugins": [
