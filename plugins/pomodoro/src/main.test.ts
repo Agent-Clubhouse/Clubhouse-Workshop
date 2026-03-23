@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { act } from "react";
-import { activate, MainPanel, formatTime, todayKey, isTimerState } from "./main";
+import { activate, MainPanel, PomodoroPinnedWidget, PomodoroFullWidget, formatTime, todayKey, isTimerState } from "./main";
 import type { TimerState } from "./main";
 import { createMockContext, createMockAPI } from "@clubhouse/plugin-testing";
 import type { PluginAPI, ScopedStorage } from "@clubhouse/plugin-types";
@@ -705,6 +705,73 @@ describe("inline duration controls", () => {
   });
 });
 
+// ── Pinned widget tests ─────────────────────────────────────────────────
+
+describe("PomodoroPinnedWidget", () => {
+  let api: PluginAPI;
+  let globalStorage: ReturnType<typeof createMapStorage>;
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    globalStorage = createMapStorage();
+    api = createMockAPI({
+      storage: { global: globalStorage },
+    });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("renders idle state with Start button", async () => {
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = ReactDOM.createRoot(container);
+
+    act(() => {
+      root.render(React.createElement(PomodoroPinnedWidget, { api }));
+    });
+    await flush();
+
+    expect(container.textContent).toContain("Ready");
+    expect(container.textContent).toContain("25:00");
+    const buttons = container.querySelectorAll("button");
+    expect(buttons).toHaveLength(1);
+    expect(buttons[0].textContent).toBe("Start");
+
+    act(() => { root.unmount(); });
+    container.remove();
+  });
+
+  it("shows running state when timer is active in storage", async () => {
+    const now = 1700000000000;
+    vi.setSystemTime(now);
+
+    globalStorage._data.set(TIMER_STATE_KEY, {
+      phase: "work",
+      startedAt: now - 5 * 60 * 1000, // 5 min ago
+      durationMs: 25 * 60 * 1000,
+    });
+
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = ReactDOM.createRoot(container);
+
+    act(() => {
+      root.render(React.createElement(PomodoroPinnedWidget, { api }));
+    });
+    await flush();
+
+    expect(container.textContent).toContain("Focus");
+    expect(container.textContent).toContain("20:00");
+    const buttons = container.querySelectorAll("button");
+    expect(buttons[0].textContent).toBe("Stop");
+
+    act(() => { root.unmount(); });
+    container.remove();
+  });
+});
+
 // ── Activate tests ──────────────────────────────────────────────────────
 
 describe("pomodoro activate()", () => {
@@ -714,7 +781,25 @@ describe("pomodoro activate()", () => {
 
     activate(ctx, api);
 
-    expect(ctx.subscriptions).toHaveLength(2);
+    // 2 commands + 1 canvas widget registration
+    expect(ctx.subscriptions).toHaveLength(3);
+    expect(api.commands.register).toHaveBeenCalledWith("pomodoro.start", expect.any(Function));
+    expect(api.commands.register).toHaveBeenCalledWith("pomodoro.stop", expect.any(Function));
+  });
+
+  it("registers canvas widget type when api.canvas is available", () => {
+    const ctx = createMockContext({ pluginId: "pomodoro" });
+    const api = createMockAPI();
+
+    activate(ctx, api);
+
+    // 2 commands + 1 canvas widget registration
+    expect(ctx.subscriptions).toHaveLength(3);
+    expect(api.canvas.registerWidgetType).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: "pomodoro-timer",
+      }),
+    );
   });
 });
 
@@ -747,5 +832,20 @@ describe("manifest", () => {
 
   it("has help topics", () => {
     expect(manifest.contributes.help.topics.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("targets API v0.8", () => {
+    expect(manifest.engine.api).toBe(0.8);
+  });
+
+  it("declares canvas permission", () => {
+    expect(manifest.permissions).toContain("canvas");
+  });
+
+  it("declares canvasWidgets with pinnable pomodoro-timer", () => {
+    const widgets = manifest.contributes.canvasWidgets;
+    expect(widgets).toHaveLength(1);
+    expect(widgets[0].id).toBe("pomodoro-timer");
+    expect(widgets[0].pinnableToControls).toBe(true);
   });
 });
