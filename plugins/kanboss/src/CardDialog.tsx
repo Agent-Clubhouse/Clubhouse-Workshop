@@ -1,7 +1,7 @@
 const React = globalThis.React;
 const { useState, useCallback, useEffect } = React;
 
-import type { Card, Priority, HistoryEntry, Label } from './types';
+import type { Card, Priority, HistoryEntry, Label, Subtask } from './types';
 import { cardsKey, generateId, PRIORITY_CONFIG } from './types';
 import { kanBossState } from './state';
 import { mutateStorage } from './storageQueue';
@@ -42,6 +42,10 @@ export function CardDialog({ api, boardId, boardLabels }: CardDialogProps) {
   const [body, setBody] = useState('');
   const [priority, setPriority] = useState<Priority>('none');
   const [selectedLabels, setSelectedLabels] = useState<string[]>([]);
+  const [dueDate, setDueDate] = useState<number | null>(null);
+  const [subtasks, setSubtasks] = useState<Subtask[]>([]);
+  const [assignee, setAssignee] = useState<string>('');
+  const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [loaded, setLoaded] = useState(isNew);
 
@@ -52,6 +56,9 @@ export function CardDialog({ api, boardId, boardLabels }: CardDialogProps) {
       setBody('');
       setPriority('none');
       setSelectedLabels([]);
+      setDueDate(null);
+      setSubtasks([]);
+      setAssignee('');
       setHistory([]);
       setLoaded(true);
       return;
@@ -65,6 +72,9 @@ export function CardDialog({ api, boardId, boardLabels }: CardDialogProps) {
         setBody(card.body);
         setPriority(card.priority);
         setSelectedLabels(card.labels || []);
+        setDueDate(card.dueDate ?? null);
+        setSubtasks(card.subtasks ?? []);
+        setAssignee(card.assigneeAgentId ?? '');
         setHistory(card.history);
       }
       setLoaded(true);
@@ -97,6 +107,9 @@ export function CardDialog({ api, boardId, boardLabels }: CardDialogProps) {
           swimlaneId: kanBossState.editingSwimlaneId!,
           history: [{ action: 'created', timestamp: now, detail: `Created "${title.trim()}"` }],
           automationAttempts: 0,
+          dueDate,
+          subtasks,
+          assigneeAgentId: assignee || null,
           createdAt: now,
           updatedAt: now,
         };
@@ -117,6 +130,9 @@ export function CardDialog({ api, boardId, boardLabels }: CardDialogProps) {
             });
           }
           if (JSON.stringify(card.labels) !== JSON.stringify(selectedLabels)) changes.push('labels');
+          if (card.dueDate !== dueDate) changes.push('due date');
+          if (JSON.stringify(card.subtasks ?? []) !== JSON.stringify(subtasks)) changes.push('subtasks');
+          if ((card.assigneeAgentId ?? '') !== (assignee || '')) changes.push('assignee');
           if (changes.length > 0) {
             card.history.push({
               action: 'edited',
@@ -128,6 +144,9 @@ export function CardDialog({ api, boardId, boardLabels }: CardDialogProps) {
           card.body = body;
           card.priority = priority;
           card.labels = selectedLabels;
+          card.dueDate = dueDate;
+          card.subtasks = subtasks;
+          card.assigneeAgentId = assignee || null;
           card.updatedAt = now;
           cards[idx] = card;
         }
@@ -138,7 +157,7 @@ export function CardDialog({ api, boardId, boardLabels }: CardDialogProps) {
 
     kanBossState.closeCardDialog();
     kanBossState.triggerRefresh();
-  }, [title, body, priority, selectedLabels, isNew, cardId, boardId, storage]);
+  }, [title, body, priority, selectedLabels, dueDate, subtasks, assignee, isNew, cardId, boardId, storage]);
 
   // ── Delete ──────────────────────────────────────────────────────────
   const handleDelete = useCallback(async () => {
@@ -232,7 +251,7 @@ export function CardDialog({ api, boardId, boardLabels }: CardDialogProps) {
             <div>
               <label style={{ display: 'block', fontSize: 11, color: S.color.textSecondary, marginBottom: 6 }}>Labels</label>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                {boardLabels.map((label) => {
+                {(boardLabels ?? []).map((label) => {
                   const isSelected = selectedLabels.includes(label.id);
                   return (
                     <button
@@ -257,6 +276,113 @@ export function CardDialog({ api, boardId, boardLabels }: CardDialogProps) {
               </div>
             </div>
           )}
+
+          {/* Due Date */}
+          <div>
+            <label style={{ display: 'block', fontSize: 11, color: S.color.textSecondary, marginBottom: 4 }}>Due Date</label>
+            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+              <input
+                type="date"
+                value={dueDate ? new Date(dueDate).toISOString().slice(0, 10) : ''}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setDueDate(val ? new Date(val + 'T23:59:59').getTime() : null);
+                }}
+                style={{ ...S.baseInput, flex: 1 }}
+              />
+              {dueDate && (
+                <button
+                  onClick={() => setDueDate(null)}
+                  style={{ ...S.baseButton, padding: '4px 8px', fontSize: 11 }}
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Assignee */}
+          <div>
+            <label style={{ display: 'block', fontSize: 11, color: S.color.textSecondary, marginBottom: 4 }}>Assignee</label>
+            <select
+              value={assignee}
+              onChange={(e) => setAssignee(e.target.value)}
+              style={S.baseInput}
+            >
+              <option value="">Unassigned</option>
+              {api.agents.list().map((agent) => (
+                <option key={agent.id} value={agent.id}>{agent.name}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Subtasks */}
+          <div>
+            <label style={{ display: 'block', fontSize: 11, color: S.color.textSecondary, marginBottom: 4 }}>
+              Subtasks {subtasks.length > 0 && `(${subtasks.filter((s) => s.completed).length}/${subtasks.length})`}
+            </label>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              {subtasks.map((st) => (
+                <div key={st.id} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <input
+                    type="checkbox"
+                    checked={st.completed}
+                    onChange={() => {
+                      setSubtasks((prev) => prev.map((s) =>
+                        s.id === st.id ? { ...s, completed: !s.completed } : s
+                      ));
+                    }}
+                  />
+                  <span style={{
+                    flex: 1,
+                    fontSize: 11,
+                    color: st.completed ? S.color.textTertiary : S.color.text,
+                    textDecoration: st.completed ? 'line-through' : 'none',
+                  }}>
+                    {st.title}
+                  </span>
+                  <button
+                    onClick={() => setSubtasks((prev) => prev.filter((s) => s.id !== st.id))}
+                    style={{
+                      fontSize: 12,
+                      color: S.color.textTertiary,
+                      border: 'none',
+                      background: 'transparent',
+                      cursor: 'pointer',
+                      padding: '0 4px',
+                    }}
+                  >
+                    {'\u00D7'}
+                  </button>
+                </div>
+              ))}
+              <div style={{ display: 'flex', gap: 6, marginTop: 2 }}>
+                <input
+                  type="text"
+                  placeholder="Add subtask..."
+                  value={newSubtaskTitle}
+                  onChange={(e) => setNewSubtaskTitle(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && newSubtaskTitle.trim()) {
+                      setSubtasks((prev) => [...prev, { id: generateId('sub'), title: newSubtaskTitle.trim(), completed: false }]);
+                      setNewSubtaskTitle('');
+                    }
+                  }}
+                  style={{ ...S.baseInput, flex: 1 }}
+                />
+                <button
+                  onClick={() => {
+                    if (!newSubtaskTitle.trim()) return;
+                    setSubtasks((prev) => [...prev, { id: generateId('sub'), title: newSubtaskTitle.trim(), completed: false }]);
+                    setNewSubtaskTitle('');
+                  }}
+                  style={{ ...S.baseButton, padding: '4px 10px', fontSize: 11 }}
+                >
+                  Add
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* History (edit mode only) */}

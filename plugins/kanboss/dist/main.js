@@ -186,6 +186,25 @@ function isCardAutomating(card) {
   }
   return false;
 }
+function subtaskProgress(card) {
+  const subtasks = card.subtasks ?? [];
+  return {
+    done: subtasks.filter((s) => s.completed).length,
+    total: subtasks.length
+  };
+}
+function dueDateStatus(card, now) {
+  const due = card.dueDate;
+  if (due == null) return "none";
+  const ref = now ?? Date.now();
+  if (due < ref) return "overdue";
+  if (due - ref < 24 * 60 * 60 * 1e3) return "due-soon";
+  return "upcoming";
+}
+function formatDueDate(timestamp) {
+  const d = new Date(timestamp);
+  return d.toLocaleDateString(void 0, { month: "short", day: "numeric" });
+}
 
 // src/storageQueue.ts
 var mutexes = /* @__PURE__ */ new Map();
@@ -819,7 +838,7 @@ function MoveButton({ card, allStates, onMove }) {
     )) })
   ] });
 }
-function CardTile({ card, allStates, boardLabels, onMoveCard, onDeleteCard, onClearRetries, onManualAdvance }) {
+function CardTile({ card, allStates, boardLabels, agents, onMoveCard, onDeleteCard, onClearRetries, onManualAdvance }) {
   const stuck = isCardStuck(card);
   const automating = !stuck && isCardAutomating(card);
   const hasRetries = !stuck && !automating && card.automationAttempts > 0;
@@ -895,6 +914,52 @@ function CardTile({ card, allStates, boardLabels, onMoveCard, onDeleteCard, onCl
           WebkitLineClamp: 2,
           WebkitBoxOrient: "vertical"
         }, children: card.body }),
+        (card.dueDate != null || (card.subtasks ?? []).length > 0 || card.assigneeAgentId) && /* @__PURE__ */ jsxs2("div", { style: {
+          display: "flex",
+          flexWrap: "wrap",
+          alignItems: "center",
+          gap: 6,
+          marginTop: 6
+        }, children: [
+          card.dueDate != null && (() => {
+            const status = dueDateStatus(card);
+            const badgeColor = status === "overdue" ? color.textError : status === "due-soon" ? color.textWarning : color.textTertiary;
+            return /* @__PURE__ */ jsx2("span", { style: {
+              fontSize: 9,
+              padding: "1px 6px",
+              borderRadius: 99,
+              background: `${badgeColor}20`,
+              color: badgeColor,
+              fontWeight: 500
+            }, children: formatDueDate(card.dueDate) });
+          })(),
+          (card.subtasks ?? []).length > 0 && (() => {
+            const prog = subtaskProgress(card);
+            const allDone = prog.done === prog.total;
+            return /* @__PURE__ */ jsxs2("span", { style: {
+              fontSize: 9,
+              color: allDone ? color.textSuccess : color.textTertiary,
+              fontWeight: allDone ? 500 : 400
+            }, children: [
+              "\u2611",
+              " ",
+              prog.done,
+              "/",
+              prog.total
+            ] });
+          })(),
+          card.assigneeAgentId && (() => {
+            const agent = agents.find((a) => a.id === card.assigneeAgentId);
+            return agent ? /* @__PURE__ */ jsx2("span", { style: {
+              fontSize: 9,
+              color: color.textTertiary,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+              maxWidth: 80
+            }, children: agent.name }) : null;
+          })()
+        ] }),
         automating && /* @__PURE__ */ jsxs2("div", { style: {
           display: "flex",
           alignItems: "center",
@@ -1107,7 +1172,7 @@ function CardTile({ card, allStates, boardLabels, onMoveCard, onDeleteCard, onCl
     }
   );
 }
-function CardCell({ cards, stateId, swimlaneId, isLastState, allStates, boardLabels, wipLimit, onMoveCard, onDeleteCard, onClearRetries, onManualAdvance }) {
+function CardCell({ cards, stateId, swimlaneId, isLastState, allStates, boardLabels, agents, wipLimit, onMoveCard, onDeleteCard, onClearRetries, onManualAdvance }) {
   const [expanded, setExpanded] = useState2(false);
   const [isDragOver, setIsDragOver] = useState2(false);
   const dragCounter = useRef2(0);
@@ -1223,6 +1288,7 @@ function CardCell({ cards, stateId, swimlaneId, isLastState, allStates, boardLab
             card,
             allStates,
             boardLabels,
+            agents,
             onMoveCard,
             onDeleteCard,
             onClearRetries,
@@ -1320,6 +1386,10 @@ function CardDialog({ api, boardId, boardLabels }) {
   const [body, setBody] = useState3("");
   const [priority, setPriority] = useState3("none");
   const [selectedLabels, setSelectedLabels] = useState3([]);
+  const [dueDate, setDueDate] = useState3(null);
+  const [subtasks, setSubtasks] = useState3([]);
+  const [assignee, setAssignee] = useState3("");
+  const [newSubtaskTitle, setNewSubtaskTitle] = useState3("");
   const [history, setHistory] = useState3([]);
   const [loaded, setLoaded] = useState3(isNew);
   useEffect2(() => {
@@ -1328,6 +1398,9 @@ function CardDialog({ api, boardId, boardLabels }) {
       setBody("");
       setPriority("none");
       setSelectedLabels([]);
+      setDueDate(null);
+      setSubtasks([]);
+      setAssignee("");
       setHistory([]);
       setLoaded(true);
       return;
@@ -1341,6 +1414,9 @@ function CardDialog({ api, boardId, boardLabels }) {
         setBody(card.body);
         setPriority(card.priority);
         setSelectedLabels(card.labels || []);
+        setDueDate(card.dueDate ?? null);
+        setSubtasks(card.subtasks ?? []);
+        setAssignee(card.assigneeAgentId ?? "");
         setHistory(card.history);
       }
       setLoaded(true);
@@ -1367,6 +1443,9 @@ function CardDialog({ api, boardId, boardLabels }) {
           swimlaneId: kanBossState.editingSwimlaneId,
           history: [{ action: "created", timestamp: now, detail: `Created "${title.trim()}"` }],
           automationAttempts: 0,
+          dueDate,
+          subtasks,
+          assigneeAgentId: assignee || null,
           createdAt: now,
           updatedAt: now
         };
@@ -1387,6 +1466,9 @@ function CardDialog({ api, boardId, boardLabels }) {
             });
           }
           if (JSON.stringify(card.labels) !== JSON.stringify(selectedLabels)) changes.push("labels");
+          if (card.dueDate !== dueDate) changes.push("due date");
+          if (JSON.stringify(card.subtasks ?? []) !== JSON.stringify(subtasks)) changes.push("subtasks");
+          if ((card.assigneeAgentId ?? "") !== (assignee || "")) changes.push("assignee");
           if (changes.length > 0) {
             card.history.push({
               action: "edited",
@@ -1398,6 +1480,9 @@ function CardDialog({ api, boardId, boardLabels }) {
           card.body = body;
           card.priority = priority;
           card.labels = selectedLabels;
+          card.dueDate = dueDate;
+          card.subtasks = subtasks;
+          card.assigneeAgentId = assignee || null;
           card.updatedAt = now;
           cards[idx] = card;
         }
@@ -1406,7 +1491,7 @@ function CardDialog({ api, boardId, boardLabels }) {
     });
     kanBossState.closeCardDialog();
     kanBossState.triggerRefresh();
-  }, [title, body, priority, selectedLabels, isNew, cardId, boardId, storage]);
+  }, [title, body, priority, selectedLabels, dueDate, subtasks, assignee, isNew, cardId, boardId, storage]);
   const handleDelete = useCallback3(async () => {
     if (!cardId) return;
     const ok = await api.ui.showConfirm("Delete this card? This cannot be undone.");
@@ -1485,7 +1570,7 @@ function CardDialog({ api, boardId, boardLabels }) {
       ] }),
       boardLabels.length > 0 && /* @__PURE__ */ jsxs3("div", { children: [
         /* @__PURE__ */ jsx3("label", { style: { display: "block", fontSize: 11, color: color.textSecondary, marginBottom: 6 }, children: "Labels" }),
-        /* @__PURE__ */ jsx3("div", { style: { display: "flex", flexWrap: "wrap", gap: 6 }, children: boardLabels.map((label) => {
+        /* @__PURE__ */ jsx3("div", { style: { display: "flex", flexWrap: "wrap", gap: 6 }, children: (boardLabels ?? []).map((label) => {
           const isSelected = selectedLabels.includes(label.id);
           return /* @__PURE__ */ jsx3(
             "button",
@@ -1507,6 +1592,119 @@ function CardDialog({ api, boardId, boardLabels }) {
             label.id
           );
         }) })
+      ] }),
+      /* @__PURE__ */ jsxs3("div", { children: [
+        /* @__PURE__ */ jsx3("label", { style: { display: "block", fontSize: 11, color: color.textSecondary, marginBottom: 4 }, children: "Due Date" }),
+        /* @__PURE__ */ jsxs3("div", { style: { display: "flex", gap: 6, alignItems: "center" }, children: [
+          /* @__PURE__ */ jsx3(
+            "input",
+            {
+              type: "date",
+              value: dueDate ? new Date(dueDate).toISOString().slice(0, 10) : "",
+              onChange: (e) => {
+                const val = e.target.value;
+                setDueDate(val ? (/* @__PURE__ */ new Date(val + "T23:59:59")).getTime() : null);
+              },
+              style: { ...baseInput, flex: 1 }
+            }
+          ),
+          dueDate && /* @__PURE__ */ jsx3(
+            "button",
+            {
+              onClick: () => setDueDate(null),
+              style: { ...baseButton, padding: "4px 8px", fontSize: 11 },
+              children: "Clear"
+            }
+          )
+        ] })
+      ] }),
+      /* @__PURE__ */ jsxs3("div", { children: [
+        /* @__PURE__ */ jsx3("label", { style: { display: "block", fontSize: 11, color: color.textSecondary, marginBottom: 4 }, children: "Assignee" }),
+        /* @__PURE__ */ jsxs3(
+          "select",
+          {
+            value: assignee,
+            onChange: (e) => setAssignee(e.target.value),
+            style: baseInput,
+            children: [
+              /* @__PURE__ */ jsx3("option", { value: "", children: "Unassigned" }),
+              api.agents.list().map((agent) => /* @__PURE__ */ jsx3("option", { value: agent.id, children: agent.name }, agent.id))
+            ]
+          }
+        )
+      ] }),
+      /* @__PURE__ */ jsxs3("div", { children: [
+        /* @__PURE__ */ jsxs3("label", { style: { display: "block", fontSize: 11, color: color.textSecondary, marginBottom: 4 }, children: [
+          "Subtasks ",
+          subtasks.length > 0 && `(${subtasks.filter((s) => s.completed).length}/${subtasks.length})`
+        ] }),
+        /* @__PURE__ */ jsxs3("div", { style: { display: "flex", flexDirection: "column", gap: 4 }, children: [
+          subtasks.map((st) => /* @__PURE__ */ jsxs3("div", { style: { display: "flex", alignItems: "center", gap: 6 }, children: [
+            /* @__PURE__ */ jsx3(
+              "input",
+              {
+                type: "checkbox",
+                checked: st.completed,
+                onChange: () => {
+                  setSubtasks((prev) => prev.map(
+                    (s) => s.id === st.id ? { ...s, completed: !s.completed } : s
+                  ));
+                }
+              }
+            ),
+            /* @__PURE__ */ jsx3("span", { style: {
+              flex: 1,
+              fontSize: 11,
+              color: st.completed ? color.textTertiary : color.text,
+              textDecoration: st.completed ? "line-through" : "none"
+            }, children: st.title }),
+            /* @__PURE__ */ jsx3(
+              "button",
+              {
+                onClick: () => setSubtasks((prev) => prev.filter((s) => s.id !== st.id)),
+                style: {
+                  fontSize: 12,
+                  color: color.textTertiary,
+                  border: "none",
+                  background: "transparent",
+                  cursor: "pointer",
+                  padding: "0 4px"
+                },
+                children: "\xD7"
+              }
+            )
+          ] }, st.id)),
+          /* @__PURE__ */ jsxs3("div", { style: { display: "flex", gap: 6, marginTop: 2 }, children: [
+            /* @__PURE__ */ jsx3(
+              "input",
+              {
+                type: "text",
+                placeholder: "Add subtask...",
+                value: newSubtaskTitle,
+                onChange: (e) => setNewSubtaskTitle(e.target.value),
+                onKeyDown: (e) => {
+                  if (e.key === "Enter" && newSubtaskTitle.trim()) {
+                    setSubtasks((prev) => [...prev, { id: generateId("sub"), title: newSubtaskTitle.trim(), completed: false }]);
+                    setNewSubtaskTitle("");
+                  }
+                },
+                style: { ...baseInput, flex: 1 }
+              }
+            ),
+            /* @__PURE__ */ jsx3(
+              "button",
+              {
+                onClick: () => {
+                  if (!newSubtaskTitle.trim()) return;
+                  setSubtasks((prev) => [...prev, { id: generateId("sub"), title: newSubtaskTitle.trim(), completed: false }]);
+                  setNewSubtaskTitle("");
+                },
+                style: { ...baseButton, padding: "4px 10px", fontSize: 11 },
+                children: "Add"
+              }
+            )
+          ] })
+        ] })
       ] })
     ] }),
     !isNew && history.length > 0 && /* @__PURE__ */ jsxs3("div", { style: { padding: "0 16px 12px" }, children: [
@@ -3253,6 +3451,7 @@ function BoardView({ api }) {
                     isLastState: state.id === lastStateId,
                     allStates: sortedStates,
                     boardLabels: board.labels || [],
+                    agents: api.agents.list().map((a) => ({ id: a.id, name: a.name })),
                     wipLimit: state.wipLimit,
                     onMoveCard: handleMoveCard,
                     onDeleteCard: handleDeleteCard,

@@ -25,6 +25,12 @@ export interface Label {
   color: string;
 }
 
+export interface Subtask {
+  id: string;
+  title: string;
+  completed: boolean;
+}
+
 export interface Card {
   id: string;
   boardId: string;
@@ -36,6 +42,9 @@ export interface Card {
   swimlaneId: string;
   history: HistoryEntry[];
   automationAttempts: number;
+  dueDate: number | null;
+  subtasks: Subtask[];
+  assigneeAgentId: string | null;
   createdAt: number;
   updatedAt: number;
 }
@@ -149,4 +158,31 @@ export function isCardAutomating(card: Card): boolean {
     if (a === 'automation-succeeded' || a === 'automation-failed' || a === 'automation-stuck' || a === 'moved') return false;
   }
   return false;
+}
+
+// ── Card enhancement helpers ──────────────────────────────────────────
+
+export function subtaskProgress(card: Card): { done: number; total: number } {
+  const subtasks = card.subtasks ?? [];
+  return {
+    done: subtasks.filter((s) => s.completed).length,
+    total: subtasks.length,
+  };
+}
+
+export type DueDateStatus = 'overdue' | 'due-soon' | 'upcoming' | 'none';
+
+/** Classify a card's due date relative to `now`. "due-soon" = within 24h. */
+export function dueDateStatus(card: Card, now?: number): DueDateStatus {
+  const due = card.dueDate;
+  if (due == null) return 'none';
+  const ref = now ?? Date.now();
+  if (due < ref) return 'overdue';
+  if (due - ref < 24 * 60 * 60 * 1000) return 'due-soon';
+  return 'upcoming';
+}
+
+export function formatDueDate(timestamp: number): string {
+  const d = new Date(timestamp);
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
