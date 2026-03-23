@@ -1,5 +1,5 @@
 {
-  "latest": "0.8",
+  "latest": "0.9",
   "minimum": "0.6",
   "versions": {
     "0.6": {
@@ -25,6 +25,14 @@
       "removalTarget": null,
       "sdkPath": "sdk/v0.8",
       "notes": "Adds CanvasAPI for canvas widget registration and querying, WindowAPI for window title management, annex permission for remote control compatibility, canvas widgets manifest declaration, and tab/railItem title override. Extends AgentsAPI with session transcript and summary methods."
+    },
+    "0.9": {
+      "status": "active",
+      "released": "2026-03-22",
+      "deprecated": null,
+      "removalTarget": null,
+      "sdkPath": "sdk/v0.9",
+      "notes": "Adds companion agent support (workspace plugin kind, companion permission, spawnCompanion/getCompanionStatus/getCompanionWorkspace on AgentsAPI). Adds MCP tool contribution API (mcp.tools permission, McpAPI with contributeTools/removeTools/listContributedTools/onToolCall). Note: v0.9 runtime is WIP — types are stable but companion and MCP methods are stubs pending runtime implementation."
     }
   }
 }
