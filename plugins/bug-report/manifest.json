@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "description": "File bug reports and feature requests for Clubhouse with structured severity and label support",
   "author": "Clubhouse Workshop",
-  "engine": { "api": 0.6 },
+  "engine": { "api": 0.7 },
   "scope": "app",
   "main": "./dist/main.js",
   "contributes": {

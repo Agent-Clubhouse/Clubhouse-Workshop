@@ -10,8 +10,8 @@ describe("bug-report manifest", () => {
     expect(manifest.scope).toBe("app");
   });
 
-  it("targets API version 0.6", () => {
-    expect(manifest.engine.api).toBe(0.6);
+  it("targets API version 0.7", () => {
+    expect(manifest.engine.api).toBe(0.7);
   });
 
   it("declares required permissions", () => {
@@ -25,11 +25,11 @@ describe("bug-report manifest", () => {
 
   it("does not declare invalid permissions", () => {
     const validPermissions = [
-      "files", "files.external", "git", "terminal", "agents",
+      "files", "files.external", "files.watch", "git", "terminal", "agents",
       "notifications", "storage", "navigation", "projects",
       "commands", "events", "widgets", "logging", "process", "badges",
       "agent-config", "agent-config.cross-project",
-      "agent-config.permissions", "agent-config.mcp",
+      "agent-config.permissions", "agents.free-agent-mode", "agent-config.mcp",
       "theme", "sounds",
     ];
     for (const perm of manifest.permissions) {
