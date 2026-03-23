@@ -1,4 +1,4 @@
-// plugins/kanboss/src/state.ts
+// src/state.ts
 function filtersEqual(a, b) {
   return a.searchQuery === b.searchQuery && a.priorityFilter === b.priorityFilter && a.labelFilter === b.labelFilter && a.stuckOnly === b.stuckOnly;
 }
@@ -105,7 +105,7 @@ var kanBossState = {
   }
 };
 
-// plugins/kanboss/src/types.ts
+// src/types.ts
 var BOARDS_KEY = "boards";
 var cardsKey = (boardId) => `cards:${boardId}`;
 var AUTOMATION_RUNS_KEY = "automation-runs";
@@ -160,7 +160,7 @@ function isCardAutomating(card) {
   return false;
 }
 
-// plugins/kanboss/src/storageQueue.ts
+// src/storageQueue.ts
 var mutexes = /* @__PURE__ */ new Map();
 function getMutex(storageRef, key) {
   const compositeKey = `${storageRef.__id ?? "default"}::${key}`;
@@ -191,7 +191,7 @@ async function mutateStorage(storage, key, updater) {
   }
 }
 
-// plugins/kanboss/src/templates.ts
+// src/templates.ts
 function makeState(name, order, overrides = {}) {
   return {
     id: generateId("state"),
@@ -287,7 +287,7 @@ var BOARD_TEMPLATES = [
   }
 ];
 
-// plugins/kanboss/src/styles.ts
+// src/styles.ts
 var font = {
   family: "var(--font-family, system-ui, -apple-system, sans-serif)",
   mono: "var(--font-mono, ui-monospace, monospace)"
@@ -388,7 +388,7 @@ var dialogWide = {
   flexDirection: "column"
 };
 
-// plugins/kanboss/src/BoardSidebar.tsx
+// src/BoardSidebar.tsx
 import { jsx, jsxs } from "react/jsx-runtime";
 var React = globalThis.React;
 var { useEffect, useState, useCallback, useRef } = React;
@@ -724,7 +724,7 @@ function BoardSidebar({ api }) {
   ] });
 }
 
-// plugins/kanboss/src/CardCell.tsx
+// src/CardCell.tsx
 import { Fragment, jsx as jsx2, jsxs as jsxs2 } from "react/jsx-runtime";
 var React2 = globalThis.React;
 var { useState: useState2, useCallback: useCallback2, useRef: useRef2 } = React2;
@@ -1265,7 +1265,7 @@ function CardCell({ cards, stateId, swimlaneId, isLastState, allStates, boardLab
   );
 }
 
-// plugins/kanboss/src/CardDialog.tsx
+// src/CardDialog.tsx
 import { jsx as jsx3, jsxs as jsxs3 } from "react/jsx-runtime";
 var React3 = globalThis.React;
 var { useState: useState3, useCallback: useCallback3, useEffect: useEffect2 } = React3;
@@ -1508,7 +1508,7 @@ function CardDialog({ api, boardId, boardLabels }) {
   ] }) });
 }
 
-// plugins/kanboss/src/BoardConfigDialog.tsx
+// src/BoardConfigDialog.tsx
 import { Fragment as Fragment2, jsx as jsx4, jsxs as jsxs4 } from "react/jsx-runtime";
 var React4 = globalThis.React;
 var { useState: useState4, useCallback: useCallback4, useEffect: useEffect3 } = React4;
@@ -2023,7 +2023,7 @@ function BoardConfigDialog({ api, board }) {
   ] }) });
 }
 
-// plugins/kanboss/src/FilterBar.tsx
+// src/FilterBar.tsx
 import { jsx as jsx5, jsxs as jsxs5 } from "react/jsx-runtime";
 var React5 = globalThis.React;
 var { useCallback: useCallback5 } = React5;
@@ -2129,7 +2129,7 @@ function FilterBar({ filter, labels }) {
   ] });
 }
 
-// plugins/kanboss/src/AutomationEngine.ts
+// src/AutomationEngine.ts
 var engineApi = null;
 async function loadBoard(api, boardId) {
   const raw = await api.storage.projectLocal.read(BOARDS_KEY);
@@ -2359,7 +2359,7 @@ function shutdownAutomationEngine() {
   engineApi = null;
 }
 
-// plugins/kanboss/src/BoardView.tsx
+// src/BoardView.tsx
 import { jsx as jsx6, jsxs as jsxs6 } from "react/jsx-runtime";
 var React6 = globalThis.React;
 var { useEffect: useEffect4, useState: useState5, useCallback: useCallback6, useRef: useRef3 } = React6;
@@ -2783,7 +2783,7 @@ function BoardView({ api }) {
   ] });
 }
 
-// plugins/kanboss/src/use-theme.ts
+// src/use-theme.ts
 function hexToRgba(hex, alpha) {
   const r = parseInt(hex.slice(1, 3), 16);
   const g = parseInt(hex.slice(3, 5), 16);
@@ -2864,7 +2864,7 @@ function useTheme(themeApi) {
   return { style, themeType: theme.type };
 }
 
-// plugins/kanboss/src/main.tsx
+// src/main.tsx
 import { jsx as jsx7 } from "react/jsx-runtime";
 var React7 = globalThis.React;
 function activate(ctx, api) {
