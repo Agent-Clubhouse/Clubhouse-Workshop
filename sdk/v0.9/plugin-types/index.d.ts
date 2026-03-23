@@ -1,10 +1,10 @@
 /**
- * Clubhouse Plugin API — v0.8
+ * Clubhouse Plugin API — v0.9
  *
  * Type definitions for the Clubhouse plugin SDK.
  * Generated from the Clubhouse application source.
  *
- * @version 0.8
+ * @version 0.9
  * @see https://github.com/Agent-Clubhouse/Clubhouse-Workshop
  */
 

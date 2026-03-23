@@ -1,6 +1,6 @@
-# Changelog — @clubhouse/plugin-types v0.8
+# Changelog — @clubhouse/plugin-types v0.9
 
-## v0.8.0 (2026-03-23)
+## v0.9.0 (2026-03-23)
 
 ### Added
 - `CanvasWidgetMetadata` — type alias for widget metadata key-value pairs
@@ -16,7 +16,7 @@
 - `"canvas"` permission — required for canvas API access
 
 ### Migration from v0.7
-- No breaking changes — v0.8 is a superset of v0.7
+- No breaking changes — v0.9 is a superset of v0.7
 - To use canvas features, add `"canvas"` to your manifest permissions and set `engine.api` to `0.8`
 - Declare widgets in `contributes.canvasWidgets` and register them in `activate()` via `api.canvas.registerWidgetType()`
 - For pinned widgets (in the controls bar), set `pinnableToControls: true` in the declaration and provide a `pinnedComponent` in the descriptor

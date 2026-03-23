@@ -1,5 +1,5 @@
 {
-  "latest": "0.8",
+  "latest": "0.9",
   "minimum": "0.6",
   "versions": {
     "0.6": {
@@ -18,12 +18,12 @@
       "sdkPath": "sdk/v0.7",
       "notes": "Adds plugin themes (contributes.themes), global dialog actions (contributes.globalDialog, DialogPanel), manifest-declared agent config (contributes.agentConfig), file watching (files.watch permission, FilesAPI.watch), pack plugin kind, and 'creating' agent status. Removes HubAPI.refresh()."
     },
-    "0.8": {
+    "0.9": {
       "status": "active",
       "released": "2026-03-23",
       "deprecated": null,
       "removalTarget": null,
-      "sdkPath": "sdk/v0.8",
+      "sdkPath": "sdk/v0.9",
       "notes": "Adds Canvas API (contributes.canvasWidgets, CanvasAPI with registerWidgetType and queryWidgets), pinned widget support (pinnableToControls, pinnedComponent), and canvas permission."
     }
   }

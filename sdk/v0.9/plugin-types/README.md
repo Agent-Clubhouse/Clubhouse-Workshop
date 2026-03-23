@@ -1,11 +1,11 @@
-# @clubhouse/plugin-types v0.8
+# @clubhouse/plugin-types v0.9
 
 TypeScript type definitions for the Clubhouse plugin SDK.
 
 ## Installation
 
 ```bash
-npm install @clubhouse/plugin-types@0.8.0
+npm install @clubhouse/plugin-types@0.9.0
 ```
 
 Or reference directly in your `tsconfig.json`:
@@ -20,7 +20,7 @@ Or reference directly in your `tsconfig.json`:
 }
 ```
 
-## What's new in v0.8
+## What's new in v0.9
 
 - **Canvas API** — `api.canvas.registerWidgetType()` and `api.canvas.queryWidgets()` for embedding plugin widgets on the canvas
 - **Canvas widget declarations** — `contributes.canvasWidgets` in the manifest to declare widget types with size, icon, and metadata
