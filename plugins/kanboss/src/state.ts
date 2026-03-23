@@ -45,7 +45,7 @@ export const kanBossState = {
 
   // Card selection state (multi-select)
   selectedCardIds: new Set<string>(),
-  lastSelectedCardId: null as string | null,
+  lastSelectedCardId: null as string | null, // for shift-click range selection
 
   // Keyboard shortcut signals (consumed by BoardView)
   pendingDeleteIds: [] as string[],

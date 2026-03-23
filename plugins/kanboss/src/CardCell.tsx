@@ -13,6 +13,10 @@ export interface AgentInfo {
   name: string;
 }
 
+// Mime type for multi-card drag
+const MIME_SINGLE = 'application/x-kanboss-card';
+const MIME_MULTI = 'application/x-kanboss-cards';
+
 export interface CardCellProps {
   cards: Card[];
   stateId: string;
@@ -22,11 +26,22 @@ export interface CardCellProps {
   boardLabels: Label[];
   agents: AgentInfo[];
   wipLimit: number;
+  selectedCardIds: ReadonlySet<string>;
+  allCardIds: string[]; // ordered card IDs for range selection
   onMoveCard: (cardId: string, targetStateId: string, targetSwimlaneId?: string) => void;
+  onMoveCards: (cardIds: string[], targetStateId: string, targetSwimlaneId?: string) => void;
   onDeleteCard: (cardId: string) => void;
   onClearRetries: (cardId: string) => void;
   onManualAdvance: (cardId: string) => void;
 }
+
+// ── Drop indicator styles ───────────────────────────────────────────────
+
+const dropIndicatorStyle: React.CSSProperties = {
+  background: `${S.color.bgInfo}`,
+  boxShadow: `inset 0 0 0 2px ${S.color.borderInfo}`,
+  borderRadius: 10,
+};
 
 // ── Move dropdown ───────────────────────────────────────────────────────
 
@@ -96,11 +111,14 @@ function MoveButton({ card, allStates, onMove }: {
 
 // ── Card tile ───────────────────────────────────────────────────────────
 
-function CardTile({ card, allStates, boardLabels, agents, onMoveCard, onDeleteCard, onClearRetries, onManualAdvance }: {
+function CardTile({ card, allStates, boardLabels, agents, isSelected, selectedCount, allCardIds, onMoveCard, onDeleteCard, onClearRetries, onManualAdvance }: {
   card: Card;
   allStates: BoardState[];
   boardLabels: Label[];
   agents: AgentInfo[];
+  isSelected: boolean;
+  selectedCount: number;
+  allCardIds: string[];
   onMoveCard: (cardId: string, targetStateId: string) => void;
   onDeleteCard: (cardId: string) => void;
   onClearRetries: (cardId: string) => void;
@@ -116,14 +134,43 @@ function CardTile({ card, allStates, boardLabels, agents, onMoveCard, onDeleteCa
     .map((lid) => boardLabels.find((l) => l.id === lid))
     .filter(Boolean) as Label[];
 
+  const handleClick = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (e.metaKey || e.ctrlKey) {
+      kanBossState.toggleCardSelection(card.id);
+    } else if (e.shiftKey) {
+      kanBossState.selectCardRange(card.id, allCardIds);
+    } else if (kanBossState.selectedCardIds.size > 0) {
+      // If there's an active selection and plain click, clear and open edit
+      kanBossState.clearSelection();
+      kanBossState.openEditCard(card.id);
+    } else {
+      kanBossState.openEditCard(card.id);
+    }
+  }, [card.id, allCardIds]);
+
+  const handleDragStart = useCallback((e: React.DragEvent) => {
+    // If this card is part of a multi-selection, drag all selected cards
+    if (isSelected && selectedCount > 1) {
+      const ids = [...kanBossState.selectedCardIds];
+      e.dataTransfer.setData(MIME_MULTI, JSON.stringify(ids));
+      e.dataTransfer.setData(MIME_SINGLE, card.id); // fallback
+    } else {
+      e.dataTransfer.setData(MIME_SINGLE, card.id);
+    }
+    e.dataTransfer.effectAllowed = 'move';
+  }, [card.id, isSelected, selectedCount]);
+
+  // Selection border
+  const selectionBorder = isSelected
+    ? `2px solid ${S.color.accent}`
+    : `1px solid ${stuck ? S.color.textError : automating ? S.color.accent : S.color.border}`;
+
   return (
     <div
       draggable
-      onDragStart={(e) => {
-        e.dataTransfer.setData('application/x-kanboss-card', card.id);
-        e.dataTransfer.effectAllowed = 'move';
-      }}
-      onClick={() => kanBossState.openEditCard(card.id)}
+      onDragStart={handleDragStart}
+      onClick={handleClick}
       onContextMenu={(e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -132,13 +179,15 @@ function CardTile({ card, allStates, boardLabels, agents, onMoveCard, onDeleteCa
       }}
       style={{
         position: 'relative',
-        background: S.color.bgSecondary,
-        border: `1px solid ${stuck ? S.color.textError : automating ? S.color.accent : S.color.border}`,
+        background: isSelected ? S.color.accentBg : S.color.bgSecondary,
+        border: selectionBorder,
         borderRadius: 10,
         padding: '8px 10px',
         cursor: 'grab',
-        transition: 'border-color 0.2s, box-shadow 0.2s',
-        boxShadow: stuck
+        transition: 'border-color 0.2s, box-shadow 0.2s, background 0.15s',
+        boxShadow: isSelected
+          ? `0 0 8px ${S.color.glowAccent}`
+          : stuck
           ? `0 0 8px ${S.color.glowError}`
           : automating
           ? `0 0 8px ${S.color.glowAccent}`
@@ -149,6 +198,24 @@ function CardTile({ card, allStates, boardLabels, agents, onMoveCard, onDeleteCa
         } : {}),
       }}
     >
+      {/* Selection badge — top-left when multi-selected */}
+      {isSelected && selectedCount > 1 && (
+        <div style={{
+          position: 'absolute',
+          top: -6,
+          left: -6,
+          padding: '2px 7px',
+          borderRadius: 99,
+          fontSize: 8,
+          fontWeight: 700,
+          color: S.color.textOnBadge,
+          background: S.color.accent,
+          zIndex: 5,
+        }}>
+          {selectedCount}
+        </div>
+      )}
+
       {/* Priority + Labels row */}
       {(!config.hidden || cardLabels.length > 0) && (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 6 }}>
@@ -461,9 +528,10 @@ function CardTile({ card, allStates, boardLabels, agents, onMoveCard, onDeleteCa
 
 // ── CardCell ────────────────────────────────────────────────────────────
 
-export function CardCell({ cards, stateId, swimlaneId, isLastState, allStates, boardLabels, agents, wipLimit, onMoveCard, onDeleteCard, onClearRetries, onManualAdvance }: CardCellProps) {
+export function CardCell({ cards, stateId, swimlaneId, isLastState, allStates, boardLabels, agents, wipLimit, selectedCardIds, allCardIds, onMoveCard, onMoveCards, onDeleteCard, onClearRetries, onManualAdvance }: CardCellProps) {
   const [expanded, setExpanded] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
+  const [dragCardCount, setDragCardCount] = useState(0);
   const dragCounter = useRef(0);
 
   // Sort cards by priority (critical first, none last)
@@ -477,6 +545,11 @@ export function CardCell({ cards, stateId, swimlaneId, isLastState, allStates, b
     kanBossState.openNewCard(stateId, swimlaneId);
   }, [stateId, swimlaneId]);
 
+  // Clear selection when clicking empty space in cell
+  const handleCellClick = useCallback(() => {
+    kanBossState.clearSelection();
+  }, []);
+
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
@@ -485,21 +558,48 @@ export function CardCell({ cards, stateId, swimlaneId, isLastState, allStates, b
   const handleDragEnter = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     dragCounter.current++;
-    if (dragCounter.current === 1) setIsDragOver(true);
+    if (dragCounter.current === 1) {
+      setIsDragOver(true);
+      // Detect how many cards are being dragged
+      const multiData = e.dataTransfer.types.includes(MIME_MULTI);
+      setDragCardCount(multiData ? 2 : 1); // approximate; exact count arrives on drop
+    }
   }, []);
 
   const handleDragLeave = useCallback(() => {
     dragCounter.current--;
-    if (dragCounter.current === 0) setIsDragOver(false);
+    if (dragCounter.current === 0) {
+      setIsDragOver(false);
+      setDragCardCount(0);
+    }
   }, []);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     dragCounter.current = 0;
     setIsDragOver(false);
-    const cardId = e.dataTransfer.getData('application/x-kanboss-card');
-    if (cardId) onMoveCard(cardId, stateId, swimlaneId);
-  }, [onMoveCard, stateId, swimlaneId]);
+    setDragCardCount(0);
+
+    // Try multi-card drop first
+    const multiRaw = e.dataTransfer.getData(MIME_MULTI);
+    if (multiRaw) {
+      try {
+        const ids: string[] = JSON.parse(multiRaw);
+        if (Array.isArray(ids) && ids.length > 0) {
+          onMoveCards(ids, stateId, swimlaneId);
+          kanBossState.clearSelection();
+          return;
+        }
+      } catch { /* fall through to single */ }
+    }
+
+    // Single card drop
+    const cardId = e.dataTransfer.getData(MIME_SINGLE);
+    if (cardId) {
+      onMoveCard(cardId, stateId, swimlaneId);
+      kanBossState.clearSelection();
+    }
+  }, [onMoveCard, onMoveCards, stateId, swimlaneId]);
 
   const dropProps = {
     onDragOver: handleDragOver,
@@ -508,11 +608,14 @@ export function CardCell({ cards, stateId, swimlaneId, isLastState, allStates, b
     onDrop: handleDrop,
   };
 
+  const selectedCount = selectedCardIds.size;
+
   // Last state: collapse to "N done" badge by default
   if (isLastState && sorted.length > 0 && !expanded) {
     return (
       <div
         {...dropProps}
+        onClick={handleCellClick}
         style={{
           flex: 1,
           padding: 8,
@@ -520,16 +623,12 @@ export function CardCell({ cards, stateId, swimlaneId, isLastState, allStates, b
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          transition: 'background 0.2s',
-          ...(isDragOver ? {
-            background: S.color.bgInfo,
-            boxShadow: `inset 0 0 0 1px ${S.color.borderInfo}`,
-            borderRadius: 10,
-          } : {}),
+          transition: 'background 0.2s, box-shadow 0.2s',
+          ...(isDragOver ? dropIndicatorStyle : {}),
         }}
       >
         <button
-          onClick={() => setExpanded(true)}
+          onClick={(e) => { e.stopPropagation(); setExpanded(true); }}
           style={{
             padding: '4px 12px',
             fontSize: 11,
@@ -542,6 +641,16 @@ export function CardCell({ cards, stateId, swimlaneId, isLastState, allStates, b
         >
           {sorted.length} done
         </button>
+        {isDragOver && dragCardCount > 1 && (
+          <span style={{
+            marginLeft: 6,
+            fontSize: 9,
+            color: S.color.textInfo,
+            fontWeight: 600,
+          }}>
+            +{dragCardCount} cards
+          </span>
+        )}
       </div>
     );
   }
@@ -553,6 +662,7 @@ export function CardCell({ cards, stateId, swimlaneId, isLastState, allStates, b
   return (
     <div
       {...dropProps}
+      onClick={handleCellClick}
       style={{
         flex: 1,
         padding: 8,
@@ -560,15 +670,24 @@ export function CardCell({ cards, stateId, swimlaneId, isLastState, allStates, b
         flexDirection: 'column',
         gap: 6,
         minHeight: 60,
-        transition: 'background 0.2s',
+        transition: 'background 0.2s, box-shadow 0.2s',
         ...(overWip ? { background: S.color.bgErrorSubtle } : {}),
-        ...(isDragOver ? {
-          background: S.color.bgInfo,
-          boxShadow: `inset 0 0 0 1px ${S.color.borderInfo}`,
-          borderRadius: 10,
-        } : {}),
+        ...(isDragOver ? dropIndicatorStyle : {}),
       }}
     >
+      {/* Drop label when dragging multi-cards */}
+      {isDragOver && dragCardCount > 1 && (
+        <div style={{
+          fontSize: 9,
+          color: S.color.textInfo,
+          fontWeight: 600,
+          textAlign: 'center',
+          padding: '2px 0',
+        }}>
+          Drop {dragCardCount}+ cards here
+        </div>
+      )}
+
       {/* WIP limit indicator */}
       {wipLimit > 0 && (
         <div style={{
@@ -589,6 +708,9 @@ export function CardCell({ cards, stateId, swimlaneId, isLastState, allStates, b
           allStates={allStates}
           boardLabels={boardLabels}
           agents={agents}
+          isSelected={selectedCardIds.has(card.id)}
+          selectedCount={selectedCount}
+          allCardIds={allCardIds}
           onMoveCard={onMoveCard}
           onDeleteCard={onDeleteCard}
           onClearRetries={onClearRetries}
@@ -599,7 +721,7 @@ export function CardCell({ cards, stateId, swimlaneId, isLastState, allStates, b
       {/* "+N more" pill */}
       {hiddenCount > 0 && (
         <button
-          onClick={() => setExpanded(true)}
+          onClick={(e) => { e.stopPropagation(); setExpanded(true); }}
           style={{
             width: '100%',
             textAlign: 'center',
@@ -619,7 +741,7 @@ export function CardCell({ cards, stateId, swimlaneId, isLastState, allStates, b
       {/* Collapse button for expanded last-state */}
       {isLastState && expanded && (
         <button
-          onClick={() => setExpanded(false)}
+          onClick={(e) => { e.stopPropagation(); setExpanded(false); }}
           style={{
             width: '100%',
             textAlign: 'center',
@@ -638,7 +760,7 @@ export function CardCell({ cards, stateId, swimlaneId, isLastState, allStates, b
 
       {/* + Add button */}
       <button
-        onClick={handleAdd}
+        onClick={(e) => { e.stopPropagation(); handleAdd(e); }}
         style={{
           width: '100%',
           textAlign: 'center',
