@@ -1,7 +1,7 @@
 {
   "id": "wiki",
   "name": "Wiki",
-  "version": "1.2.1",
+  "version": "1.3.0",
   "description": "Browse and edit markdown wikis stored in external directories.",
   "author": "Clubhouse Workshop",
   "engine": { "api": 0.7 },
