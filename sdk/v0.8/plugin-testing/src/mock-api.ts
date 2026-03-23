@@ -125,6 +125,7 @@ function createMockStorageAPI(): StorageAPI {
 
 function createMockFiles(): FilesAPI {
   const filesApi: FilesAPI = {
+    dataDir: "/mock/plugin-data" as unknown as string,
     readTree: createMockFn().mockResolvedValue([]) as unknown as FilesAPI["readTree"],
     readFile: createMockFn().mockResolvedValue("") as unknown as FilesAPI["readFile"],
     readBinary: createMockFn().mockResolvedValue("") as unknown as FilesAPI["readBinary"],
@@ -137,6 +138,7 @@ function createMockFiles(): FilesAPI {
     showInFolder: createMockFn().mockResolvedValue(undefined) as unknown as FilesAPI["showInFolder"],
     forRoot: createMockFn().mockReturnValue(null) as unknown as FilesAPI["forRoot"],
     watch: createMockFn().mockReturnValue(noop) as unknown as FilesAPI["watch"],
+    search: createMockFn().mockResolvedValue({ results: [], totalMatches: 0, truncated: false }) as unknown as FilesAPI["search"],
   };
   // forRoot returns another FilesAPI — wire it up to return itself by default
   (filesApi.forRoot as MockFn).mockReturnValue(filesApi);
@@ -197,6 +199,7 @@ function createMockUI(): UIAPI {
     showError: createMockFn() as unknown as UIAPI["showError"],
     showConfirm: createMockFn().mockResolvedValue(true) as unknown as UIAPI["showConfirm"],
     showInput: createMockFn().mockResolvedValue(null) as unknown as UIAPI["showInput"],
+    showApprovalDialog: createMockFn().mockResolvedValue(null) as unknown as UIAPI["showApprovalDialog"],
     openExternalUrl: createMockFn().mockResolvedValue(undefined) as unknown as UIAPI["openExternalUrl"],
   };
 }
@@ -294,6 +297,7 @@ function createMockAgentConfig(): AgentConfigAPI {
     injectMcpServers: createMockFn().mockResolvedValue(undefined) as unknown as AgentConfigAPI["injectMcpServers"],
     removeMcpServers: createMockFn().mockResolvedValue(undefined) as unknown as AgentConfigAPI["removeMcpServers"],
     getInjectedMcpServers: createMockFn().mockResolvedValue({}) as unknown as AgentConfigAPI["getInjectedMcpServers"],
+    contributeWrapperPreset: createMockFn().mockResolvedValue(undefined) as unknown as AgentConfigAPI["contributeWrapperPreset"],
   };
 }
 
