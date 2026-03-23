@@ -1,0 +1,54 @@
+{
+  "id": "daily-admin",
+  "name": "Daily Admin",
+  "version": "0.1.0",
+  "description": "Personal daily planner — manage your schedule, to-dos, and notes with carry-forward and automated rollups.",
+  "author": "Clubhouse Workshop",
+  "engine": { "api": 0.7 },
+  "scope": "app",
+  "main": "./dist/main.js",
+  "permissions": [
+    "logging",
+    "storage",
+    "notifications",
+    "commands",
+    "widgets",
+    "theme"
+  ],
+  "contributes": {
+    "railItem": {
+      "label": "Daily Admin",
+      "icon": "<svg width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect x='3' y='4' width='18' height='18' rx='2' ry='2'/><line x1='16' y1='2' x2='16' y2='6'/><line x1='8' y1='2' x2='8' y2='6'/><line x1='3' y1='10' x2='21' y2='10'/><path d='M8 14h.01'/><path d='M12 14h.01'/><path d='M16 14h.01'/><path d='M8 18h.01'/><path d='M12 18h.01'/></svg>",
+      "position": "bottom"
+    },
+    "commands": [
+      { "id": "daily-admin.new-todo", "title": "Add To-Do" },
+      { "id": "daily-admin.new-schedule", "title": "Add Schedule Block" },
+      { "id": "daily-admin.refresh", "title": "Refresh Daily Admin" }
+    ],
+    "help": {
+      "topics": [
+        {
+          "id": "overview",
+          "title": "Overview",
+          "content": "## Daily Admin\n\nA personal daily planner that manages your schedule, to-dos, and notes. Incomplete items carry forward automatically, and weekly/monthly rollups surface trends and patterns."
+        },
+        {
+          "id": "features",
+          "title": "Key Features",
+          "content": "## Key Features\n\n**Schedule** — Time-blocked daily schedule with current block highlighting.\n\n**To-Dos** — Task list with states (to-do, done, carried-fwd, cancelled), due dates, and linked items.\n\n**Carry Forward** — Incomplete items automatically carry forward to the next day.\n\n**Things to Remember** — Agent-surfaced reminders about overdue items and patterns, each dismissible."
+        },
+        {
+          "id": "commands",
+          "title": "Commands",
+          "content": "## Commands\n\n| Command | Description |\n|---------|-------------|\n| **Add To-Do** | Add a new to-do item to today's note |\n| **Add Schedule Block** | Add a time block to today's schedule |\n| **Refresh Daily Admin** | Reload data from storage |"
+        },
+        {
+          "id": "permissions",
+          "title": "Permissions",
+          "content": "## Permissions\n\n| Permission | Why it's needed |\n|------------|----------------|\n| **logging** | Log diagnostic information |\n| **storage** | Persist daily notes, schedule, and to-dos |\n| **notifications** | Show reminders and alerts |\n| **commands** | Register command palette entries |\n| **widgets** | Display UI components |\n| **theme** | Adapt colors to the current theme |"
+        }
+      ]
+    }
+  }
+}
