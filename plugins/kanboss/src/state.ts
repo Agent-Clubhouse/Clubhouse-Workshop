@@ -51,12 +51,16 @@ export const kanBossState = {
     stuckOnly: false,
   } as FilterState,
 
+  // Card selection state (for batch operations)
+  selectedCardIds: new Set<string>(),
+
   listeners: new Set<() => void>(),
 
   selectBoard(id: string | null): void {
     this.selectedBoardId = id;
     this.editingCardId = null;
     this.configuringBoard = false;
+    this.selectedCardIds.clear();
     this.notify();
   },
 
@@ -107,6 +111,33 @@ export const kanBossState = {
     this.notify();
   },
 
+  toggleSelection(cardId: string): void {
+    if (this.selectedCardIds.has(cardId)) {
+      this.selectedCardIds.delete(cardId);
+    } else {
+      this.selectedCardIds.add(cardId);
+    }
+    this.notify();
+  },
+
+  selectCard(cardId: string): void {
+    if (this.selectedCardIds.has(cardId)) return;
+    this.selectedCardIds.add(cardId);
+    this.notify();
+  },
+
+  deselectCard(cardId: string): void {
+    if (!this.selectedCardIds.has(cardId)) return;
+    this.selectedCardIds.delete(cardId);
+    this.notify();
+  },
+
+  clearSelection(): void {
+    if (this.selectedCardIds.size === 0) return;
+    this.selectedCardIds.clear();
+    this.notify();
+  },
+
   triggerRefresh(): void {
     this.refreshCount++;
     this.notify();
@@ -138,6 +169,7 @@ export const kanBossState = {
     this.editingSwimlaneId = null;
     this.configuringBoard = false;
     this.filter = { searchQuery: '', priorityFilter: 'all', labelFilter: 'all', stuckOnly: false };
+    this.selectedCardIds.clear();
     this.listeners.clear();
   },
 };

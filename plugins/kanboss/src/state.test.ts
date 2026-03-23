@@ -247,6 +247,87 @@ describe('kanBossState', () => {
   });
 });
 
+describe('card selection', () => {
+  beforeEach(() => {
+    kanBossState.reset();
+  });
+
+  it('starts with empty selection', () => {
+    expect(kanBossState.selectedCardIds.size).toBe(0);
+  });
+
+  it('toggleSelection adds a card', () => {
+    kanBossState.toggleSelection('card-1');
+    expect(kanBossState.selectedCardIds.has('card-1')).toBe(true);
+    expect(kanBossState.selectedCardIds.size).toBe(1);
+  });
+
+  it('toggleSelection removes a card that is already selected', () => {
+    kanBossState.toggleSelection('card-1');
+    kanBossState.toggleSelection('card-1');
+    expect(kanBossState.selectedCardIds.has('card-1')).toBe(false);
+    expect(kanBossState.selectedCardIds.size).toBe(0);
+  });
+
+  it('selectCard adds without toggling', () => {
+    kanBossState.selectCard('card-1');
+    kanBossState.selectCard('card-1'); // no-op
+    expect(kanBossState.selectedCardIds.size).toBe(1);
+  });
+
+  it('deselectCard removes without toggling', () => {
+    kanBossState.selectCard('card-1');
+    kanBossState.deselectCard('card-1');
+    expect(kanBossState.selectedCardIds.size).toBe(0);
+  });
+
+  it('deselectCard is a no-op for unselected cards', () => {
+    let callCount = 0;
+    kanBossState.subscribe(() => { callCount++; });
+    kanBossState.deselectCard('card-nonexistent');
+    expect(callCount).toBe(0);
+  });
+
+  it('clearSelection removes all', () => {
+    kanBossState.selectCard('card-1');
+    kanBossState.selectCard('card-2');
+    kanBossState.selectCard('card-3');
+    kanBossState.clearSelection();
+    expect(kanBossState.selectedCardIds.size).toBe(0);
+  });
+
+  it('clearSelection is a no-op when already empty', () => {
+    let callCount = 0;
+    kanBossState.subscribe(() => { callCount++; });
+    kanBossState.clearSelection();
+    expect(callCount).toBe(0);
+  });
+
+  it('selectBoard clears selection', () => {
+    kanBossState.selectCard('card-1');
+    kanBossState.selectCard('card-2');
+    kanBossState.selectBoard('board-1');
+    expect(kanBossState.selectedCardIds.size).toBe(0);
+  });
+
+  it('reset clears selection', () => {
+    kanBossState.selectCard('card-1');
+    kanBossState.reset();
+    expect(kanBossState.selectedCardIds.size).toBe(0);
+  });
+
+  it('selection notifies subscribers', () => {
+    let callCount = 0;
+    kanBossState.subscribe(() => { callCount++; });
+    kanBossState.toggleSelection('card-1');
+    expect(callCount).toBe(1);
+    kanBossState.selectCard('card-2');
+    expect(callCount).toBe(2);
+    kanBossState.clearSelection();
+    expect(callCount).toBe(3);
+  });
+});
+
 describe('filtersEqual', () => {
   const base = { searchQuery: '', priorityFilter: 'all' as const, labelFilter: 'all' as const, stuckOnly: false };
 

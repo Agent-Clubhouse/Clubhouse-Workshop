@@ -28,11 +28,14 @@ var kanBossState = {
     labelFilter: "all",
     stuckOnly: false
   },
+  // Card selection state (for batch operations)
+  selectedCardIds: /* @__PURE__ */ new Set(),
   listeners: /* @__PURE__ */ new Set(),
   selectBoard(id) {
     this.selectedBoardId = id;
     this.editingCardId = null;
     this.configuringBoard = false;
+    this.selectedCardIds.clear();
     this.notify();
   },
   setBoards(boards) {
@@ -74,6 +77,29 @@ var kanBossState = {
     this.filter = { searchQuery: "", priorityFilter: "all", labelFilter: "all", stuckOnly: false };
     this.notify();
   },
+  toggleSelection(cardId) {
+    if (this.selectedCardIds.has(cardId)) {
+      this.selectedCardIds.delete(cardId);
+    } else {
+      this.selectedCardIds.add(cardId);
+    }
+    this.notify();
+  },
+  selectCard(cardId) {
+    if (this.selectedCardIds.has(cardId)) return;
+    this.selectedCardIds.add(cardId);
+    this.notify();
+  },
+  deselectCard(cardId) {
+    if (!this.selectedCardIds.has(cardId)) return;
+    this.selectedCardIds.delete(cardId);
+    this.notify();
+  },
+  clearSelection() {
+    if (this.selectedCardIds.size === 0) return;
+    this.selectedCardIds.clear();
+    this.notify();
+  },
   triggerRefresh() {
     this.refreshCount++;
     this.notify();
@@ -101,6 +127,7 @@ var kanBossState = {
     this.editingSwimlaneId = null;
     this.configuringBoard = false;
     this.filter = { searchQuery: "", priorityFilter: "all", labelFilter: "all", stuckOnly: false };
+    this.selectedCardIds.clear();
     this.listeners.clear();
   }
 };
@@ -1998,6 +2025,175 @@ function FilterBar({ filter, labels }) {
   ] });
 }
 
+// src/BatchActionsBar.tsx
+import { Fragment as Fragment3, jsx as jsx6, jsxs as jsxs6 } from "react/jsx-runtime";
+var React6 = globalThis.React;
+var { useState: useState5, useCallback: useCallback6 } = React6;
+var PRIORITIES3 = ["none", "low", "medium", "high", "critical"];
+function DropdownButton({ label, items }) {
+  const [open, setOpen] = useState5(false);
+  return /* @__PURE__ */ jsxs6("div", { style: { position: "relative" }, children: [
+    /* @__PURE__ */ jsxs6(
+      "button",
+      {
+        onClick: () => setOpen(!open),
+        style: {
+          padding: "4px 10px",
+          fontSize: 11,
+          color: color.text,
+          background: color.bgTertiary,
+          border: `1px solid ${color.border}`,
+          borderRadius: 6,
+          cursor: "pointer",
+          fontFamily: font.family,
+          display: "flex",
+          alignItems: "center",
+          gap: 4
+        },
+        children: [
+          label,
+          " ",
+          /* @__PURE__ */ jsx6("span", { style: { fontSize: 9 }, children: "\u25BC" })
+        ]
+      }
+    ),
+    open && /* @__PURE__ */ jsxs6(Fragment3, { children: [
+      /* @__PURE__ */ jsx6(
+        "div",
+        {
+          onClick: () => setOpen(false),
+          style: { position: "fixed", inset: 0, zIndex: 40 }
+        }
+      ),
+      /* @__PURE__ */ jsx6("div", { style: {
+        position: "absolute",
+        top: "100%",
+        left: 0,
+        marginTop: 4,
+        background: color.bgSecondary,
+        border: `1px solid ${color.border}`,
+        borderRadius: 10,
+        boxShadow: `0 10px 25px ${color.shadow}`,
+        padding: "4px 0",
+        minWidth: 140,
+        zIndex: 50
+      }, children: items.map((item) => /* @__PURE__ */ jsx6(
+        "button",
+        {
+          onClick: () => {
+            item.onClick();
+            setOpen(false);
+          },
+          style: {
+            ...menuItemStyle,
+            ...item.color ? { color: item.color } : {}
+          },
+          children: item.label
+        },
+        item.key
+      )) })
+    ] })
+  ] });
+}
+var menuItemStyle = {
+  display: "block",
+  width: "100%",
+  textAlign: "left",
+  padding: "6px 12px",
+  fontSize: 11,
+  color: color.text,
+  border: "none",
+  background: "transparent",
+  cursor: "pointer",
+  fontFamily: font.family
+};
+function BatchActionsBar({ selectionCount, states, onBatchMove, onBatchPriority, onBatchDelete }) {
+  const handleClear = useCallback6(() => {
+    kanBossState.clearSelection();
+  }, []);
+  return /* @__PURE__ */ jsxs6("div", { style: {
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+    padding: "6px 16px",
+    background: color.accentBg,
+    borderBottom: `1px solid ${color.border}`,
+    fontFamily: font.family,
+    fontSize: 11,
+    flexShrink: 0
+  }, children: [
+    /* @__PURE__ */ jsxs6("span", { style: {
+      fontSize: 11,
+      fontWeight: 600,
+      color: color.accent,
+      padding: "2px 8px",
+      borderRadius: 99,
+      background: `${color.accent}20`
+    }, children: [
+      selectionCount,
+      " selected"
+    ] }),
+    /* @__PURE__ */ jsx6(
+      DropdownButton,
+      {
+        label: "Move To",
+        items: states.map((state) => ({
+          key: state.id,
+          label: state.name,
+          onClick: () => onBatchMove(state.id)
+        }))
+      }
+    ),
+    /* @__PURE__ */ jsx6(
+      DropdownButton,
+      {
+        label: "Set Priority",
+        items: PRIORITIES3.map((p) => ({
+          key: p,
+          label: PRIORITY_CONFIG[p].label,
+          color: PRIORITY_CONFIG[p].color || void 0,
+          onClick: () => onBatchPriority(p)
+        }))
+      }
+    ),
+    /* @__PURE__ */ jsx6(
+      "button",
+      {
+        onClick: onBatchDelete,
+        style: {
+          padding: "4px 10px",
+          fontSize: 11,
+          color: color.textError,
+          background: "transparent",
+          border: `1px solid ${color.borderError}`,
+          borderRadius: 6,
+          cursor: "pointer",
+          fontFamily: font.family
+        },
+        children: "Delete"
+      }
+    ),
+    /* @__PURE__ */ jsx6("div", { style: { flex: 1 } }),
+    /* @__PURE__ */ jsx6(
+      "button",
+      {
+        onClick: handleClear,
+        style: {
+          padding: "4px 10px",
+          fontSize: 11,
+          color: color.textTertiary,
+          background: "transparent",
+          border: "none",
+          borderRadius: 6,
+          cursor: "pointer",
+          fontFamily: font.family
+        },
+        children: "Clear"
+      }
+    )
+  ] });
+}
+
 // src/AutomationEngine.ts
 var engineApi = null;
 async function loadBoard(api, boardId) {
@@ -2229,9 +2425,9 @@ function shutdownAutomationEngine() {
 }
 
 // src/BoardView.tsx
-import { jsx as jsx6, jsxs as jsxs6 } from "react/jsx-runtime";
-var React6 = globalThis.React;
-var { useEffect: useEffect4, useState: useState5, useCallback: useCallback6, useRef: useRef3 } = React6;
+import { jsx as jsx7, jsxs as jsxs7 } from "react/jsx-runtime";
+var React7 = globalThis.React;
+var { useEffect: useEffect4, useState: useState6, useCallback: useCallback7, useRef: useRef3 } = React7;
 function cardsStorage(api, board) {
   return board.config.gitHistory ? api.storage.project : api.storage.projectLocal;
 }
@@ -2260,14 +2456,15 @@ var PULSE_STYLE = `
 `;
 function BoardView({ api }) {
   const boardsStorage = api.storage.projectLocal;
-  const [board, setBoard] = useState5(null);
-  const [cards, setCards] = useState5([]);
-  const [selectedBoardId, setSelectedBoardId] = useState5(null);
-  const [showCardDialog, setShowCardDialog] = useState5(false);
-  const [showConfigDialog, setShowConfigDialog] = useState5(false);
-  const [zoomLevel, setZoomLevel] = useState5(1);
-  const [filter, setFilter] = useState5(kanBossState.filter);
-  const loadBoard2 = useCallback6(async () => {
+  const [board, setBoard] = useState6(null);
+  const [cards, setCards] = useState6([]);
+  const [selectedBoardId, setSelectedBoardId] = useState6(null);
+  const [showCardDialog, setShowCardDialog] = useState6(false);
+  const [showConfigDialog, setShowConfigDialog] = useState6(false);
+  const [zoomLevel, setZoomLevel] = useState6(1);
+  const [filter, setFilter] = useState6(kanBossState.filter);
+  const [selectionCount, setSelectionCount] = useState6(0);
+  const loadBoard2 = useCallback7(async () => {
     const boardId = kanBossState.selectedBoardId;
     if (!boardId) {
       setBoard(null);
@@ -2300,6 +2497,7 @@ function BoardView({ api }) {
       setShowCardDialog(kanBossState.editingCardId !== null);
       setShowConfigDialog(kanBossState.configuringBoard);
       setFilter((prev) => filtersEqual(prev, kanBossState.filter) ? prev : { ...kanBossState.filter });
+      setSelectionCount(kanBossState.selectedCardIds.size);
       const boardChanged = kanBossState.selectedBoardId !== prevBoardIdRef.current;
       const refreshed = kanBossState.refreshCount !== refreshRef2.current;
       if (boardChanged) {
@@ -2317,7 +2515,7 @@ function BoardView({ api }) {
   const scrollRef = useRef3(null);
   const zoomRef = useRef3(zoomLevel);
   zoomRef.current = zoomLevel;
-  const adjustZoom = useCallback6(async (delta) => {
+  const adjustZoom = useCallback7(async (delta) => {
     if (!board) return;
     const newZoom = Math.max(0.5, Math.min(2, Math.round((zoomLevel + delta) * 20) / 20));
     setZoomLevel(newZoom);
@@ -2343,7 +2541,7 @@ function BoardView({ api }) {
     el.addEventListener("wheel", onWheel, { passive: false });
     return () => el.removeEventListener("wheel", onWheel);
   }, [adjustZoom]);
-  const handleMoveCard = useCallback6(async (cardId, targetStateId, targetSwimlaneId) => {
+  const handleMoveCard = useCallback7(async (cardId, targetStateId, targetSwimlaneId) => {
     if (!board) return;
     let movedCard = null;
     let toStateAutomatic = false;
@@ -2382,13 +2580,13 @@ function BoardView({ api }) {
       await triggerAutomation(api, movedCard, board);
     }
   }, [board, api]);
-  const handleDeleteCard = useCallback6(async (cardId) => {
+  const handleDeleteCard = useCallback7(async (cardId) => {
     if (!board) return;
     const updated = await mutateStorage(cardsStorage(api, board), cardsKey(board.id), (allCards) => allCards.filter((c) => c.id !== cardId));
     setCards(updated);
     kanBossState.triggerRefresh();
   }, [board, api]);
-  const handleClearRetries = useCallback6(async (cardId) => {
+  const handleClearRetries = useCallback7(async (cardId) => {
     if (!board) return;
     let clearedCard = null;
     const updated = await mutateStorage(cardsStorage(api, board), cardsKey(board.id), (allCards) => {
@@ -2413,7 +2611,7 @@ function BoardView({ api }) {
       await triggerAutomation(api, clearedCard, board);
     }
   }, [board, api]);
-  const handleManualAdvance = useCallback6(async (cardId) => {
+  const handleManualAdvance = useCallback7(async (cardId) => {
     if (!board) return;
     const updated = await mutateStorage(cardsStorage(api, board), cardsKey(board.id), (allCards) => {
       const idx = allCards.findIndex((c) => c.id === cardId);
@@ -2438,8 +2636,71 @@ function BoardView({ api }) {
     setCards([...updated]);
     kanBossState.triggerRefresh();
   }, [board, api]);
+  const handleBatchMove = useCallback7(async (targetStateId) => {
+    if (!board) return;
+    const ids = [...kanBossState.selectedCardIds];
+    if (ids.length === 0) return;
+    const toState = board.states.find((s) => s.id === targetStateId);
+    if (!toState) return;
+    const updated = await mutateStorage(cardsStorage(api, board), cardsKey(board.id), (allCards) => {
+      for (const cardId of ids) {
+        const idx = allCards.findIndex((c) => c.id === cardId);
+        if (idx === -1) continue;
+        const card = allCards[idx];
+        const fromState = board.states.find((s) => s.id === card.stateId);
+        if (card.stateId === targetStateId) continue;
+        card.stateId = targetStateId;
+        card.automationAttempts = 0;
+        card.updatedAt = Date.now();
+        card.history.push({
+          action: "moved",
+          timestamp: Date.now(),
+          detail: `Batch moved from "${fromState?.name ?? "?"}" to "${toState.name}"`
+        });
+      }
+      return allCards;
+    });
+    setCards([...updated]);
+    kanBossState.clearSelection();
+    kanBossState.triggerRefresh();
+  }, [board, api]);
+  const handleBatchPriority = useCallback7(async (priority) => {
+    if (!board) return;
+    const ids = [...kanBossState.selectedCardIds];
+    if (ids.length === 0) return;
+    const updated = await mutateStorage(cardsStorage(api, board), cardsKey(board.id), (allCards) => {
+      for (const cardId of ids) {
+        const idx = allCards.findIndex((c) => c.id === cardId);
+        if (idx === -1) continue;
+        const card = allCards[idx];
+        if (card.priority === priority) continue;
+        card.history.push({
+          action: "priority-changed",
+          timestamp: Date.now(),
+          detail: `Batch priority changed from ${card.priority} to ${priority}`
+        });
+        card.priority = priority;
+        card.updatedAt = Date.now();
+      }
+      return allCards;
+    });
+    setCards([...updated]);
+    kanBossState.clearSelection();
+    kanBossState.triggerRefresh();
+  }, [board, api]);
+  const handleBatchDelete = useCallback7(async () => {
+    if (!board) return;
+    const ids = [...kanBossState.selectedCardIds];
+    if (ids.length === 0) return;
+    const ok = await api.ui.showConfirm(`Delete ${ids.length} selected card${ids.length > 1 ? "s" : ""}? This cannot be undone.`);
+    if (!ok) return;
+    const updated = await mutateStorage(cardsStorage(api, board), cardsKey(board.id), (allCards) => allCards.filter((c) => !ids.includes(c.id)));
+    setCards(updated);
+    kanBossState.clearSelection();
+    kanBossState.triggerRefresh();
+  }, [board, api]);
   if (!board) {
-    return /* @__PURE__ */ jsx6("div", { style: {
+    return /* @__PURE__ */ jsx7("div", { style: {
       flex: 1,
       display: "flex",
       alignItems: "center",
@@ -2455,9 +2716,9 @@ function BoardView({ api }) {
   const sortedLanes = [...board.swimlanes].sort((a, b) => a.order - b.order);
   const lastStateId = sortedStates.length > 0 ? sortedStates[sortedStates.length - 1].id : null;
   const gridCols = `140px repeat(${sortedStates.length}, minmax(220px, 1fr))`;
-  return /* @__PURE__ */ jsxs6("div", { style: { display: "flex", flexDirection: "column", height: "100%", background: color.bg, fontFamily: font.family }, children: [
-    /* @__PURE__ */ jsx6("style", { dangerouslySetInnerHTML: { __html: PULSE_STYLE } }),
-    /* @__PURE__ */ jsxs6("div", { style: {
+  return /* @__PURE__ */ jsxs7("div", { style: { display: "flex", flexDirection: "column", height: "100%", background: color.bg, fontFamily: font.family }, children: [
+    /* @__PURE__ */ jsx7("style", { dangerouslySetInnerHTML: { __html: PULSE_STYLE } }),
+    /* @__PURE__ */ jsxs7("div", { style: {
       display: "flex",
       alignItems: "center",
       gap: 12,
@@ -2466,10 +2727,10 @@ function BoardView({ api }) {
       background: color.bgSecondary,
       flexShrink: 0
     }, children: [
-      /* @__PURE__ */ jsx6("span", { style: { fontSize: 14, fontWeight: 500, color: color.text }, children: board.name }),
-      /* @__PURE__ */ jsx6("div", { style: { flex: 1 } }),
-      /* @__PURE__ */ jsxs6("div", { style: { display: "flex", alignItems: "center", gap: 4 }, children: [
-        /* @__PURE__ */ jsx6(
+      /* @__PURE__ */ jsx7("span", { style: { fontSize: 14, fontWeight: 500, color: color.text }, children: board.name }),
+      /* @__PURE__ */ jsx7("div", { style: { flex: 1 } }),
+      /* @__PURE__ */ jsxs7("div", { style: { display: "flex", alignItems: "center", gap: 4 }, children: [
+        /* @__PURE__ */ jsx7(
           "button",
           {
             onClick: () => adjustZoom(-0.1),
@@ -2487,11 +2748,11 @@ function BoardView({ api }) {
             children: "-"
           }
         ),
-        /* @__PURE__ */ jsxs6("span", { style: { fontSize: 10, color: color.textTertiary, width: 40, textAlign: "center" }, children: [
+        /* @__PURE__ */ jsxs7("span", { style: { fontSize: 10, color: color.textTertiary, width: 40, textAlign: "center" }, children: [
           Math.round(zoomLevel * 100),
           "%"
         ] }),
-        /* @__PURE__ */ jsx6(
+        /* @__PURE__ */ jsx7(
           "button",
           {
             onClick: () => adjustZoom(0.1),
@@ -2510,7 +2771,7 @@ function BoardView({ api }) {
           }
         )
       ] }),
-      /* @__PURE__ */ jsx6(
+      /* @__PURE__ */ jsx7(
         "button",
         {
           onClick: () => kanBossState.openBoardConfig(),
@@ -2532,12 +2793,22 @@ function BoardView({ api }) {
         }
       )
     ] }),
-    /* @__PURE__ */ jsx6(FilterBar, { filter, labels: board.labels || [] }),
-    /* @__PURE__ */ jsx6("div", { ref: scrollRef, style: { flex: 1, overflow: "auto" }, children: /* @__PURE__ */ jsx6("div", { style: {
+    selectionCount > 0 && /* @__PURE__ */ jsx7(
+      BatchActionsBar,
+      {
+        selectionCount,
+        states: [...board.states].sort((a, b) => a.order - b.order),
+        onBatchMove: handleBatchMove,
+        onBatchPriority: handleBatchPriority,
+        onBatchDelete: handleBatchDelete
+      }
+    ),
+    /* @__PURE__ */ jsx7(FilterBar, { filter, labels: board.labels || [] }),
+    /* @__PURE__ */ jsx7("div", { ref: scrollRef, style: { flex: 1, overflow: "auto" }, children: /* @__PURE__ */ jsx7("div", { style: {
       transform: `scale(${zoomLevel})`,
       transformOrigin: "top left",
       minWidth: `${140 + sortedStates.length * 220}px`
-    }, children: /* @__PURE__ */ jsxs6("div", { style: {
+    }, children: /* @__PURE__ */ jsxs7("div", { style: {
       display: "grid",
       gridTemplateColumns: gridCols,
       gap: 1,
@@ -2545,11 +2816,11 @@ function BoardView({ api }) {
       overflow: "hidden",
       background: `${color.border}50`
     }, children: [
-      /* @__PURE__ */ jsx6("div", { style: { background: color.bgSecondary, padding: 8 } }),
+      /* @__PURE__ */ jsx7("div", { style: { background: color.bgSecondary, padding: 8 } }),
       sortedStates.map((state) => {
         const colCards = filteredCards.filter((c) => c.stateId === state.id);
         const overWip = state.wipLimit > 0 && colCards.length > state.wipLimit;
-        return /* @__PURE__ */ jsx6(
+        return /* @__PURE__ */ jsx7(
           "div",
           {
             style: {
@@ -2559,9 +2830,9 @@ function BoardView({ api }) {
               flexDirection: "column",
               ...overWip ? { borderBottom: `2px solid ${color.textError}` } : {}
             },
-            children: /* @__PURE__ */ jsxs6("div", { style: { display: "flex", alignItems: "center", gap: 6 }, children: [
-              /* @__PURE__ */ jsx6("span", { style: { fontSize: 12, fontWeight: 500, color: color.text }, children: state.name }),
-              state.isAutomatic && /* @__PURE__ */ jsxs6("span", { style: {
+            children: /* @__PURE__ */ jsxs7("div", { style: { display: "flex", alignItems: "center", gap: 6 }, children: [
+              /* @__PURE__ */ jsx7("span", { style: { fontSize: 12, fontWeight: 500, color: color.text }, children: state.name }),
+              state.isAutomatic && /* @__PURE__ */ jsxs7("span", { style: {
                 fontSize: 9,
                 padding: "1px 6px",
                 borderRadius: 99,
@@ -2575,7 +2846,7 @@ function BoardView({ api }) {
                 "\u2699",
                 " auto"
               ] }),
-              state.wipLimit > 0 && /* @__PURE__ */ jsxs6("span", { style: {
+              state.wipLimit > 0 && /* @__PURE__ */ jsxs7("span", { style: {
                 fontSize: 9,
                 color: overWip ? color.textError : color.textTertiary,
                 fontWeight: overWip ? 600 : 400
@@ -2598,7 +2869,7 @@ function BoardView({ api }) {
         const cellBg = laneIndex % 2 === 0 ? color.bg : `${color.bgSecondary}80`;
         return [
           // Swimlane label
-          /* @__PURE__ */ jsxs6(
+          /* @__PURE__ */ jsxs7(
             "div",
             {
               style: {
@@ -2609,8 +2880,8 @@ function BoardView({ api }) {
                 justifyContent: "center"
               },
               children: [
-                /* @__PURE__ */ jsx6("span", { style: { fontSize: 12, fontWeight: 500, color: color.text }, children: lane.name }),
-                managerAgent && /* @__PURE__ */ jsx6("div", { style: { display: "flex", alignItems: "center", gap: 4, marginTop: 4 }, children: /* @__PURE__ */ jsx6("span", { style: { fontSize: 9, color: color.textTertiary, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }, children: managerAgent.name }) })
+                /* @__PURE__ */ jsx7("span", { style: { fontSize: 12, fontWeight: 500, color: color.text }, children: lane.name }),
+                managerAgent && /* @__PURE__ */ jsx7("div", { style: { display: "flex", alignItems: "center", gap: 4, marginTop: 4 }, children: /* @__PURE__ */ jsx7("span", { style: { fontSize: 9, color: color.textTertiary, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }, children: managerAgent.name }) })
               ]
             },
             `lane-${lane.id}`
@@ -2620,11 +2891,11 @@ function BoardView({ api }) {
             const cellCards = filteredCards.filter(
               (c) => c.stateId === state.id && c.swimlaneId === lane.id
             );
-            return /* @__PURE__ */ jsx6(
+            return /* @__PURE__ */ jsx7(
               "div",
               {
                 style: { background: cellBg, display: "flex", flexDirection: "column" },
-                children: /* @__PURE__ */ jsx6(
+                children: /* @__PURE__ */ jsx7(
                   CardCell,
                   {
                     cards: cellCards,
@@ -2647,8 +2918,8 @@ function BoardView({ api }) {
         ];
       })
     ] }) }) }),
-    showCardDialog && /* @__PURE__ */ jsx6(CardDialog, { api, boardId: board.id, boardLabels: board.labels || [] }),
-    showConfigDialog && /* @__PURE__ */ jsx6(BoardConfigDialog, { api, board })
+    showCardDialog && /* @__PURE__ */ jsx7(CardDialog, { api, boardId: board.id, boardLabels: board.labels || [] }),
+    showConfigDialog && /* @__PURE__ */ jsx7(BoardConfigDialog, { api, board })
   ] });
 }
 
@@ -2719,14 +2990,14 @@ function mapThemeToCSS(theme) {
   };
 }
 function useTheme(themeApi) {
-  const React8 = globalThis.React;
-  const [theme, setTheme] = React8.useState(() => themeApi.getCurrent());
-  React8.useEffect(() => {
+  const React9 = globalThis.React;
+  const [theme, setTheme] = React9.useState(() => themeApi.getCurrent());
+  React9.useEffect(() => {
     setTheme(themeApi.getCurrent());
     const disposable = themeApi.onDidChange((t) => setTheme(t));
     return () => disposable.dispose();
   }, [themeApi]);
-  const style = React8.useMemo(
+  const style = React9.useMemo(
     () => mapThemeToCSS(theme),
     [theme]
   );
@@ -2734,8 +3005,8 @@ function useTheme(themeApi) {
 }
 
 // src/main.tsx
-import { jsx as jsx7 } from "react/jsx-runtime";
-var React7 = globalThis.React;
+import { jsx as jsx8 } from "react/jsx-runtime";
+var React8 = globalThis.React;
 function activate(ctx, api) {
   kanBossState.switchProject();
   api.logging.info("KanBoss plugin activated");
@@ -2758,11 +3029,11 @@ function deactivate() {
 }
 function SidebarPanel({ api }) {
   const { style: themeStyle } = useTheme(api.theme);
-  return /* @__PURE__ */ jsx7("div", { style: { ...themeStyle, height: "100%" }, children: /* @__PURE__ */ jsx7(BoardSidebar, { api }) });
+  return /* @__PURE__ */ jsx8("div", { style: { ...themeStyle, height: "100%" }, children: /* @__PURE__ */ jsx8(BoardSidebar, { api }) });
 }
 function MainPanel({ api }) {
   const { style: themeStyle } = useTheme(api.theme);
-  return /* @__PURE__ */ jsx7("div", { style: { ...themeStyle }, children: /* @__PURE__ */ jsx7(BoardView, { api }) });
+  return /* @__PURE__ */ jsx8("div", { style: { ...themeStyle }, children: /* @__PURE__ */ jsx8(BoardView, { api }) });
 }
 export {
   MainPanel,
