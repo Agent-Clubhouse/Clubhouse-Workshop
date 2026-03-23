@@ -311,6 +311,13 @@ export interface CanvasWidgetDescriptor {
   id: string;
   component: React.ComponentType<CanvasWidgetComponentProps>;
   generateDisplayName?: (metadata: CanvasWidgetMetadata) => string;
+  /** Compact component rendered in the canvas controls bar when pinned (v0.9+). */
+  pinnedComponent?: React.ComponentType<PinnedWidgetComponentProps>;
+}
+
+/** Props for compact pinned widget components rendered in the canvas controls bar (v0.9+). */
+export interface PinnedWidgetComponentProps {
+  api: PluginAPI;
 }
 
 export interface CanvasWidgetComponentProps {
@@ -504,6 +511,8 @@ export interface PluginCanvasWidgetDeclaration {
   icon?: string;
   defaultSize?: { width: number; height: number };
   metadataKeys?: string[];
+  /** When true, this widget can be pinned to the canvas controls bar (v0.9+). */
+  pinnableToControls?: boolean;
 }
 
 export interface PluginContributes {

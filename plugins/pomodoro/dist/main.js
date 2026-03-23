@@ -246,6 +246,15 @@ function activate(ctx, api) {
       api.ui.showNotice("Open the Pomodoro panel to manage timers");
     })
   );
+  if (api.canvas) {
+    ctx.subscriptions.push(
+      api.canvas.registerWidgetType({
+        id: "pomodoro-timer",
+        component: PomodoroFullWidget,
+        pinnedComponent: PomodoroPinnedWidget
+      })
+    );
+  }
 }
 function deactivate() {
 }
@@ -670,8 +679,102 @@ function MainPanel({ api }) {
     /* @__PURE__ */ jsx("div", { style: S.sessions, children: todaySessions === 0 ? "No sessions yet today" : `${todaySessions} session${todaySessions === 1 ? "" : "s"} today` })
   ] });
 }
+function PomodoroFullWidget({ api }) {
+  return /* @__PURE__ */ jsx(MainPanel, { api });
+}
+var pinnedStyles = {
+  container: {
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+    fontFamily: "var(--font-family, system-ui, -apple-system, sans-serif)",
+    fontSize: 13,
+    color: "var(--text-primary, #e4e4e7)",
+    whiteSpace: "nowrap"
+  },
+  time: {
+    fontWeight: 700,
+    fontVariantNumeric: "tabular-nums",
+    minWidth: 42
+  },
+  phaseLabel: {
+    fontSize: 11,
+    fontWeight: 600,
+    textTransform: "uppercase",
+    letterSpacing: 1
+  },
+  btn: {
+    padding: "2px 10px",
+    fontSize: 11,
+    fontWeight: 600,
+    border: "1px solid var(--border-primary, #3f3f46)",
+    borderRadius: 6,
+    cursor: "pointer",
+    fontFamily: "inherit",
+    background: "transparent",
+    color: "var(--text-secondary, #a1a1aa)"
+  }
+};
+function PomodoroPinnedWidget({ api }) {
+  const [phase, setPhase] = useState("idle");
+  const [remaining, setRemaining] = useState(0);
+  const [durations, setDurations] = useState(() => getDurations(api));
+  const intervalRef = useRef(null);
+  useEffect(() => {
+    const unsub = api.settings.onChange(() => setDurations(getDurations(api)));
+    return () => unsub.dispose();
+  }, [api]);
+  useEffect(() => {
+    if (phase === "idle") setRemaining(durations.work);
+  }, [durations.work, phase]);
+  useEffect(() => {
+    const tick = async () => {
+      const raw = await api.storage.global.read(TIMER_STATE_KEY);
+      if (!isTimerState(raw)) {
+        if (phase !== "idle") setPhase("idle");
+        return;
+      }
+      const elapsed = Math.floor((Date.now() - raw.startedAt) / 1e3);
+      const left = Math.floor(raw.durationMs / 1e3) - elapsed;
+      if (left > 0) {
+        setPhase(raw.phase);
+        setRemaining(left);
+      } else {
+        setPhase("idle");
+      }
+    };
+    tick();
+    const id = setInterval(tick, 1e3);
+    intervalRef.current = id;
+    return () => clearInterval(id);
+  }, [api, phase]);
+  const startWork = useCallback(() => {
+    const now = Date.now();
+    api.storage.global.write(TIMER_STATE_KEY, {
+      phase: "work",
+      startedAt: now,
+      durationMs: durations.work * 1e3
+    });
+    setPhase("work");
+    setRemaining(durations.work);
+  }, [api, durations]);
+  const stop = useCallback(() => {
+    api.storage.global.delete(TIMER_STATE_KEY);
+    setPhase("idle");
+    setRemaining(durations.work);
+  }, [api, durations]);
+  const phaseColor = phase === "work" ? "var(--text-error, #e74c3c)" : phase === "break" ? "var(--text-success, #2ecc71)" : "var(--text-secondary, #a1a1aa)";
+  const label = phase === "idle" ? "Ready" : phase === "work" ? "Focus" : "Break";
+  return /* @__PURE__ */ jsxs("div", { style: pinnedStyles.container, children: [
+    /* @__PURE__ */ jsx("span", { style: { ...pinnedStyles.phaseLabel, color: phaseColor }, children: label }),
+    /* @__PURE__ */ jsx("span", { style: pinnedStyles.time, children: formatTime(remaining) }),
+    phase === "idle" ? /* @__PURE__ */ jsx("button", { onClick: startWork, style: pinnedStyles.btn, children: "Start" }) : /* @__PURE__ */ jsx("button", { onClick: stop, style: pinnedStyles.btn, children: "Stop" })
+  ] });
+}
 export {
   MainPanel,
+  PomodoroFullWidget,
+  PomodoroPinnedWidget,
   activate,
   deactivate,
   formatTime,
