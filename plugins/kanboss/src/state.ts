@@ -43,6 +43,14 @@ export const kanBossState = {
   editingSwimlaneId: null as string | null, // target swimlane for new card
   configuringBoard: false,
 
+  // Card selection state (multi-select)
+  selectedCardIds: new Set<string>(),
+  lastSelectedCardId: null as string | null,
+
+  // Keyboard shortcut signals (consumed by BoardView)
+  pendingDeleteIds: [] as string[],
+  selectAllRequested: false,
+
   // Filter state
   filter: {
     searchQuery: '',
@@ -50,9 +58,6 @@ export const kanBossState = {
     labelFilter: 'all',
     stuckOnly: false,
   } as FilterState,
-
-  // Card selection state (for batch operations)
-  selectedCardIds: new Set<string>(),
 
   listeners: new Set<() => void>(),
 
@@ -101,6 +106,55 @@ export const kanBossState = {
     this.notify();
   },
 
+  toggleCardSelection(cardId: string): void {
+    if (this.selectedCardIds.has(cardId)) {
+      this.selectedCardIds.delete(cardId);
+    } else {
+      this.selectedCardIds.add(cardId);
+    }
+    this.lastSelectedCardId = cardId;
+    this.notify();
+  },
+
+  selectCardRange(cardId: string, orderedCardIds: string[]): void {
+    const lastId = this.lastSelectedCardId;
+    if (!lastId) {
+      this.selectedCardIds.add(cardId);
+      this.lastSelectedCardId = cardId;
+      this.notify();
+      return;
+    }
+    const startIdx = orderedCardIds.indexOf(lastId);
+    const endIdx = orderedCardIds.indexOf(cardId);
+    if (startIdx === -1 || endIdx === -1) {
+      this.selectedCardIds.add(cardId);
+      this.lastSelectedCardId = cardId;
+      this.notify();
+      return;
+    }
+    const lo = Math.min(startIdx, endIdx);
+    const hi = Math.max(startIdx, endIdx);
+    for (let i = lo; i <= hi; i++) {
+      this.selectedCardIds.add(orderedCardIds[i]);
+    }
+    this.lastSelectedCardId = cardId;
+    this.notify();
+  },
+
+  selectCard(cardId: string): void {
+    this.selectedCardIds.clear();
+    this.selectedCardIds.add(cardId);
+    this.lastSelectedCardId = cardId;
+    this.notify();
+  },
+
+  clearSelection(): void {
+    if (this.selectedCardIds.size === 0) return;
+    this.selectedCardIds.clear();
+    this.lastSelectedCardId = null;
+    this.notify();
+  },
+
   setFilter(updates: Partial<FilterState>): void {
     this.filter = { ...this.filter, ...updates };
     this.notify();
@@ -108,33 +162,6 @@ export const kanBossState = {
 
   clearFilter(): void {
     this.filter = { searchQuery: '', priorityFilter: 'all', labelFilter: 'all', stuckOnly: false };
-    this.notify();
-  },
-
-  toggleSelection(cardId: string): void {
-    if (this.selectedCardIds.has(cardId)) {
-      this.selectedCardIds.delete(cardId);
-    } else {
-      this.selectedCardIds.add(cardId);
-    }
-    this.notify();
-  },
-
-  selectCard(cardId: string): void {
-    if (this.selectedCardIds.has(cardId)) return;
-    this.selectedCardIds.add(cardId);
-    this.notify();
-  },
-
-  deselectCard(cardId: string): void {
-    if (!this.selectedCardIds.has(cardId)) return;
-    this.selectedCardIds.delete(cardId);
-    this.notify();
-  },
-
-  clearSelection(): void {
-    if (this.selectedCardIds.size === 0) return;
-    this.selectedCardIds.clear();
     this.notify();
   },
 
@@ -168,8 +195,11 @@ export const kanBossState = {
     this.editingStateId = null;
     this.editingSwimlaneId = null;
     this.configuringBoard = false;
-    this.filter = { searchQuery: '', priorityFilter: 'all', labelFilter: 'all', stuckOnly: false };
     this.selectedCardIds.clear();
+    this.lastSelectedCardId = null;
+    this.pendingDeleteIds = [];
+    this.selectAllRequested = false;
+    this.filter = { searchQuery: '', priorityFilter: 'all', labelFilter: 'all', stuckOnly: false };
     this.listeners.clear();
   },
 };
