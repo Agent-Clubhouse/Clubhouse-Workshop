@@ -80,6 +80,40 @@
       "theme",
       "canvas",
       "annex"
+    ],
+    "0.9": [
+      "files",
+      "files.external",
+      "files.watch",
+      "git",
+      "terminal",
+      "agents",
+      "notifications",
+      "storage",
+      "navigation",
+      "projects",
+      "commands",
+      "events",
+      "widgets",
+      "logging",
+      "process",
+      "badges",
+      "agent-config",
+      "agent-config.cross-project",
+      "agent-config.permissions",
+      "agents.free-agent-mode",
+      "agent-config.mcp",
+      "workspace",
+      "workspace.watch",
+      "workspace.cross-plugin",
+      "workspace.shared",
+      "workspace.cross-project",
+      "sounds",
+      "theme",
+      "canvas",
+      "annex",
+      "companion",
+      "mcp.tools"
     ]
   },
   "sensitive": [
@@ -89,6 +123,8 @@
     "agent-config.permissions",
     "agent-config.mcp",
     "agents.free-agent-mode",
-    "canvas"
+    "canvas",
+    "companion",
+    "mcp.tools"
   ]
 }
