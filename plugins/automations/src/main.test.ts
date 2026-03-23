@@ -19,6 +19,7 @@ function makeAutomation(overrides?: Partial<Automation>): Automation {
     enabled: true,
     createdAt: 1000,
     missedRunPolicy: 'ignore',
+    executionMode: 'quick',
     lastRunAt: null,
     ...overrides,
   };
