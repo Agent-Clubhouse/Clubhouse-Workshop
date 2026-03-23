@@ -38,12 +38,12 @@ jobs:
               process.exit(1);
             }
 
-            // Validate latest is active
+            // Validate latest is stable or wip
             const latestEntry = versions.versions[versions.latest];
             if (!latestEntry) {
               errors.push('latest version ' + versions.latest + ' not found in versions map');
-            } else if (latestEntry.status !== 'active') {
-              errors.push('latest version ' + versions.latest + ' has status ' + latestEntry.status + ' (must be active)');
+            } else if (latestEntry.status !== 'stable' && latestEntry.status !== 'wip') {
+              errors.push('latest version ' + versions.latest + ' has status ' + latestEntry.status + ' (must be stable or wip)');
             }
 
             // Validate minimum exists
@@ -53,7 +53,7 @@ jobs:
             }
 
             // Validate each version entry
-            const validStatuses = ['active', 'deprecated', 'removed'];
+            const validStatuses = ['wip', 'stable', 'deprecated', 'removed'];
             for (const [ver, entry] of Object.entries(versions.versions)) {
               if (!validStatuses.includes(entry.status)) {
                 errors.push('Version ' + ver + ' has invalid status: ' + entry.status);
@@ -103,7 +103,7 @@ jobs:
             const fs = require('fs');
             const versions = JSON.parse(fs.readFileSync('sdk/versions.json', 'utf8'));
             const active = Object.entries(versions.versions)
-              .filter(([_, e]) => e.status === 'active' || e.status === 'deprecated')
+              .filter(([_, e]) => e.status === 'stable' || e.status === 'deprecated' || e.status === 'wip')
               .map(([ver, e]) => ({ ver, path: e.sdkPath }));
             fs.writeFileSync('/tmp/active-versions.json', JSON.stringify(active));
             console.log('Active/deprecated versions to typecheck:', active.map(a => 'v' + a.ver).join(', '));
@@ -124,3 +124,6 @@ jobs:
               cd - > /dev/null
             fi
           done
+
+      - name: Verify SDK integrity hashes
+        run: node scripts/compute-sdk-hash.mjs --verify

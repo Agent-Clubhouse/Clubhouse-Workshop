@@ -3,28 +3,31 @@
   "minimum": "0.6",
   "versions": {
     "0.6": {
-      "status": "active",
+      "status": "deprecated",
       "released": "2026-02-21",
-      "deprecated": null,
-      "removalTarget": null,
+      "deprecated": "2026-03-23",
+      "removalTarget": "2026-06-01",
       "sdkPath": "sdk/v0.6",
-      "notes": "Adds ThemeAPI for reading the active theme and subscribing to theme changes. Adds SoundsAPI for custom notification sound packs. Adds AgentConfigAPI for plugin-driven agent configuration (skills, templates, instructions, permissions, MCP servers). Extends CommandsAPI with keyboard binding support. Extends NavigationAPI with popOutAgent, toggleSidebar, and toggleAccessoryPanel. Adds orchestrator support to AgentsAPI (listOrchestrators, checkOrchestratorAvailability, orchestrator/freeAgentMode options on runQuick). Adds agents.free-agent-mode permission."
+      "notes": "Adds ThemeAPI for reading the active theme and subscribing to theme changes. Adds SoundsAPI for custom notification sound packs. Adds AgentConfigAPI for plugin-driven agent configuration (skills, templates, instructions, permissions, MCP servers). Extends CommandsAPI with keyboard binding support. Extends NavigationAPI with popOutAgent, toggleSidebar, and toggleAccessoryPanel. Adds orchestrator support to AgentsAPI (listOrchestrators, checkOrchestratorAvailability, orchestrator/freeAgentMode options on runQuick). Adds agents.free-agent-mode permission.",
+      "integrityHash": "284c416a755f936d6d86242862a884baa2787eaa0f442b72cf774dba25278f5a"
     },
     "0.7": {
-      "status": "active",
+      "status": "stable",
       "released": "2026-02-28",
       "deprecated": null,
       "removalTarget": null,
       "sdkPath": "sdk/v0.7",
-      "notes": "Adds plugin themes (contributes.themes), global dialog actions (contributes.globalDialog, DialogPanel), manifest-declared agent config (contributes.agentConfig), file watching (files.watch permission, FilesAPI.watch), pack plugin kind, and 'creating' agent status. Removes HubAPI.refresh()."
+      "notes": "Adds plugin themes (contributes.themes), global dialog actions (contributes.globalDialog, DialogPanel), manifest-declared agent config (contributes.agentConfig), file watching (files.watch permission, FilesAPI.watch), pack plugin kind, and 'creating' agent status. Removes HubAPI.refresh().",
+      "integrityHash": "adbd9b6d4a28dad5d0472eef0e9fc6fa4cb19e7d90efcadd6922d5a80e274e85"
     },
     "0.8": {
-      "status": "active",
+      "status": "stable",
       "released": "2026-03-21",
       "deprecated": null,
       "removalTarget": null,
       "sdkPath": "sdk/v0.8",
-      "notes": "Adds CanvasAPI for canvas widget registration and querying, WindowAPI for window title management, annex permission for remote control compatibility, canvas widgets manifest declaration, and tab/railItem title override. Extends AgentsAPI with session transcript and summary methods."
+      "notes": "Adds CanvasAPI for canvas widget registration and querying, WindowAPI for window title management, annex permission for remote control compatibility, canvas widgets manifest declaration, and tab/railItem title override. Extends AgentsAPI with session transcript and summary methods.",
+      "integrityHash": "4e8fd4b723da7fdc1d688d2aa9e02f35433e99bae197664e7e51444c98c153b4"
     }
   }
 }
