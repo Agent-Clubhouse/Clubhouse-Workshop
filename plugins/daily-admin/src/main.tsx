@@ -7,34 +7,58 @@ import { todayKey, generateId, formatTime, isOverdue, sortSchedule, currentBlock
 import { ensureToday, saveNote } from './storage';
 import * as S from './styles';
 
+// ── Refresh signal ──────────────────────────────────────────────────────
+
+const refreshListeners = new Set<() => void>();
+
+export function onRefresh(fn: () => void): () => void {
+  refreshListeners.add(fn);
+  return () => { refreshListeners.delete(fn); };
+}
+
+function triggerRefresh(): void {
+  for (const fn of refreshListeners) fn();
+}
+
 // ── activate() ──────────────────────────────────────────────────────────
 
 export function activate(ctx: PluginContext, api: PluginAPI): void {
   api.commands.register('daily-admin.refresh', () => {
-    // Trigger a re-render by notifying (handled in MainPanel via effect)
+    triggerRefresh();
+    api.ui.showNotice('Daily Admin refreshed');
   });
 
   api.commands.register('daily-admin.new-todo', async () => {
     const task = await api.ui.showInput('New to-do:');
     if (!task) return;
-    const today = todayKey();
-    const note = await ensureToday(api.storage.global, today);
-    note.todos.push({ id: generateId(), task, detail: '', linked: '', dueDate: null, state: 'to-do' });
-    await saveNote(api.storage.global, note);
-    api.ui.showNotice('To-do added');
+    try {
+      const today = todayKey();
+      const note = await ensureToday(api.storage.global, today);
+      note.todos.push({ id: generateId(), task, detail: '', linked: '', dueDate: null, state: 'to-do' });
+      await saveNote(api.storage.global, note);
+      triggerRefresh();
+      api.ui.showNotice('To-do added');
+    } catch (err) {
+      api.ui.showError(`Failed to add to-do: ${err instanceof Error ? err.message : String(err)}`);
+    }
   });
 
   api.commands.register('daily-admin.new-schedule', async () => {
     const input = await api.ui.showInput('Schedule block (e.g. "09:00 Standup"):');
     if (!input) return;
-    const spaceIdx = input.indexOf(' ');
-    const time = spaceIdx > 0 ? input.slice(0, spaceIdx) : input;
-    const event = spaceIdx > 0 ? input.slice(spaceIdx + 1) : 'Untitled';
-    const today = todayKey();
-    const note = await ensureToday(api.storage.global, today);
-    note.schedule.push({ id: generateId(), time, event, detail: '', people: '', actionItems: '' });
-    await saveNote(api.storage.global, note);
-    api.ui.showNotice('Schedule block added');
+    try {
+      const spaceIdx = input.indexOf(' ');
+      const time = spaceIdx > 0 ? input.slice(0, spaceIdx) : input;
+      const event = spaceIdx > 0 ? input.slice(spaceIdx + 1) : 'Untitled';
+      const today = todayKey();
+      const note = await ensureToday(api.storage.global, today);
+      note.schedule.push({ id: generateId(), time, event, detail: '', people: '', actionItems: '' });
+      await saveNote(api.storage.global, note);
+      triggerRefresh();
+      api.ui.showNotice('Schedule block added');
+    } catch (err) {
+      api.ui.showError(`Failed to add schedule block: ${err instanceof Error ? err.message : String(err)}`);
+    }
   });
 }
 
@@ -227,6 +251,7 @@ export function MainPanel({ api }: { api: PluginAPI }) {
 
   useEffect(() => {
     loadData();
+    return onRefresh(loadData);
   }, [loadData]);
 
   // Update clock every minute

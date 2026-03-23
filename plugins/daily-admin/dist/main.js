@@ -97,29 +97,51 @@ var font = {
 import { jsx, jsxs } from "react/jsx-runtime";
 var React = globalThis.React;
 var { useState, useEffect, useCallback } = React;
+var refreshListeners = /* @__PURE__ */ new Set();
+function onRefresh(fn) {
+  refreshListeners.add(fn);
+  return () => {
+    refreshListeners.delete(fn);
+  };
+}
+function triggerRefresh() {
+  for (const fn of refreshListeners) fn();
+}
 function activate(ctx, api) {
   api.commands.register("daily-admin.refresh", () => {
+    triggerRefresh();
+    api.ui.showNotice("Daily Admin refreshed");
   });
   api.commands.register("daily-admin.new-todo", async () => {
     const task = await api.ui.showInput("New to-do:");
     if (!task) return;
-    const today = todayKey();
-    const note = await ensureToday(api.storage.global, today);
-    note.todos.push({ id: generateId(), task, detail: "", linked: "", dueDate: null, state: "to-do" });
-    await saveNote(api.storage.global, note);
-    api.ui.showNotice("To-do added");
+    try {
+      const today = todayKey();
+      const note = await ensureToday(api.storage.global, today);
+      note.todos.push({ id: generateId(), task, detail: "", linked: "", dueDate: null, state: "to-do" });
+      await saveNote(api.storage.global, note);
+      triggerRefresh();
+      api.ui.showNotice("To-do added");
+    } catch (err) {
+      api.ui.showError(`Failed to add to-do: ${err instanceof Error ? err.message : String(err)}`);
+    }
   });
   api.commands.register("daily-admin.new-schedule", async () => {
     const input = await api.ui.showInput('Schedule block (e.g. "09:00 Standup"):');
     if (!input) return;
-    const spaceIdx = input.indexOf(" ");
-    const time = spaceIdx > 0 ? input.slice(0, spaceIdx) : input;
-    const event = spaceIdx > 0 ? input.slice(spaceIdx + 1) : "Untitled";
-    const today = todayKey();
-    const note = await ensureToday(api.storage.global, today);
-    note.schedule.push({ id: generateId(), time, event, detail: "", people: "", actionItems: "" });
-    await saveNote(api.storage.global, note);
-    api.ui.showNotice("Schedule block added");
+    try {
+      const spaceIdx = input.indexOf(" ");
+      const time = spaceIdx > 0 ? input.slice(0, spaceIdx) : input;
+      const event = spaceIdx > 0 ? input.slice(spaceIdx + 1) : "Untitled";
+      const today = todayKey();
+      const note = await ensureToday(api.storage.global, today);
+      note.schedule.push({ id: generateId(), time, event, detail: "", people: "", actionItems: "" });
+      await saveNote(api.storage.global, note);
+      triggerRefresh();
+      api.ui.showNotice("Schedule block added");
+    } catch (err) {
+      api.ui.showError(`Failed to add schedule block: ${err instanceof Error ? err.message : String(err)}`);
+    }
   });
 }
 function deactivate() {
@@ -259,6 +281,7 @@ function MainPanel({ api }) {
   }, [api, today]);
   useEffect(() => {
     loadData();
+    return onRefresh(loadData);
   }, [loadData]);
   useEffect(() => {
     const interval = setInterval(() => setNow(/* @__PURE__ */ new Date()), 6e4);
@@ -317,5 +340,6 @@ function MainPanel({ api }) {
 export {
   MainPanel,
   activate,
-  deactivate
+  deactivate,
+  onRefresh
 };

@@ -15,6 +15,7 @@
     "@clubhouse/plugin-types": "file:../../sdk/v0.7/plugin-types",
     "@types/react": "^19.0.0",
     "esbuild": "^0.24.0",
+    "react": "^19.2.4",
     "typescript": "^5.7.0",
     "vitest": "^3.0.0"
   }
