@@ -18,6 +18,8 @@ function makeState(name: string, order: number, overrides: Partial<BoardState> =
     automationPrompt: '',
     evaluationPrompt: '',
     wipLimit: 0,
+    executionAgentId: null,
+    evaluationAgentId: null,
     ...overrides,
   };
 }

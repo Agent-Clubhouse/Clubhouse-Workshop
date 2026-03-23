@@ -228,6 +228,8 @@ function makeState(name, order, overrides = {}) {
     automationPrompt: "",
     evaluationPrompt: "",
     wipLimit: 0,
+    executionAgentId: null,
+    evaluationAgentId: null,
     ...overrides
   };
 }
@@ -1561,7 +1563,9 @@ function BoardConfigDialog({ api, board }) {
       isAutomatic: false,
       automationPrompt: "",
       evaluationPrompt: "",
-      wipLimit: 0
+      wipLimit: 0,
+      executionAgentId: null,
+      evaluationAgentId: null
     }]);
   }, [states]);
   const removeState = useCallback4((stateId) => {
@@ -1760,6 +1764,44 @@ function BoardConfigDialog({ api, board }) {
                 /* @__PURE__ */ jsx4("span", { style: { fontSize: 11, color: color.textSecondary }, children: "Automatic" })
               ] }),
               state.isAutomatic && /* @__PURE__ */ jsxs4(Fragment2, { children: [
+                /* @__PURE__ */ jsxs4("div", { style: { display: "flex", gap: 8 }, children: [
+                  /* @__PURE__ */ jsxs4("div", { style: { flex: 1 }, children: [
+                    /* @__PURE__ */ jsxs4("label", { style: { display: "block", fontSize: 10, color: color.textSecondary, marginBottom: 4 }, children: [
+                      "Execution Agent ",
+                      /* @__PURE__ */ jsx4("span", { style: { color: color.textTertiary }, children: "(optional \u2014 falls back to swimlane)" })
+                    ] }),
+                    /* @__PURE__ */ jsxs4(
+                      "select",
+                      {
+                        value: state.executionAgentId ?? "",
+                        onChange: (e) => updateState(state.id, { executionAgentId: e.target.value || null }),
+                        style: baseInput,
+                        children: [
+                          /* @__PURE__ */ jsx4("option", { value: "", children: "Use swimlane agent" }),
+                          durableAgents.map((agent) => /* @__PURE__ */ jsx4("option", { value: agent.id, children: agent.name }, agent.id))
+                        ]
+                      }
+                    )
+                  ] }),
+                  /* @__PURE__ */ jsxs4("div", { style: { flex: 1 }, children: [
+                    /* @__PURE__ */ jsxs4("label", { style: { display: "block", fontSize: 10, color: color.textSecondary, marginBottom: 4 }, children: [
+                      "Evaluation Agent ",
+                      /* @__PURE__ */ jsx4("span", { style: { color: color.textTertiary }, children: "(optional \u2014 falls back to swimlane)" })
+                    ] }),
+                    /* @__PURE__ */ jsxs4(
+                      "select",
+                      {
+                        value: state.evaluationAgentId ?? "",
+                        onChange: (e) => updateState(state.id, { evaluationAgentId: e.target.value || null }),
+                        style: baseInput,
+                        children: [
+                          /* @__PURE__ */ jsx4("option", { value: "", children: "Use swimlane agent" }),
+                          durableAgents.map((agent) => /* @__PURE__ */ jsx4("option", { value: agent.id, children: agent.name }, agent.id))
+                        ]
+                      }
+                    )
+                  ] })
+                ] }),
                 /* @__PURE__ */ jsxs4("div", { children: [
                   /* @__PURE__ */ jsx4("label", { style: { display: "block", fontSize: 10, color: color.textSecondary, marginBottom: 4 }, children: "Execution Prompt" }),
                   /* @__PURE__ */ jsx4(
@@ -2514,11 +2556,19 @@ function addHistory(card, action, detail, agentId) {
   card.history.push({ action, timestamp: Date.now(), detail, agentId });
   card.updatedAt = Date.now();
 }
+function resolveExecutionAgent(state, swimlane) {
+  return state.executionAgentId ?? swimlane.managerAgentId ?? null;
+}
+function resolveEvaluationAgent(state, swimlane) {
+  return state.evaluationAgentId ?? swimlane.evaluationAgentId ?? swimlane.managerAgentId ?? null;
+}
 async function triggerAutomation(api, card, board) {
   const state = board.states.find((s) => s.id === card.stateId);
   if (!state || !state.isAutomatic) return;
   const swimlane = board.swimlanes.find((l) => l.id === card.swimlaneId);
-  if (!swimlane || !swimlane.managerAgentId) return;
+  if (!swimlane) return;
+  const executionAgent = resolveExecutionAgent(state, swimlane);
+  if (!executionAgent) return;
   if (card.automationAttempts >= board.config.maxRetries) {
     return;
   }
@@ -2535,7 +2585,7 @@ async function triggerAutomation(api, card, board) {
   ].join("\n");
   try {
     const executionAgentId = await api.agents.runQuick(prompt);
-    const configuredEvalAgent = swimlane.evaluationAgentId ?? swimlane.managerAgentId;
+    const configuredEvalAgent = resolveEvaluationAgent(state, swimlane);
     await mutateStorage(api.storage.projectLocal, AUTOMATION_RUNS_KEY, (runs) => {
       runs.push({
         cardId: card.id,

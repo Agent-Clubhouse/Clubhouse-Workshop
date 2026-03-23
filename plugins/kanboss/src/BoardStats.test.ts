@@ -12,6 +12,8 @@ function makeBoard(states: { id: string; name: string; order: number }[]): Board
       automationPrompt: '',
       evaluationPrompt: '',
       wipLimit: 0,
+      executionAgentId: null,
+      evaluationAgentId: null,
     })),
     swimlanes: [{ id: 'lane1', name: 'Default', order: 0, managerAgentId: null, evaluationAgentId: null }],
     labels: [],
