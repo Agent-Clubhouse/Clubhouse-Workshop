@@ -87,7 +87,7 @@ export interface ProjectInfo {
 // ---------------------------------------------------------------------------
 
 export type AgentKind = "durable" | "quick";
-export type AgentStatus = "running" | "sleeping" | "creating" | "error";
+export type AgentStatus = "running" | "sleeping" | "waking" | "creating" | "error";
 
 export interface PluginOrchestratorInfo {
   id: string;
@@ -118,6 +118,8 @@ export interface AgentInfo {
   parentAgentId?: string;
   orchestrator?: string;
   freeAgentMode?: boolean;
+  /** Plugin-supplied metadata attached at spawn time. @since 0.8 */
+  pluginMetadata?: Record<string, string>;
 }
 
 export interface PluginAgentDetailedStatus {
@@ -136,6 +138,8 @@ export interface CompletedQuickAgentInfo {
   exitCode: number;
   completedAt: number;
   parentAgentId?: string;
+  /** Plugin-supplied metadata carried from the spawning agent. @since 0.8 */
+  pluginMetadata?: Record<string, string>;
 }
 
 export interface ModelOption {
@@ -595,7 +599,29 @@ export interface StorageAPI {
   global: ScopedStorage;
 }
 
+export interface FileSearchMatch {
+  line: number;
+  column: number;
+  length: number;
+  lineContent: string;
+  contextBefore?: string[];
+  contextAfter?: string[];
+}
+
+export interface FileSearchFileResult {
+  filePath: string;
+  matches: FileSearchMatch[];
+}
+
+export interface FileSearchResult {
+  results: FileSearchFileResult[];
+  totalMatches: number;
+  truncated: boolean;
+}
+
 export interface FilesAPI {
+  /** Absolute path to this plugin's stable, per-plugin data directory. Auto-created before activate(). @since 0.8 */
+  readonly dataDir: string;
   readTree(relativePath?: string, options?: { includeHidden?: boolean; depth?: number }): Promise<FileNode[]>;
   readFile(relativePath: string): Promise<string>;
   readBinary(relativePath: string): Promise<string>;
@@ -613,6 +639,18 @@ export interface FilesAPI {
    * Callback receives batched file events. Returns a Disposable to stop watching.
    */
   watch(glob: string, callback: (events: FileEvent[]) => void): Disposable;
+  /**
+   * Search for text across all files in the project directory. @since 0.8
+   */
+  search(query: string, options?: {
+    caseSensitive?: boolean;
+    wholeWord?: boolean;
+    regex?: boolean;
+    includeGlobs?: string[];
+    excludeGlobs?: string[];
+    maxResults?: number;
+    contextLines?: number;
+  }): Promise<FileSearchResult>;
 }
 
 /**
@@ -686,8 +724,28 @@ export interface ProjectsAPI {
 export interface GitAPI {
   status(): Promise<GitStatus[]>;
   log(limit?: number): Promise<GitCommit[]>;
-  currentBranch(): Promise<string>;
+  currentBranch(subPath?: string): Promise<string>;
   diff(filePath: string, staged?: boolean): Promise<string>;
+}
+
+/** A single action button in an approval dialog. @since 0.8 */
+export interface ApprovalDialogAction {
+  /** Value returned when this action is selected. */
+  value: string;
+  /** Button label shown in the dialog. */
+  label: string;
+  /** Visual style: 'primary' (accent), 'danger' (red), or 'default' (subtle). */
+  style?: "primary" | "danger" | "default";
+}
+
+/** Options for showApprovalDialog. @since 0.8 */
+export interface ApprovalDialogOptions {
+  /** Dialog title (short, e.g. "Approve stage transition"). */
+  title: string;
+  /** Summary or context body (supports plain text). */
+  summary: string;
+  /** Action buttons. At least one required. First 'primary' or first action gets Enter key. */
+  actions: ApprovalDialogAction[];
 }
 
 export interface UIAPI {
@@ -695,6 +753,12 @@ export interface UIAPI {
   showError(message: string): void;
   showConfirm(message: string): Promise<boolean>;
   showInput(prompt: string, defaultValue?: string): Promise<string | null>;
+  /**
+   * Show a rich approval dialog with a title, summary, and multiple action buttons.
+   * Returns the `value` of the selected action, or `null` if dismissed (overlay click / Escape).
+   * @since 0.8
+   */
+  showApprovalDialog(options: ApprovalDialogOptions): Promise<string | null>;
   openExternalUrl(url: string): Promise<void>;
 }
 
@@ -733,7 +797,7 @@ export interface SettingsAPI {
 
 export interface AgentsAPI {
   list(): AgentInfo[];
-  runQuick(mission: string, options?: { model?: string; systemPrompt?: string; projectId?: string; orchestrator?: string; freeAgentMode?: boolean }): Promise<string>;
+  runQuick(mission: string, options?: { model?: string; systemPrompt?: string; projectId?: string; orchestrator?: string; freeAgentMode?: boolean; metadata?: Record<string, string> }): Promise<string>;
   kill(agentId: string): Promise<void>;
   resume(agentId: string, options?: { mission?: string }): Promise<void>;
   listCompleted(projectId?: string): CompletedQuickAgentInfo[];
@@ -937,6 +1001,20 @@ export interface AgentConfigAPI {
   removeMcpServers(opts?: AgentConfigTargetOptions): Promise<void>;
   /** Get the MCP server configurations currently injected by this plugin. */
   getInjectedMcpServers(opts?: AgentConfigTargetOptions): Promise<Record<string, unknown>>;
+  /**
+   * Register a launch wrapper preset for the current project.
+   * Writes the wrapper config and MCP catalog to project settings.
+   * The preset becomes active immediately.
+   * @since 0.8
+   */
+  contributeWrapperPreset(preset: {
+    binary: string;
+    separator: string;
+    orchestratorMap: Record<string, { subcommand: string }>;
+    env?: Record<string, string>;
+    mcpCatalog: Array<{ id: string; name: string; description: string }>;
+    defaultMcps?: string[];
+  }): Promise<void>;
 }
 
 // ---------------------------------------------------------------------------

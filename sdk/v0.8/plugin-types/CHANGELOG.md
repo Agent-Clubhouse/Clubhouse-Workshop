@@ -23,6 +23,18 @@
 - `PluginPermission: "annex"` — permission for remote control compatibility
 - `PluginAPI.canvas` — canvas sub-API on the composite PluginAPI
 - `PluginAPI.window` — window sub-API on the composite PluginAPI
+- `AgentInfo.pluginMetadata` — plugin-supplied metadata attached at spawn time
+- `CompletedQuickAgentInfo.pluginMetadata` — plugin-supplied metadata carried from the spawning agent
+- `AgentsAPI.runQuick` — added `metadata` option to attach plugin metadata at spawn time
+- `UIAPI.showApprovalDialog()` — rich approval dialog with title, summary, and multiple action buttons
+- `ApprovalDialogAction` — action button descriptor for approval dialogs
+- `ApprovalDialogOptions` — options for `showApprovalDialog`
+- `AgentStatus: "waking"` — new agent lifecycle state
+- `FilesAPI.dataDir` — readonly path to the plugin's stable data directory
+- `FilesAPI.search()` — search for text across project files with regex, glob filters, and context
+- `FileSearchResult`, `FileSearchFileResult`, `FileSearchMatch` — search result types
+- `GitAPI.currentBranch(subPath?)` — added optional `subPath` parameter
+- `AgentConfigAPI.contributeWrapperPreset()` — register a launch wrapper preset for the project
 
 ### Migration from v0.7
 - New APIs (`canvas`, `window`) are opt-in — no migration needed for existing plugins
