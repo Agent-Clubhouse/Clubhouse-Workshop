@@ -724,7 +724,7 @@ describe("manifest", () => {
 
   it("has correct id and version", () => {
     expect(manifest.id).toBe("pomodoro");
-    expect(manifest.version).toBe("1.2.0-beta.1");
+    expect(manifest.version).toBe("1.2.0");
   });
 
   it("declares settings panel", () => {
