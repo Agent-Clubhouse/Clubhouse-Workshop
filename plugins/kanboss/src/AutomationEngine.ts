@@ -1,6 +1,6 @@
 import type { PluginAPI, Disposable } from '@clubhouse/plugin-types';
-import type { Card, Board, AutomationRun } from './types';
-import { BOARDS_KEY, cardsKey, AUTOMATION_RUNS_KEY } from './types';
+import type { Card, Board, AutomationRun, RunHistoryEntry, RunOutcome } from './types';
+import { BOARDS_KEY, cardsKey, AUTOMATION_RUNS_KEY, RUN_HISTORY_KEY, buildRunHistoryEntry } from './types';
 import { kanBossState } from './state';
 import { mutateStorage } from './storageQueue';
 
@@ -61,6 +61,40 @@ export function resolveExecutionAgent(state: Board['states'][0], swimlane: Board
  */
 export function resolveEvaluationAgent(state: Board['states'][0], swimlane: Board['swimlanes'][0]): string | null {
   return state.evaluationAgentId ?? swimlane.evaluationAgentId ?? swimlane.managerAgentId ?? null;
+}
+
+const MAX_HISTORY_ENTRIES = 200;
+
+async function saveRunHistoryEntry(
+  api: PluginAPI,
+  run: AutomationRun,
+  card: Card,
+  board: Board,
+  outcome: RunOutcome,
+  agentSummary: string,
+  filesModified: string[],
+): Promise<void> {
+  const state = board.states.find((s) => s.id === run.stateId);
+  const entry = buildRunHistoryEntry({
+    cardId: card.id,
+    cardTitle: card.title,
+    boardId: board.id,
+    stateId: run.stateId,
+    stateName: state?.name ?? 'Unknown',
+    swimlaneId: run.swimlaneId,
+    outcome,
+    agentSummary,
+    filesModified,
+    attempt: run.attempt,
+    startedAt: run.startedAt,
+  });
+  await mutateStorage<RunHistoryEntry>(api.storage.projectLocal, RUN_HISTORY_KEY, (entries) => {
+    entries.push(entry);
+    if (entries.length > MAX_HISTORY_ENTRIES) {
+      return entries.slice(entries.length - MAX_HISTORY_ENTRIES);
+    }
+    return entries;
+  });
 }
 
 // ── Trigger automation for a card ───────────────────────────────────────
@@ -162,6 +196,9 @@ async function onAgentCompleted(api: PluginAPI, agentId: string, outcome: 'succe
         }
         return cards;
       });
+      const isStuck = cardSnapshot.automationAttempts + 1 >= board.config.maxRetries;
+      await saveRunHistoryEntry(api, run, cardSnapshot, board,
+        isStuck ? 'stuck' : 'failed', 'Execution agent errored', []);
       kanBossState.triggerRefresh();
       return;
     }
@@ -213,6 +250,10 @@ async function onAgentCompleted(api: PluginAPI, agentId: string, outcome: 'succe
         }
         return cards;
       });
+      const execInfo = api.agents.listCompleted().find((c) => c.id === run.executionAgentId);
+      await saveRunHistoryEntry(api, run, cardSnapshot, board, 'failed',
+        execInfo?.summary ?? 'Failed to spawn evaluation agent',
+        execInfo?.filesModified ?? []);
       kanBossState.triggerRefresh();
     }
     return;
@@ -221,9 +262,10 @@ async function onAgentCompleted(api: PluginAPI, agentId: string, outcome: 'succe
   // Phase: evaluating
   if (run.phase === 'evaluating') {
     const completed = api.agents.listCompleted();
-    const info = completed.find((c) => c.id === agentId);
+    const evalInfo = completed.find((c) => c.id === agentId);
+    const execInfo = completed.find((c) => c.id === run.executionAgentId);
 
-    const summary = info?.summary ?? '';
+    const summary = evalInfo?.summary ?? '';
     const passed = summary.includes('RESULT: PASS');
 
     await mutateStorage<AutomationRun>(api.storage.projectLocal, AUTOMATION_RUNS_KEY, (runs) =>
@@ -249,6 +291,8 @@ async function onAgentCompleted(api: PluginAPI, agentId: string, outcome: 'succe
           }
           return cards;
         });
+        await saveRunHistoryEntry(api, run, cardSnapshot, board, 'passed',
+          execInfo?.summary ?? summary, execInfo?.filesModified ?? []);
         kanBossState.triggerRefresh();
 
         // If next state is also automatic, trigger recursively
@@ -266,6 +310,8 @@ async function onAgentCompleted(api: PluginAPI, agentId: string, outcome: 'succe
           }
           return cards;
         });
+        await saveRunHistoryEntry(api, run, cardSnapshot, board, 'passed',
+          execInfo?.summary ?? summary, execInfo?.filesModified ?? []);
         kanBossState.triggerRefresh();
       }
     } else {
@@ -278,6 +324,10 @@ async function onAgentCompleted(api: PluginAPI, agentId: string, outcome: 'succe
         }
         return cards;
       });
+      const isStuck = cardSnapshot.automationAttempts >= board.config.maxRetries;
+      await saveRunHistoryEntry(api, run, cardSnapshot, board,
+        isStuck ? 'stuck' : 'failed',
+        execInfo?.summary ?? reason, execInfo?.filesModified ?? []);
       kanBossState.triggerRefresh();
 
       // Retry if not stuck
