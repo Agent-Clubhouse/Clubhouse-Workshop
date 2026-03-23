@@ -4,7 +4,7 @@
   "version": "1.1.0",
   "description": "Browse, create, and manage Azure DevOps work items with WIQL query support and agent assignment",
   "author": "Clubhouse Workshop",
-  "engine": { "api": 0.6 },
+  "engine": { "api": 0.7 },
   "scope": "project",
   "main": "./dist/main.js",
   "settingsPanel": "declarative",
