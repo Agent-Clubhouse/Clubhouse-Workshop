@@ -21,7 +21,7 @@
         "label": "Pomodoro Timer",
         "icon": "<svg width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M10.1 4.5C10.1 3.1 11 2 12.1 2c1 0 1.9 1.1 1.9 2.5'/><path d='M9 5c-1.5-.3-3 .5-3.5 2'/><path d='M15 5c1.5-.3 3 .5 3.5 2'/><path d='M5.5 7C4 7.5 3 9.6 3 12c0 5 3.6 9 9 9s9-4 9-9c0-2.4-1-4.5-2.5-5'/></svg>",
         "pinnableToControls": true,
-        "defaultSize": { "width": 300, "height": 400 }
+        "defaultSize": { "width": 340, "height": 460 }
       }
     ],
     "commands": [
