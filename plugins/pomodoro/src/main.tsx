@@ -774,6 +774,7 @@ export function PomodoroPinnedWidget({ api }: PinnedWidgetComponentProps) {
   const [remaining, setRemaining] = useState(0);
   const [durations, setDurations] = useState<Durations>(() => getDurations(api));
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const { style: themeStyle } = useTheme(api.theme);
 
   // Load durations on settings change
   useEffect(() => {
@@ -835,7 +836,7 @@ export function PomodoroPinnedWidget({ api }: PinnedWidgetComponentProps) {
   const label = phase === "idle" ? "Ready" : phase === "work" ? "Focus" : "Break";
 
   return (
-    <div style={pinnedStyles.container}>
+    <div style={{ ...themeStyle, ...pinnedStyles.container }}>
       <span style={{ ...pinnedStyles.phaseLabel, color: phaseColor }}>{label}</span>
       <span style={pinnedStyles.time}>{formatTime(remaining)}</span>
       {phase === "idle" ? (

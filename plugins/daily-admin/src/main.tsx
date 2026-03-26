@@ -6,6 +6,7 @@ import type { DailyNote, ScheduleBlock, Todo, Reminder } from './types';
 import { todayKey, generateId, formatTime, isOverdue, sortSchedule, currentBlock } from './types';
 import { ensureToday, saveNote } from './storage';
 import * as S from './styles';
+import { useTheme } from './use-theme';
 
 // ── Refresh signal ──────────────────────────────────────────────────────
 
@@ -242,6 +243,7 @@ export function MainPanel({ api }: { api: PluginAPI }) {
   const [note, setNote] = useState<DailyNote | null>(null);
   const [now, setNow] = useState(new Date());
   const today = todayKey();
+  const { style: themeStyle } = useTheme(api.theme);
 
   // Load today's note
   const loadData = useCallback(async () => {
@@ -295,7 +297,7 @@ export function MainPanel({ api }: { api: PluginAPI }) {
   const dayName = new Date(today + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: S.color.bg, fontFamily: S.font.family, overflow: 'auto' }}>
+    <div style={{ ...themeStyle, display: 'flex', flexDirection: 'column', height: '100%', background: S.color.bg, fontFamily: S.font.family, overflow: 'auto' }}>
       {/* Header */}
       <div style={{
         padding: '12px 20px',
