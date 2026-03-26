@@ -8,6 +8,10 @@ function hexToRgba(hex, alpha) {
 function mapThemeToCSS(theme) {
   const c = theme.colors;
   const onAccent = theme.type === "dark" ? "#ffffff" : "#000000";
+  const shadowOpacity = theme.type === "dark" ? 0.5 : 0.1;
+  const shadowLight = theme.type === "dark" ? 0.15 : 0.08;
+  const shadowMenu = theme.type === "dark" ? 0.3 : 0.1;
+  const overlayOpacity = theme.type === "dark" ? 0.5 : 0.3;
   return {
     // Text
     "--text-primary": c.text,
@@ -35,7 +39,7 @@ function mapThemeToCSS(theme) {
     "--bg-warning": hexToRgba(c.warning, 0.15),
     "--bg-info": hexToRgba(c.info, 0.1),
     "--bg-accent": hexToRgba(c.accent, 0.15),
-    "--bg-overlay": "rgba(0, 0, 0, 0.5)",
+    "--bg-overlay": `rgba(0, 0, 0, ${overlayOpacity})`,
     // Borders
     "--border-primary": c.surface0,
     "--border-secondary": c.surface1,
@@ -43,12 +47,12 @@ function mapThemeToCSS(theme) {
     "--border-info": hexToRgba(c.info, 0.3),
     "--border-accent": hexToRgba(c.accent, 0.3),
     // Shadows & overlays
-    "--shadow": "rgba(0, 0, 0, 0.3)",
-    "--shadow-light": "rgba(0, 0, 0, 0.15)",
-    "--shadow-heavy": "rgba(0, 0, 0, 0.5)",
-    "--shadow-menu": "rgba(0, 0, 0, 0.3)",
-    "--shadow-color": "rgba(0, 0, 0, 0.5)",
-    "--overlay": "rgba(0, 0, 0, 0.5)",
+    "--shadow": `rgba(0, 0, 0, ${shadowOpacity})`,
+    "--shadow-light": `rgba(0, 0, 0, ${shadowLight})`,
+    "--shadow-heavy": `rgba(0, 0, 0, ${shadowOpacity})`,
+    "--shadow-menu": `rgba(0, 0, 0, ${shadowMenu})`,
+    "--shadow-color": `rgba(0, 0, 0, ${shadowOpacity})`,
+    "--overlay": `rgba(0, 0, 0, ${overlayOpacity})`,
     "--glow-error": hexToRgba(c.error, 0.3),
     "--glow-accent": hexToRgba(c.accent, 0.3),
     // Fonts
@@ -720,6 +724,7 @@ function PomodoroPinnedWidget({ api }) {
   const [remaining, setRemaining] = useState(0);
   const [durations, setDurations] = useState(() => getDurations(api));
   const intervalRef = useRef(null);
+  const { style: themeStyle } = useTheme(api.theme);
   useEffect(() => {
     const unsub = api.settings.onChange(() => setDurations(getDurations(api)));
     return () => unsub.dispose();
@@ -765,7 +770,7 @@ function PomodoroPinnedWidget({ api }) {
   }, [api, durations]);
   const phaseColor = phase === "work" ? "var(--text-error, #e74c3c)" : phase === "break" ? "var(--text-success, #2ecc71)" : "var(--text-secondary, #a1a1aa)";
   const label = phase === "idle" ? "Ready" : phase === "work" ? "Focus" : "Break";
-  return /* @__PURE__ */ jsxs("div", { style: pinnedStyles.container, children: [
+  return /* @__PURE__ */ jsxs("div", { style: { ...themeStyle, ...pinnedStyles.container }, children: [
     /* @__PURE__ */ jsx("span", { style: { ...pinnedStyles.phaseLabel, color: phaseColor }, children: label }),
     /* @__PURE__ */ jsx("span", { style: pinnedStyles.time, children: formatTime(remaining) }),
     phase === "idle" ? /* @__PURE__ */ jsx("button", { onClick: startWork, style: pinnedStyles.btn, children: "Start" }) : /* @__PURE__ */ jsx("button", { onClick: stop, style: pinnedStyles.btn, children: "Stop" })
