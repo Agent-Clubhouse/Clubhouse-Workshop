@@ -295,32 +295,32 @@ var font = {
   mono: "var(--font-mono, ui-monospace, monospace)"
 };
 var color = {
-  text: "var(--text-primary, #cdd6f4)",
-  textSecondary: "var(--text-secondary, #bac2de)",
-  textTertiary: "var(--text-tertiary, #a6adc8)",
-  textMuted: "var(--text-muted, #6c7086)",
-  bg: "var(--bg-primary, #1e1e2e)",
-  bgSecondary: "var(--bg-secondary, #181825)",
-  bgTertiary: "var(--bg-tertiary, #11111b)",
-  bgSurface: "var(--bg-surface, #313244)",
-  bgSurfaceHover: "var(--bg-surface-hover, #45475a)",
-  bgSurfaceRaised: "var(--bg-surface-raised, #585b70)",
-  bgActive: "var(--bg-active, #45475a)",
-  border: "var(--border-primary, #313244)",
-  borderSecondary: "var(--border-secondary, #45475a)",
-  accent: "var(--text-accent, #89b4fa)",
-  accentBg: "var(--bg-accent, rgba(137, 180, 250, 0.15))",
-  accentBorder: "var(--border-accent, rgba(137, 180, 250, 0.3))",
-  success: "var(--text-success, #a6e3a1)",
-  successBg: "var(--bg-success, rgba(166, 227, 161, 0.15))",
-  warning: "var(--text-warning, #f9e2af)",
-  warningBg: "var(--bg-warning, rgba(249, 226, 175, 0.15))",
-  error: "var(--text-error, #f38ba8)",
-  errorBg: "var(--bg-error, rgba(243, 139, 168, 0.1))",
-  errorBorder: "var(--border-error, rgba(243, 139, 168, 0.3))",
-  blue: "var(--text-info, #89b4fa)",
-  blueBg: "var(--bg-info, rgba(137, 180, 250, 0.15))",
-  blueBorder: "var(--border-info, rgba(137, 180, 250, 0.3))"
+  text: "var(--text-primary, #333333)",
+  textSecondary: "var(--text-secondary, #666666)",
+  textTertiary: "var(--text-tertiary, #999999)",
+  textMuted: "var(--text-muted, #aaaaaa)",
+  bg: "var(--bg-primary, #f5f5f5)",
+  bgSecondary: "var(--bg-secondary, #ebebeb)",
+  bgTertiary: "var(--bg-tertiary, #e0e0e0)",
+  bgSurface: "var(--bg-surface, #d9d9d9)",
+  bgSurfaceHover: "var(--bg-surface-hover, #cccccc)",
+  bgSurfaceRaised: "var(--bg-surface-raised, #bbbbbb)",
+  bgActive: "var(--bg-active, #cccccc)",
+  border: "var(--border-primary, #d9d9d9)",
+  borderSecondary: "var(--border-secondary, #cccccc)",
+  accent: "var(--text-accent, #0066cc)",
+  accentBg: "var(--bg-accent, rgba(0, 102, 204, 0.1))",
+  accentBorder: "var(--border-accent, rgba(0, 102, 204, 0.3))",
+  success: "var(--text-success, #339933)",
+  successBg: "var(--bg-success, rgba(51, 153, 51, 0.1))",
+  warning: "var(--text-warning, #cc8800)",
+  warningBg: "var(--bg-warning, rgba(204, 136, 0, 0.1))",
+  error: "var(--text-error, #cc3333)",
+  errorBg: "var(--bg-error, rgba(204, 51, 51, 0.1))",
+  errorBorder: "var(--border-error, rgba(204, 51, 51, 0.3))",
+  blue: "var(--text-info, #0066cc)",
+  blueBg: "var(--bg-info, rgba(0, 102, 204, 0.1))",
+  blueBorder: "var(--border-info, rgba(0, 102, 204, 0.3))"
 };
 var container = {
   display: "flex",
@@ -417,6 +417,10 @@ function hexToRgba(hex, alpha) {
 function mapThemeToCSS(theme) {
   const c = theme.colors;
   const onAccent = theme.type === "dark" ? "#ffffff" : "#000000";
+  const shadowOpacity = theme.type === "dark" ? 0.5 : 0.1;
+  const shadowLight = theme.type === "dark" ? 0.15 : 0.08;
+  const shadowMenu = theme.type === "dark" ? 0.3 : 0.1;
+  const overlayOpacity = theme.type === "dark" ? 0.5 : 0.3;
   return {
     // Text
     "--text-primary": c.text,
@@ -444,7 +448,7 @@ function mapThemeToCSS(theme) {
     "--bg-warning": hexToRgba(c.warning, 0.15),
     "--bg-info": hexToRgba(c.info, 0.1),
     "--bg-accent": hexToRgba(c.accent, 0.15),
-    "--bg-overlay": "rgba(0, 0, 0, 0.5)",
+    "--bg-overlay": `rgba(0, 0, 0, ${overlayOpacity})`,
     // Borders
     "--border-primary": c.surface0,
     "--border-secondary": c.surface1,
@@ -452,12 +456,12 @@ function mapThemeToCSS(theme) {
     "--border-info": hexToRgba(c.info, 0.3),
     "--border-accent": hexToRgba(c.accent, 0.3),
     // Shadows & overlays
-    "--shadow": "rgba(0, 0, 0, 0.3)",
-    "--shadow-light": "rgba(0, 0, 0, 0.15)",
-    "--shadow-heavy": "rgba(0, 0, 0, 0.5)",
-    "--shadow-menu": "rgba(0, 0, 0, 0.3)",
-    "--shadow-color": "rgba(0, 0, 0, 0.5)",
-    "--overlay": "rgba(0, 0, 0, 0.5)",
+    "--shadow": `rgba(0, 0, 0, ${shadowOpacity})`,
+    "--shadow-light": `rgba(0, 0, 0, ${shadowLight})`,
+    "--shadow-heavy": `rgba(0, 0, 0, ${shadowOpacity})`,
+    "--shadow-menu": `rgba(0, 0, 0, ${shadowMenu})`,
+    "--shadow-color": `rgba(0, 0, 0, ${shadowOpacity})`,
+    "--overlay": `rgba(0, 0, 0, ${overlayOpacity})`,
     "--glow-error": hexToRgba(c.error, 0.3),
     "--glow-accent": hexToRgba(c.accent, 0.3),
     // Fonts

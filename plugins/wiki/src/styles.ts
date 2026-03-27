@@ -9,37 +9,37 @@ export const font = {
 };
 
 export const color = {
-  text: 'var(--text-primary, #e4e4e7)',
-  textSecondary: 'var(--text-secondary, #a1a1aa)',
-  textTertiary: 'var(--text-tertiary, #71717a)',
-  textError: 'var(--text-error, #f87171)',
-  textSuccess: 'var(--text-success, #22c55e)',
-  textAccent: 'var(--text-accent, #8b5cf6)',
-  textWarning: 'var(--text-warning, #eab308)',
+  text: 'var(--text-primary, #333333)',
+  textSecondary: 'var(--text-secondary, #666666)',
+  textTertiary: 'var(--text-tertiary, #999999)',
+  textError: 'var(--text-error, #cc3333)',
+  textSuccess: 'var(--text-success, #339933)',
+  textAccent: 'var(--text-accent, #0066cc)',
+  textWarning: 'var(--text-warning, #cc8800)',
 
-  bg: 'var(--bg-primary, #18181b)',
-  bgSecondary: 'var(--bg-secondary, #27272a)',
-  bgTertiary: 'var(--bg-tertiary, #333338)',
-  bgActive: 'var(--bg-active, #3f3f46)',
-  bgError: 'var(--bg-error, #2a1515)',
+  bg: 'var(--bg-primary, #f5f5f5)',
+  bgSecondary: 'var(--bg-secondary, #ebebeb)',
+  bgTertiary: 'var(--bg-tertiary, #e0e0e0)',
+  bgActive: 'var(--bg-active, #d9d9d9)',
+  bgError: 'var(--bg-error, #f5e6e6)',
 
-  border: 'var(--border-primary, #3f3f46)',
-  borderSecondary: 'var(--border-secondary, #52525b)',
-  accent: 'var(--text-accent, #8b5cf6)',
-  accentBg: 'var(--bg-accent, rgba(139, 92, 246, 0.15))',
+  border: 'var(--border-primary, #cccccc)',
+  borderSecondary: 'var(--border-secondary, #bbbbbb)',
+  accent: 'var(--text-accent, #0066cc)',
+  accentBg: 'var(--bg-accent, rgba(0, 102, 204, 0.1))',
 
   // Status badge backgrounds
-  bgSuccess: 'var(--bg-success, rgba(34, 197, 94, 0.15))',
-  bgWarning: 'var(--bg-warning, rgba(234, 179, 8, 0.15))',
-  bgErrorSubtle: 'var(--bg-error-subtle, rgba(248, 113, 113, 0.15))',
+  bgSuccess: 'var(--bg-success, rgba(51, 153, 51, 0.15))',
+  bgWarning: 'var(--bg-warning, rgba(204, 136, 0, 0.15))',
+  bgErrorSubtle: 'var(--bg-error-subtle, rgba(204, 51, 51, 0.15))',
 
   // Overlay & shadow
-  overlay: 'var(--bg-overlay, rgba(0, 0, 0, 0.5))',
-  shadow: 'var(--shadow-color, rgba(0, 0, 0, 0.5))',
-  shadowMenu: 'var(--shadow-menu, rgba(0, 0, 0, 0.3))',
+  overlay: 'var(--bg-overlay, rgba(0, 0, 0, 0.3))',
+  shadow: 'var(--shadow-color, rgba(0, 0, 0, 0.2))',
+  shadowMenu: 'var(--shadow-menu, rgba(0, 0, 0, 0.15))',
 
   // Text on accent backgrounds
-  textOnAccent: 'var(--text-on-accent, #fff)',
+  textOnAccent: 'var(--text-on-accent, #ffffff)',
 
   // File icon colors by extension
   blue: 'var(--color-blue, #3b82f6)',

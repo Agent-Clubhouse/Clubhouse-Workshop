@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated": "2026-03-18T05:22:45.876Z",
+  "updated": "2026-03-23T07:20:20.811Z",
   "supportedApis": {
     "latest": "0.9",
     "minimum": "0.6",
@@ -25,12 +25,26 @@
         "issues",
         "bug-tracking"
       ],
-      "latest": "1.0.0",
+      "latest": "1.1.0",
       "releases": {
         "1.0.0": {
           "api": 0.6,
           "asset": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop/releases/download/bug-report-v1.0.0/bug-report-v1.0.0.zip",
           "sha256": "d20a23a8c474c881d2ab56dbbbe03d3ed8ee7b5b789b6963aa0b8f6df20ea055",
+          "permissions": [
+            "logging",
+            "storage",
+            "notifications",
+            "commands",
+            "process",
+            "theme"
+          ],
+          "size": 13329
+        },
+        "1.1.0": {
+          "api": 0.7,
+          "asset": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop/releases/download/bug-report-v1.1.0/bug-report-v1.1.0.zip",
+          "sha256": "c85832a648e73e9a5970c077224b995ac9de7c4b0ce27cdb8d382df39fc5c8ef",
           "permissions": [
             "logging",
             "storage",
@@ -46,7 +60,7 @@
     {
       "id": "automations",
       "name": "Automations",
-      "description": "Schedule recurring quick-agent tasks with cron expressions. Create automations with orchestrator selection, model selection, free agent mode, and prompt configuration. Track run history with status indicators and summaries.",
+      "description": "Schedule recurring agent tasks with cron expressions. Target quick agents or durable agents in specific worktrees. Create automations with orchestrator selection, model selection, free agent mode, and prompt configuration. Track run history with status indicators and summaries.",
       "author": "Clubhouse Workshop",
       "official": true,
       "repo": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop",
@@ -56,7 +70,7 @@
         "cron",
         "agents"
       ],
-      "latest": "1.3.1",
+      "latest": "2.0.0",
       "releases": {
         "0.1.0": {
           "api": 0.5,
@@ -166,6 +180,22 @@
             "theme"
           ],
           "size": 12417
+        },
+        "2.0.0": {
+          "api": 0.8,
+          "asset": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop/releases/download/automations-v2.0.0/automations-v2.0.0.zip",
+          "sha256": "1e88af74340a28100b331fd21e96aafc5a9904e645fc4cb4d6ba15a6eab7b462",
+          "permissions": [
+            "storage",
+            "agents",
+            "agents.free-agent-mode",
+            "commands",
+            "notifications",
+            "navigation",
+            "widgets",
+            "theme"
+          ],
+          "size": 13208
         }
       }
     },
@@ -182,7 +212,7 @@
         "issues",
         "project-management"
       ],
-      "latest": "1.1.0",
+      "latest": "1.2.0",
       "releases": {
         "0.1.0": {
           "api": 0.5,
@@ -252,6 +282,24 @@
             "theme"
           ],
           "size": 15030
+        },
+        "1.2.0": {
+          "api": 0.7,
+          "asset": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop/releases/download/github-issues-v1.2.0/github-issues-v1.2.0.zip",
+          "sha256": "1a35546de430b4efa3c269dcfbe5d29525096a964d8862efdc74dfb6ed643e5c",
+          "permissions": [
+            "logging",
+            "storage",
+            "notifications",
+            "files",
+            "agents",
+            "commands",
+            "process",
+            "git",
+            "widgets",
+            "theme"
+          ],
+          "size": 15031
         }
       }
     },
@@ -268,7 +316,7 @@
         "ai",
         "project-management"
       ],
-      "latest": "1.1.0",
+      "latest": "1.2.0",
       "releases": {
         "0.1.0": {
           "api": 0.5,
@@ -315,6 +363,22 @@
             "theme"
           ],
           "size": 21780
+        },
+        "1.2.0": {
+          "api": 0.7,
+          "asset": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop/releases/download/kanboss-v1.2.0/kanboss-v1.2.0.zip",
+          "sha256": "678acd27aa1db6ef090f382b7c055cf567d73097ba958ce63a82002aaa038b25",
+          "permissions": [
+            "logging",
+            "storage",
+            "agents",
+            "commands",
+            "notifications",
+            "navigation",
+            "widgets",
+            "theme"
+          ],
+          "size": 31674
         }
       }
     },
@@ -331,7 +395,7 @@
         "work-items",
         "project-management"
       ],
-      "latest": "1.1.0",
+      "latest": "1.2.0",
       "releases": {
         "0.1.0": {
           "api": 0.5,
@@ -378,6 +442,22 @@
             "theme"
           ],
           "size": 16264
+        },
+        "1.2.0": {
+          "api": 0.7,
+          "asset": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop/releases/download/ado-work-items-v1.2.0/ado-work-items-v1.2.0.zip",
+          "sha256": "659e9a198ff41528935e9f4a7a16dc729fea8d32aba56e3b8e9f3e348bc073fb",
+          "permissions": [
+            "logging",
+            "storage",
+            "notifications",
+            "agents",
+            "commands",
+            "process",
+            "widgets",
+            "theme"
+          ],
+          "size": 16263
         }
       }
     },
@@ -394,7 +474,7 @@
         "markdown",
         "documentation"
       ],
-      "latest": "1.2.1",
+      "latest": "1.3.0",
       "releases": {
         "1.0.0": {
           "api": 0.5,
@@ -461,6 +541,23 @@
             "theme"
           ],
           "size": 87488
+        },
+        "1.3.0": {
+          "api": 0.7,
+          "asset": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop/releases/download/wiki-v1.3.0/wiki-v1.3.0.zip",
+          "sha256": "ed6370ddba6030615b8e0569766b47e94448fc62bb5b219e3cb1cf20b24c4ecc",
+          "permissions": [
+            "files",
+            "files.external",
+            "commands",
+            "notifications",
+            "agents",
+            "navigation",
+            "storage",
+            "widgets",
+            "theme"
+          ],
+          "size": 87489
         }
       }
     },
@@ -476,7 +573,7 @@
         "productivity",
         "timer"
       ],
-      "latest": "1.1.0",
+      "latest": "1.2.0",
       "releases": {
         "0.1.0": {
           "api": 0.5,
@@ -517,6 +614,20 @@
             "theme"
           ],
           "size": 7483
+        },
+        "1.2.0": {
+          "api": 0.7,
+          "asset": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop/releases/download/pomodoro-v1.2.0/pomodoro-v1.2.0.zip",
+          "sha256": "8d070d7192c184c1a11ced7badee5f52d2205f10b8a18c1f88af825301225d70",
+          "permissions": [
+            "logging",
+            "storage",
+            "notifications",
+            "commands",
+            "widgets",
+            "theme"
+          ],
+          "size": 8418
         }
       }
     },
@@ -657,6 +768,33 @@
           "sha256": "7e104e25fcbdca59be10fd95029d9aa16832cd6d7fb93ee28a430d7c96c5ba95",
           "permissions": [],
           "size": 2894
+        }
+      }
+    },
+    {
+      "id": "daily-admin",
+      "name": "Daily Admin",
+      "description": "Personal daily planner — manage your schedule, to-dos, and notes with carry-forward and automated rollups.",
+      "author": "Clubhouse Workshop",
+      "official": true,
+      "repo": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop",
+      "path": "plugins/daily-admin",
+      "tags": [],
+      "latest": "0.1.0",
+      "releases": {
+        "0.1.0": {
+          "api": 0.7,
+          "asset": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop/releases/download/daily-admin-v0.1.0/daily-admin-v0.1.0.zip",
+          "sha256": "4c58ea3e1840bc92d41893671c48c7653f1769fbf8b1cb30df4462b4ec7d9058",
+          "permissions": [
+            "logging",
+            "storage",
+            "notifications",
+            "commands",
+            "widgets",
+            "theme"
+          ],
+          "size": 5251
         }
       }
     }
