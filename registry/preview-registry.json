@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "updated": "2026-03-26T00:00:00.000Z",
+  "supportedApis": {
+    "latest": "0.9",
+    "minimum": "0.6",
+    "versions": [
+      "0.6",
+      "0.7",
+      "0.8",
+      "0.9"
+    ]
+  },
+  "plugins": []
+}

@@ -39,13 +39,20 @@ jobs:
           else
             TAG="${GITHUB_REF#refs/tags/}"
           fi
-          # Extract plugin ID and version from tag like "code-review-v0.1.0"
+          # Extract plugin ID and version from tag like "code-review-v0.1.0" or "pomodoro-v1.2.0-beta.1"
           PLUGIN_ID=$(echo "$TAG" | sed 's/-v[0-9].*//')
           VERSION=$(echo "$TAG" | sed 's/.*-v//')
+          # Detect channel: beta tags (version contains -beta.) go to preview registry
+          if echo "$VERSION" | grep -q '\-beta\.'; then
+            CHANNEL="preview"
+          else
+            CHANNEL="stable"
+          fi
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "plugin_id=$PLUGIN_ID" >> "$GITHUB_OUTPUT"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "plugin_dir=plugins/$PLUGIN_ID" >> "$GITHUB_OUTPUT"
+          echo "channel=$CHANNEL" >> "$GITHUB_OUTPUT"
 
       - name: Verify plugin directory exists
         run: |
@@ -80,6 +87,7 @@ jobs:
         with:
           tag_name: ${{ steps.tag.outputs.tag }}
           name: "${{ steps.tag.outputs.plugin_id }} v${{ steps.tag.outputs.version }}"
+          prerelease: ${{ steps.tag.outputs.channel == 'preview' }}
           body: |
             ## ${{ steps.tag.outputs.plugin_id }} v${{ steps.tag.outputs.version }}
 
@@ -118,17 +126,25 @@ jobs:
             fs.writeFileSync('/tmp/registry-releases.json', JSON.stringify(releases, null, 2));
           "
 
-          node scripts/update-registry.mjs /tmp/registry-releases.json --repo "https://github.com/${{ github.repository }}"
+          node scripts/update-registry.mjs /tmp/registry-releases.json \
+            --repo "https://github.com/${{ github.repository }}" \
+            --channel "${{ steps.tag.outputs.channel }}"
 
-          git add registry/registry.json
+          git add registry/registry.json registry/preview-registry.json
           git diff --cached --quiet && echo "No registry changes" && exit 0
 
-          git commit -m "registry: update ${{ steps.tag.outputs.plugin_id }} to v${{ steps.tag.outputs.version }}"
+          CHANNEL="${{ steps.tag.outputs.channel }}"
+          if [ "$CHANNEL" = "preview" ]; then
+            COMMIT_MSG="preview-registry: update ${{ steps.tag.outputs.plugin_id }} to v${{ steps.tag.outputs.version }}"
+          else
+            COMMIT_MSG="registry: update ${{ steps.tag.outputs.plugin_id }} to v${{ steps.tag.outputs.version }}"
+          fi
+          git commit -m "$COMMIT_MSG"
           git push --force origin "$BRANCH"
 
           PR_URL=$(gh pr create \
-            --title "registry: update ${{ steps.tag.outputs.plugin_id }} to v${{ steps.tag.outputs.version }}" \
-            --body "Automated registry update from release pipeline." \
+            --title "$COMMIT_MSG" \
+            --body "Automated registry update from release pipeline. Channel: ${{ steps.tag.outputs.channel }}" \
             --base main \
             --head "$BRANCH")
           echo "Created PR: $PR_URL"

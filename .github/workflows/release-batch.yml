@@ -208,7 +208,7 @@ jobs:
             }
           "
 
-      # ── Step 6: Single registry update ─────────────────────────────────
+      # ── Step 6: Registry update (per-channel routing) ──────────────────
       - name: Update registry
         if: steps.build.outputs.success_count != '0' && inputs.dry_run == false
         env:
@@ -217,19 +217,18 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          # Prepare release metadata for update-registry.mjs
+          # Split successful builds into stable and preview channels
           node -e "
             const fs = require('fs');
             const builds = JSON.parse(fs.readFileSync('/tmp/successful-builds.json', 'utf8'));
-            const releases = builds.map(b => ({
-              pluginId: b.pluginId,
-              version: b.version,
-              tag: b.tag,
-              sha256: b.sha256,
-              size: b.size,
-              manifest: b.manifest
-            }));
-            fs.writeFileSync('/tmp/registry-releases.json', JSON.stringify(releases, null, 2));
+            const toRelease = r => ({
+              pluginId: r.pluginId, version: r.version, tag: r.tag,
+              sha256: r.sha256, size: r.size, manifest: r.manifest
+            });
+            const stable = builds.filter(b => !b.version.includes('-beta.')).map(toRelease);
+            const preview = builds.filter(b => b.version.includes('-beta.')).map(toRelease);
+            fs.writeFileSync('/tmp/registry-releases-stable.json', JSON.stringify(stable, null, 2));
+            fs.writeFileSync('/tmp/registry-releases-preview.json', JSON.stringify(preview, null, 2));
           "
 
           BRANCH="registry-update/batch-$(date +%Y%m%d-%H%M%S)"
@@ -237,9 +236,23 @@ jobs:
           git fetch origin main
           git checkout -b "$BRANCH" origin/main
 
-          node scripts/update-registry.mjs /tmp/registry-releases.json --repo "https://github.com/${{ github.repository }}"
+          # Update stable registry if there are stable releases
+          STABLE_COUNT=$(node -e "console.log(JSON.parse(require('fs').readFileSync('/tmp/registry-releases-stable.json','utf8')).length)")
+          if [ "$STABLE_COUNT" != "0" ]; then
+            node scripts/update-registry.mjs /tmp/registry-releases-stable.json \
+              --repo "https://github.com/${{ github.repository }}" \
+              --channel stable
+          fi
 
-          git add registry/registry.json
+          # Update preview registry if there are beta releases
+          PREVIEW_COUNT=$(node -e "console.log(JSON.parse(require('fs').readFileSync('/tmp/registry-releases-preview.json','utf8')).length)")
+          if [ "$PREVIEW_COUNT" != "0" ]; then
+            node scripts/update-registry.mjs /tmp/registry-releases-preview.json \
+              --repo "https://github.com/${{ github.repository }}" \
+              --channel preview
+          fi
+
+          git add registry/registry.json registry/preview-registry.json
           git diff --cached --quiet && echo "No registry changes" && exit 0
 
           PLUGIN_LIST=$(node -e "
