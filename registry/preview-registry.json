@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated": "2026-03-26T00:00:00.000Z",
+  "updated": "2026-03-27T22:05:29.551Z",
   "supportedApis": {
     "latest": "0.9",
     "minimum": "0.6",
@@ -11,5 +11,34 @@
       "0.9"
     ]
   },
-  "plugins": []
+  "plugins": [
+    {
+      "id": "pomodoro",
+      "name": "Pomodoro",
+      "description": "A visual Pomodoro timer with configurable durations, long break cycles, and session tracking.",
+      "author": "Clubhouse Workshop",
+      "official": true,
+      "repo": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop",
+      "path": "plugins/pomodoro",
+      "tags": [],
+      "latest": "1.2.0-beta.2",
+      "releases": {
+        "1.2.0-beta.2": {
+          "api": 0.9,
+          "asset": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop/releases/download/pomodoro-v1.2.0-beta.2/pomodoro-v1.2.0-beta.2.zip",
+          "sha256": "15c00f47ee0218b4564c8331d68d88a833de86e871e335dd11049cf106f626b8",
+          "permissions": [
+            "logging",
+            "storage",
+            "notifications",
+            "commands",
+            "widgets",
+            "theme",
+            "canvas"
+          ],
+          "size": 9036
+        }
+      }
+    }
+  ]
 }
