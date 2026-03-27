@@ -1644,32 +1644,32 @@ var font = {
   mono: "var(--font-mono, ui-monospace, monospace)"
 };
 var color = {
-  text: "var(--text-primary, #e4e4e7)",
-  textSecondary: "var(--text-secondary, #a1a1aa)",
-  textTertiary: "var(--text-tertiary, #71717a)",
-  textError: "var(--text-error, #f87171)",
-  textSuccess: "var(--text-success, #22c55e)",
-  textAccent: "var(--text-accent, #8b5cf6)",
-  textWarning: "var(--text-warning, #eab308)",
-  bg: "var(--bg-primary, #18181b)",
-  bgSecondary: "var(--bg-secondary, #27272a)",
-  bgTertiary: "var(--bg-tertiary, #333338)",
-  bgActive: "var(--bg-active, #3f3f46)",
-  bgError: "var(--bg-error, #2a1515)",
-  border: "var(--border-primary, #3f3f46)",
-  borderSecondary: "var(--border-secondary, #52525b)",
-  accent: "var(--text-accent, #8b5cf6)",
-  accentBg: "var(--bg-accent, rgba(139, 92, 246, 0.15))",
+  text: "var(--text-primary, #333333)",
+  textSecondary: "var(--text-secondary, #666666)",
+  textTertiary: "var(--text-tertiary, #999999)",
+  textError: "var(--text-error, #cc3333)",
+  textSuccess: "var(--text-success, #339933)",
+  textAccent: "var(--text-accent, #0066cc)",
+  textWarning: "var(--text-warning, #cc8800)",
+  bg: "var(--bg-primary, #f5f5f5)",
+  bgSecondary: "var(--bg-secondary, #ebebeb)",
+  bgTertiary: "var(--bg-tertiary, #e0e0e0)",
+  bgActive: "var(--bg-active, #d9d9d9)",
+  bgError: "var(--bg-error, #f5e6e6)",
+  border: "var(--border-primary, #cccccc)",
+  borderSecondary: "var(--border-secondary, #bbbbbb)",
+  accent: "var(--text-accent, #0066cc)",
+  accentBg: "var(--bg-accent, rgba(0, 102, 204, 0.1))",
   // Status badge backgrounds
-  bgSuccess: "var(--bg-success, rgba(34, 197, 94, 0.15))",
-  bgWarning: "var(--bg-warning, rgba(234, 179, 8, 0.15))",
-  bgErrorSubtle: "var(--bg-error-subtle, rgba(248, 113, 113, 0.15))",
+  bgSuccess: "var(--bg-success, rgba(51, 153, 51, 0.15))",
+  bgWarning: "var(--bg-warning, rgba(204, 136, 0, 0.15))",
+  bgErrorSubtle: "var(--bg-error-subtle, rgba(204, 51, 51, 0.15))",
   // Overlay & shadow
-  overlay: "var(--bg-overlay, rgba(0, 0, 0, 0.5))",
-  shadow: "var(--shadow-color, rgba(0, 0, 0, 0.5))",
-  shadowMenu: "var(--shadow-menu, rgba(0, 0, 0, 0.3))",
+  overlay: "var(--bg-overlay, rgba(0, 0, 0, 0.3))",
+  shadow: "var(--shadow-color, rgba(0, 0, 0, 0.2))",
+  shadowMenu: "var(--shadow-menu, rgba(0, 0, 0, 0.15))",
   // Text on accent backgrounds
-  textOnAccent: "var(--text-on-accent, #fff)",
+  textOnAccent: "var(--text-on-accent, #ffffff)",
   // File icon colors by extension
   blue: "var(--color-blue, #3b82f6)",
   green: "var(--color-green, #22c55e)",
@@ -13321,6 +13321,10 @@ function hexToRgba(hex, alpha) {
 function mapThemeToCSS(theme) {
   const c = theme.colors;
   const onAccent = theme.type === "dark" ? "#ffffff" : "#000000";
+  const shadowOpacity = theme.type === "dark" ? 0.5 : 0.1;
+  const shadowLight = theme.type === "dark" ? 0.15 : 0.08;
+  const shadowMenu = theme.type === "dark" ? 0.3 : 0.1;
+  const overlayOpacity = theme.type === "dark" ? 0.5 : 0.3;
   return {
     // Text
     "--text-primary": c.text,
@@ -13348,7 +13352,7 @@ function mapThemeToCSS(theme) {
     "--bg-warning": hexToRgba(c.warning, 0.15),
     "--bg-info": hexToRgba(c.info, 0.1),
     "--bg-accent": hexToRgba(c.accent, 0.15),
-    "--bg-overlay": "rgba(0, 0, 0, 0.5)",
+    "--bg-overlay": `rgba(0, 0, 0, ${overlayOpacity})`,
     // Borders
     "--border-primary": c.surface0,
     "--border-secondary": c.surface1,
@@ -13356,12 +13360,12 @@ function mapThemeToCSS(theme) {
     "--border-info": hexToRgba(c.info, 0.3),
     "--border-accent": hexToRgba(c.accent, 0.3),
     // Shadows & overlays
-    "--shadow": "rgba(0, 0, 0, 0.3)",
-    "--shadow-light": "rgba(0, 0, 0, 0.15)",
-    "--shadow-heavy": "rgba(0, 0, 0, 0.5)",
-    "--shadow-menu": "rgba(0, 0, 0, 0.3)",
-    "--shadow-color": "rgba(0, 0, 0, 0.5)",
-    "--overlay": "rgba(0, 0, 0, 0.5)",
+    "--shadow": `rgba(0, 0, 0, ${shadowOpacity})`,
+    "--shadow-light": `rgba(0, 0, 0, ${shadowLight})`,
+    "--shadow-heavy": `rgba(0, 0, 0, ${shadowOpacity})`,
+    "--shadow-menu": `rgba(0, 0, 0, ${shadowMenu})`,
+    "--shadow-color": `rgba(0, 0, 0, ${shadowOpacity})`,
+    "--overlay": `rgba(0, 0, 0, ${overlayOpacity})`,
     "--glow-error": hexToRgba(c.error, 0.3),
     "--glow-accent": hexToRgba(c.accent, 0.3),
     // Fonts

@@ -1,4 +1,4 @@
-import type { PluginContext, PluginAPI, PanelProps } from "@clubhouse/plugin-types";
+import type { PluginContext, PluginAPI, PanelProps, CanvasWidgetComponentProps, PinnedWidgetComponentProps } from "@clubhouse/plugin-types";
 import { useTheme } from "./use-theme";
 
 const React = globalThis.React;
@@ -235,6 +235,16 @@ export function activate(ctx: PluginContext, api: PluginAPI): void {
       api.ui.showNotice("Open the Pomodoro panel to manage timers");
     }),
   );
+
+  if (api.canvas) {
+    ctx.subscriptions.push(
+      api.canvas.registerWidgetType({
+        id: "pomodoro-timer",
+        component: PomodoroFullWidget,
+        pinnedComponent: PomodoroPinnedWidget,
+      }),
+    );
+  }
 }
 
 export function deactivate(): void {}
@@ -709,6 +719,131 @@ export function MainPanel({ api }: PanelProps) {
           ? "No sessions yet today"
           : `${todaySessions} session${todaySessions === 1 ? "" : "s"} today`}
       </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Canvas full widget (wraps MainPanel)
+// ---------------------------------------------------------------------------
+
+export function PomodoroFullWidget({ api }: CanvasWidgetComponentProps) {
+  return <MainPanel api={api} />;
+}
+
+// ---------------------------------------------------------------------------
+// Pinned widget (compact controls bar timer)
+// ---------------------------------------------------------------------------
+
+const pinnedStyles = {
+  container: {
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+    fontFamily: "var(--font-family, system-ui, -apple-system, sans-serif)",
+    fontSize: 13,
+    color: "var(--text-primary, #e4e4e7)",
+    whiteSpace: "nowrap" as const,
+  },
+  time: {
+    fontWeight: 700,
+    fontVariantNumeric: "tabular-nums" as const,
+    minWidth: 42,
+  },
+  phaseLabel: {
+    fontSize: 11,
+    fontWeight: 600,
+    textTransform: "uppercase" as const,
+    letterSpacing: 1,
+  },
+  btn: {
+    padding: "2px 10px",
+    fontSize: 11,
+    fontWeight: 600,
+    border: "1px solid var(--border-primary, #3f3f46)",
+    borderRadius: 6,
+    cursor: "pointer",
+    fontFamily: "inherit",
+    background: "transparent",
+    color: "var(--text-secondary, #a1a1aa)",
+  },
+};
+
+export function PomodoroPinnedWidget({ api }: PinnedWidgetComponentProps) {
+  const [phase, setPhase] = useState<TimerPhase>("idle");
+  const [remaining, setRemaining] = useState(0);
+  const [durations, setDurations] = useState<Durations>(() => getDurations(api));
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const { style: themeStyle } = useTheme(api.theme);
+
+  // Load durations on settings change
+  useEffect(() => {
+    const unsub = api.settings.onChange(() => setDurations(getDurations(api)));
+    return () => unsub.dispose();
+  }, [api]);
+
+  // Set idle display
+  useEffect(() => {
+    if (phase === "idle") setRemaining(durations.work);
+  }, [durations.work, phase]);
+
+  // Poll timer state from storage
+  useEffect(() => {
+    const tick = async () => {
+      const raw = await api.storage.global.read(TIMER_STATE_KEY);
+      if (!isTimerState(raw)) {
+        if (phase !== "idle") setPhase("idle");
+        return;
+      }
+      const elapsed = Math.floor((Date.now() - raw.startedAt) / 1000);
+      const left = Math.floor(raw.durationMs / 1000) - elapsed;
+      if (left > 0) {
+        setPhase(raw.phase);
+        setRemaining(left);
+      } else {
+        setPhase("idle");
+      }
+    };
+
+    tick();
+    const id = setInterval(tick, 1000);
+    intervalRef.current = id;
+    return () => clearInterval(id);
+  }, [api, phase]);
+
+  const startWork = useCallback(() => {
+    const now = Date.now();
+    api.storage.global.write(TIMER_STATE_KEY, {
+      phase: "work",
+      startedAt: now,
+      durationMs: durations.work * 1000,
+    } satisfies TimerState);
+    setPhase("work");
+    setRemaining(durations.work);
+  }, [api, durations]);
+
+  const stop = useCallback(() => {
+    api.storage.global.delete(TIMER_STATE_KEY);
+    setPhase("idle");
+    setRemaining(durations.work);
+  }, [api, durations]);
+
+  const phaseColor =
+    phase === "work" ? "var(--text-error, #e74c3c)"
+    : phase === "break" ? "var(--text-success, #2ecc71)"
+    : "var(--text-secondary, #a1a1aa)";
+
+  const label = phase === "idle" ? "Ready" : phase === "work" ? "Focus" : "Break";
+
+  return (
+    <div style={{ ...themeStyle, ...pinnedStyles.container }}>
+      <span style={{ ...pinnedStyles.phaseLabel, color: phaseColor }}>{label}</span>
+      <span style={pinnedStyles.time}>{formatTime(remaining)}</span>
+      {phase === "idle" ? (
+        <button onClick={startWork} style={pinnedStyles.btn}>Start</button>
+      ) : (
+        <button onClick={stop} style={pinnedStyles.btn}>Stop</button>
+      )}
     </div>
   );
 }
