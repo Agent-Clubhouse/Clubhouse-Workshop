@@ -1,13 +1,17 @@
 #!/usr/bin/env node
 
 // Batch registry update script.
-// Usage: node scripts/update-registry.mjs <releases-json-path> [--registry <path>] [--repo <repo>]
+// Usage: node scripts/update-registry.mjs <releases-json-path> [--registry <path>] [--repo <repo>] [--channel stable|preview]
 //
 // The releases JSON file must contain an array of objects:
 //   [{ pluginId, version, tag, sha256, size, manifest }]
 //
-// Updates registry/registry.json for all releases in one pass,
-// syncs supportedApis from sdk/versions.json, and validates the result.
+// Updates registry/registry.json (stable) or registry/preview-registry.json (preview)
+// for all releases in one pass, syncs supportedApis from sdk/versions.json, and validates the result.
+//
+// Channel routing:
+//   --channel stable   → registry/registry.json (default)
+//   --channel preview  → registry/preview-registry.json
 
 import { readFileSync, writeFileSync, existsSync } from "fs";
 import { join, resolve } from "path";
@@ -24,8 +28,15 @@ export async function updateRegistry(
     versionsPath = join(REPO_ROOT, "sdk", "versions.json"),
     repo = "https://github.com/Agent-Clubhouse/Clubhouse-Workshop",
     validate = true,
+    channel = "stable",
   } = {}
 ) {
+  // Route to the appropriate registry file based on channel
+  if (channel === "preview" && registryPath === join(REPO_ROOT, "registry", "registry.json")) {
+    registryPath = join(REPO_ROOT, "registry", "preview-registry.json");
+    // validateRegistry() always reads registry.json — skip for preview channel
+    validate = false;
+  }
   // Load current registry
   let registry;
   if (existsSync(registryPath)) {
@@ -111,9 +122,9 @@ const isMain = process.argv[1] && resolve(process.argv[1]) === resolve(import.me
 if (isMain) {
   const args = process.argv.slice(2);
   if (args.length === 0 || args.includes("--help")) {
-    console.log("Usage: node scripts/update-registry.mjs <releases-json-path> [--registry <path>] [--repo <repo>]");
+    console.log("Usage: node scripts/update-registry.mjs <releases-json-path> [--registry <path>] [--repo <repo>] [--channel stable|preview]");
     console.log("");
-    console.log("Updates registry.json with an array of release metadata.");
+    console.log("Updates registry.json (stable) or preview-registry.json (preview) with release metadata.");
     console.log("The JSON file must contain: [{ pluginId, version, tag, sha256, size, manifest }]");
     process.exit(args.includes("--help") ? 0 : 1);
   }
@@ -121,10 +132,12 @@ if (isMain) {
   const releasesPath = resolve(args[0]);
   const registryIdx = args.indexOf("--registry");
   const repoIdx = args.indexOf("--repo");
+  const channelIdx = args.indexOf("--channel");
 
   const opts = {};
   if (registryIdx !== -1) opts.registryPath = resolve(args[registryIdx + 1]);
   if (repoIdx !== -1) opts.repo = args[repoIdx + 1];
+  if (channelIdx !== -1) opts.channel = args[channelIdx + 1];
 
   const releases = JSON.parse(readFileSync(releasesPath, "utf8"));
   const { errors, warnings } = await updateRegistry(releases, opts);
@@ -137,5 +150,6 @@ if (isMain) {
     process.exit(1);
   }
 
-  console.log(`Registry updated with ${releases.length} release(s).`);
+  const channelLabel = opts.channel === "preview" ? "preview-registry" : "registry";
+  console.log(`${channelLabel} updated with ${releases.length} release(s).`);
 }
