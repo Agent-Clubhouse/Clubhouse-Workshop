@@ -1,0 +1,13 @@
+{
+  "name": "@clubhouse/plugin-utils",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Shared utilities for Clubhouse plugins",
+  "main": "./src/use-theme.ts",
+  "exports": {
+    "./use-theme": "./src/use-theme.ts"
+  },
+  "peerDependencies": {
+    "@clubhouse/plugin-types": ">=0.6.0"
+  }
+}
