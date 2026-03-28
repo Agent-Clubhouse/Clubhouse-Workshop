@@ -28,6 +28,7 @@ function boardsEqual(a: Board[], b: Board[]): boolean {
   if (a.length !== b.length) return false;
   for (let i = 0; i < a.length; i++) {
     if (a[i].id !== b[i].id || a[i].updatedAt !== b[i].updatedAt) return false;
+    if (JSON.stringify(a[i].config) !== JSON.stringify(b[i].config)) return false;
   }
   return true;
 }
