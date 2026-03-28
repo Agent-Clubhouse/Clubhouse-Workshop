@@ -118,6 +118,7 @@
   },
   "sensitive": [
     "files.external",
+    "files.watch",
     "process",
     "terminal",
     "agent-config.permissions",
