@@ -13,7 +13,11 @@ const templatesDir = join(__dirname, "..", "templates");
 // ---------------------------------------------------------------------------
 
 function toId(name: string): string {
-  return name
+  const trimmed = name.trim();
+  if (!trimmed) {
+    throw new Error("Plugin name must not be empty");
+  }
+  return trimmed
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
