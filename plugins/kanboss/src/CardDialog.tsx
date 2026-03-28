@@ -96,6 +96,7 @@ export function CardDialog({ api, boardId, boardLabels }: CardDialogProps) {
       const now = Date.now();
 
       if (isNew) {
+        if (!kanBossState.editingStateId || !kanBossState.editingSwimlaneId) return cards;
         const newCard: Card = {
           id: generateId('card'),
           boardId,
@@ -103,8 +104,8 @@ export function CardDialog({ api, boardId, boardLabels }: CardDialogProps) {
           body,
           priority,
           labels: selectedLabels,
-          stateId: kanBossState.editingStateId!,
-          swimlaneId: kanBossState.editingSwimlaneId!,
+          stateId: kanBossState.editingStateId,
+          swimlaneId: kanBossState.editingSwimlaneId,
           history: [{ action: 'created', timestamp: now, detail: `Created "${title.trim()}"` }],
           automationAttempts: 0,
           dueDate,
