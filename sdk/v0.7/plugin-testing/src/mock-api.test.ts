@@ -1,6 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import { createMockAPI, ALL_SOUND_EVENTS } from './mock-api';
-import type { SoundEvent } from '@clubhouse/plugin-types';
+import type { PluginAPI, SoundEvent } from '@clubhouse/plugin-types';
+
+// Compile-time check: createMockAPI() must satisfy PluginAPI.
+// If a new method is added to PluginAPI without updating the mock, this line
+// will fail at compile time, preventing silent runtime TypeErrors.
+const _typeCheck: PluginAPI = createMockAPI() as PluginAPI;
 
 // ---------------------------------------------------------------------------
 // ALL_SOUND_EVENTS
