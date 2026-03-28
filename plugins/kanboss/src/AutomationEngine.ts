@@ -351,6 +351,10 @@ function checkStuck(card: Card, board: Board): void {
 export function initAutomationEngine(api: PluginAPI): Disposable {
   engineApi = api;
 
+  // Serialize completion handling so concurrent agent completions are
+  // processed one at a time, preventing stale-read / lost-update races.
+  let completionChain = Promise.resolve();
+
   const statusSub = api.agents.onStatusChange((agentId, status, prevStatus) => {
     if (!engineApi) return;
 
@@ -361,7 +365,9 @@ export function initAutomationEngine(api: PluginAPI): Disposable {
     if (!isCompleted) return;
 
     const outcome = status === 'sleeping' ? 'success' as const : 'error' as const;
-    onAgentCompleted(engineApi, agentId, outcome);
+    completionChain = completionChain
+      .then(() => onAgentCompleted(engineApi!, agentId, outcome))
+      .catch((err) => api.logging.error('KanBoss: onAgentCompleted failed', { agentId, err }));
   });
 
   return statusSub;
