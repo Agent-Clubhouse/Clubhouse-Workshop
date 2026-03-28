@@ -1,4 +1,5 @@
 // Pure helper functions extracted for testability.
+export { relativeTime, isSafeUrl } from '@clubhouse/plugin-utils/helpers';
 
 export type Severity = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
 export type ReportType = "bug" | "enhancement";
@@ -53,20 +54,6 @@ export function parseSeverityFromTitle(title: string): { severity: Severity | nu
   return { severity: null, pluginName: null, cleanTitle: title };
 }
 
-export function relativeTime(dateStr: string): string {
-  const now = Date.now();
-  const then = new Date(dateStr).getTime();
-  const diffMs = now - then;
-  const diffMin = Math.floor(diffMs / 60000);
-  if (diffMin < 1) return "just now";
-  if (diffMin < 60) return `${diffMin}m ago`;
-  const diffH = Math.floor(diffMin / 60);
-  if (diffH < 24) return `${diffH}h ago`;
-  const diffD = Math.floor(diffH / 24);
-  if (diffD < 30) return `${diffD}d ago`;
-  const diffMo = Math.floor(diffD / 30);
-  return `${diffMo}mo ago`;
-}
 
 export function labelColor(hex: string): string {
   if (!hex) return "var(--text-tertiary, #888888)";
@@ -134,9 +121,6 @@ export function parseInlineSegments(
   return segments;
 }
 
-export function isSafeUrl(url: string): boolean {
-  return /^https?:\/\//i.test(url);
-}
 
 export function classifyLine(
   line: string,
