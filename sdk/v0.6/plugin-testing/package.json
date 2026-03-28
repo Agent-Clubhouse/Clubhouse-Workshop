@@ -21,6 +21,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@clubhouse/plugin-testing-shared": "file:../../shared/plugin-testing",
     "@clubhouse/plugin-types": "file:../plugin-types"
   },
   "peerDependencies": {
