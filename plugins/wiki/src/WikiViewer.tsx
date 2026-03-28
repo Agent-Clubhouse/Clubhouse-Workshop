@@ -278,10 +278,14 @@ export function WikiViewer({ api }: { api: PluginAPI }) {
     loadPageNames();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Reload page names on refreshCount changes
+  // Reload page names only when refreshCount changes (not on every state notification)
   useEffect(() => {
+    let lastRefreshCount = wikiState.refreshCount;
     return wikiState.subscribe(() => {
-      loadPageNames();
+      if (wikiState.refreshCount !== lastRefreshCount) {
+        lastRefreshCount = wikiState.refreshCount;
+        loadPageNames();
+      }
     });
   }, [loadPageNames]);
 
