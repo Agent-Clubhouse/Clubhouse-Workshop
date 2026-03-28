@@ -133,7 +133,7 @@ export function BoardView({ api }: { api: PluginAPI }) {
 
   const adjustZoom = useCallback(async (delta: number) => {
     if (!board) return;
-    const newZoom = Math.max(0.5, Math.min(2.0, Math.round((zoomLevel + delta) * 20) / 20));
+    const newZoom = Math.max(0.5, Math.min(2.0, Math.round((zoomRef.current + delta) * 20) / 20));
     setZoomLevel(newZoom);
 
     await mutateStorage<Board>(boardsStorage, BOARDS_KEY, (boards) => {
@@ -143,7 +143,7 @@ export function BoardView({ api }: { api: PluginAPI }) {
       }
       return boards;
     });
-  }, [board, zoomLevel, boardsStorage]);
+  }, [board, boardsStorage]);
 
   useEffect(() => {
     const el = scrollRef.current;
