@@ -15,8 +15,10 @@ const REPO_ROOT = resolve(import.meta.dirname, "..");
 // ── semver comparison ────────────────────────────────────────────────────────
 
 function parseSemver(v) {
-  const [major, minor, patch] = v.split("-")[0].split(".").map(Number);
-  return { major, minor, patch };
+  const [core, ...preParts] = v.split("-");
+  const [major, minor, patch] = core.split(".").map(Number);
+  const prerelease = preParts.length > 0 ? preParts.join("-") : null;
+  return { major, minor, patch, prerelease };
 }
 
 function semverGt(a, b) {
@@ -24,7 +26,13 @@ function semverGt(a, b) {
   const pb = parseSemver(b);
   if (pa.major !== pb.major) return pa.major > pb.major;
   if (pa.minor !== pb.minor) return pa.minor > pb.minor;
-  return pa.patch > pb.patch;
+  if (pa.patch !== pb.patch) return pa.patch > pb.patch;
+  // Pre-release versions are less than the release version (1.0.0-beta.1 < 1.0.0)
+  if (pa.prerelease && !pb.prerelease) return false;
+  if (!pa.prerelease && pb.prerelease) return true;
+  // Both pre-release: lexicographic comparison
+  if (pa.prerelease && pb.prerelease) return pa.prerelease > pb.prerelease;
+  return false;
 }
 
 // ── core detection ───────────────────────────────────────────────────────────
