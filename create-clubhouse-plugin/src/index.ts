@@ -122,7 +122,7 @@ async function main() {
     version: "0.1.0",
     description: "",
     author: "",
-    engine: { api: 0.5 },
+    engine: { api: 0.7 },
     scope: answers.scope,
     main: "./dist/main.js",
     permissions: answers.permissions.length > 0 ? answers.permissions : ["logging"],
@@ -171,12 +171,12 @@ async function main() {
       test: "vitest run",
     },
     devDependencies: {
-      "@clubhouse/plugin-types": "^0.5.0",
+      "@clubhouse/plugin-types": "^0.7.0",
       "@types/react": "^19.0.0",
       esbuild: "^0.24.0",
       typescript: "^5.7.0",
       vitest: "^3.0.0",
-      "@clubhouse/plugin-testing": "^0.5.0",
+      "@clubhouse/plugin-testing": "^0.7.0",
     },
   };
 
