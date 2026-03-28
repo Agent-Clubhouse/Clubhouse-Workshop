@@ -65,17 +65,7 @@ function getExtension(name: string): string {
   return dot > 0 ? name.slice(dot + 1).toLowerCase() : '';
 }
 
-function prettifyName(name: string, wikiStyle: string = 'github'): string {
-  // Strip .md extension
-  let base = name.replace(/\.md$/i, '');
-  if (wikiStyle === 'ado') {
-    // ADO uses %2D for literal hyphens, dashes for spaces
-    base = base.replace(/%2D/gi, '\x00').replace(/-/g, ' ').replace(/\x00/g, '-');
-  } else {
-    base = base.replace(/[-_]/g, ' ');
-  }
-  return base.replace(/\b\w/g, (c) => c.toUpperCase());
-}
+import { prettifyName } from './utils';
 
 /** Parse a .order file's content into an ordered list of entry names. */
 export function parseOrderFile(content: string): string[] {
