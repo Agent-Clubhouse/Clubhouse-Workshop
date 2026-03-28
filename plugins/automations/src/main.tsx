@@ -82,6 +82,9 @@ export function activate(ctx: PluginContext, api: PluginAPI): void {
   }
 
   // 1. onStatusChange — detect agent completion
+  // Serialize completion handling to prevent concurrent storage mutations.
+  let completionChain = Promise.resolve();
+
   const statusSub = api.agents.onStatusChange((agentId, status, _prevStatus) => {
     const automationId = pendingRuns.get(agentId);
     if (!automationId) return;
@@ -99,29 +102,33 @@ export function activate(ctx: PluginContext, api: PluginAPI): void {
 
     const runStatus = status === 'sleeping' ? 'completed' as const : 'failed' as const;
 
-    // Update run record in storage
-    storage.read(runsKey(automationId)).then((raw) => {
-      const runs: RunRecord[] = Array.isArray(raw) ? raw : [];
-      const idx = runs.findIndex((r) => r.agentId === agentId);
-      if (idx !== -1) {
-        runs[idx] = {
-          ...runs[idx],
-          status: runStatus,
-          summary: info?.summary ?? null,
-          exitCode: info?.exitCode ?? null,
-          completedAt: Date.now(),
-        };
-      }
-      storage.write(runsKey(automationId), runs);
-    });
+    completionChain = completionChain.then(async () => {
+      try {
+        // Update run record in storage
+        const runsRaw = await storage.read(runsKey(automationId));
+        const runs: RunRecord[] = Array.isArray(runsRaw) ? runsRaw : [];
+        const idx = runs.findIndex((r) => r.agentId === agentId);
+        if (idx !== -1) {
+          runs[idx] = {
+            ...runs[idx],
+            status: runStatus,
+            summary: info?.summary ?? null,
+            exitCode: info?.exitCode ?? null,
+            completedAt: Date.now(),
+          };
+        }
+        await storage.write(runsKey(automationId), runs);
 
-    // Update lastRunAt on the automation
-    storage.read(AUTOMATIONS_KEY).then((raw) => {
-      const automations: Automation[] = Array.isArray(raw) ? raw : [];
-      const auto = automations.find((a) => a.id === automationId);
-      if (auto) {
-        auto.lastRunAt = Date.now();
-        storage.write(AUTOMATIONS_KEY, automations);
+        // Update lastRunAt on the automation (serialized after runs update)
+        const autoRaw = await storage.read(AUTOMATIONS_KEY);
+        const automations: Automation[] = Array.isArray(autoRaw) ? autoRaw : [];
+        const auto = automations.find((a) => a.id === automationId);
+        if (auto) {
+          auto.lastRunAt = Date.now();
+          await storage.write(AUTOMATIONS_KEY, automations);
+        }
+      } catch (err) {
+        api.logging.error('Automations: failed to update storage on agent completion', { agentId, automationId, err });
       }
     });
   });
