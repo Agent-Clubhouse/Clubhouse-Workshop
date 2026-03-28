@@ -12,7 +12,7 @@ const templatesDir = join(__dirname, "..", "templates");
 // Helpers
 // ---------------------------------------------------------------------------
 
-function toId(name: string): string {
+export function toId(name: string): string {
   const trimmed = name.trim();
   if (!trimmed) {
     throw new Error("Plugin name must not be empty");
