@@ -25,6 +25,10 @@ export const wikiState = {
       // Truncate any forward history
       this.history = this.history.slice(0, this.historyIndex + 1);
       this.history.push(path);
+      // Cap history at 100 entries
+      if (this.history.length > 100) {
+        this.history = this.history.slice(this.history.length - 100);
+      }
       this.historyIndex = this.history.length - 1;
     }
     this._isNavigatingHistory = false;
