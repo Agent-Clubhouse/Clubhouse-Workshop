@@ -3,7 +3,7 @@ const { useEffect, useState, useCallback, useRef } = React;
 
 import type { PluginAPI } from '@clubhouse/plugin-types';
 import type { Board } from './types';
-import { BOARDS_KEY, cardsKey, generateId } from './types';
+import { BOARDS_KEY, cardsKey, cardsStorage, generateId } from './types';
 import { kanBossState } from './state';
 import { mutateStorage } from './storageQueue';
 import { BOARD_TEMPLATES } from './templates';
@@ -194,8 +194,7 @@ export function BoardSidebar({ api }: { api: PluginAPI }) {
 
     const counts = new Map<string, number>();
     for (const board of list) {
-      const cardsStor = board.config.gitHistory ? api.storage.project : api.storage.projectLocal;
-      const cardsRaw = await cardsStor.read(cardsKey(board.id));
+      const cardsRaw = await cardsStorage(api, board).read(cardsKey(board.id));
       const cards = Array.isArray(cardsRaw) ? cardsRaw : [];
       counts.set(board.id, cards.length);
     }
@@ -229,8 +228,7 @@ export function BoardSidebar({ api }: { api: PluginAPI }) {
       boards.push(board);
       return boards;
     });
-    const cardsStor = gitHistory ? api.storage.project : api.storage.projectLocal;
-    await cardsStor.write(cardsKey(board.id), []);
+    await cardsStorage(api, board).write(cardsKey(board.id), []);
     setBoards(next);
     kanBossState.setBoards(next);
     kanBossState.selectBoard(board.id);
@@ -248,8 +246,7 @@ export function BoardSidebar({ api }: { api: PluginAPI }) {
 
     const next = await mutateStorage<Board>(boardsStorage, BOARDS_KEY, (boards) =>
       boards.filter((b) => b.id !== boardId));
-    const cardsStor = board.config.gitHistory ? api.storage.project : api.storage.projectLocal;
-    await cardsStor.delete(cardsKey(boardId));
+    await cardsStorage(api, board).delete(cardsKey(boardId));
     setBoards(next);
     kanBossState.setBoards(next);
 

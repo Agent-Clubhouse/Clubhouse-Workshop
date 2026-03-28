@@ -1,6 +1,6 @@
 import type { PluginAPI, Disposable } from '@clubhouse/plugin-types';
 import type { Card, Board, AutomationRun, RunHistoryEntry, RunOutcome } from './types';
-import { BOARDS_KEY, cardsKey, AUTOMATION_RUNS_KEY, RUN_HISTORY_KEY, buildRunHistoryEntry } from './types';
+import { BOARDS_KEY, cardsKey, cardsStorage, AUTOMATION_RUNS_KEY, RUN_HISTORY_KEY, buildRunHistoryEntry } from './types';
 import { kanBossState } from './state';
 import { mutateStorage } from './storageQueue';
 
@@ -16,17 +16,13 @@ async function loadBoard(api: PluginAPI, boardId: string): Promise<Board | null>
   return boards.find((b) => b.id === boardId) ?? null;
 }
 
-function cardsStor(api: PluginAPI, board: Board) {
-  return board.config.gitHistory ? api.storage.project : api.storage.projectLocal;
-}
-
 async function loadCards(api: PluginAPI, board: Board): Promise<Card[]> {
-  const raw = await cardsStor(api, board).read(cardsKey(board.id));
+  const raw = await cardsStorage(api, board).read(cardsKey(board.id));
   return Array.isArray(raw) ? raw : [];
 }
 
 async function saveCards(api: PluginAPI, board: Board, cards: Card[]): Promise<void> {
-  await cardsStor(api, board).write(cardsKey(board.id), cards);
+  await cardsStorage(api, board).write(cardsKey(board.id), cards);
 }
 
 async function loadRuns(api: PluginAPI): Promise<AutomationRun[]> {
@@ -147,7 +143,7 @@ export async function triggerAutomation(api: PluginAPI, card: Card, board: Board
     });
 
     // Update card
-    await mutateStorage<Card>(cardsStor(api, board), cardsKey(board.id), (cards) => {
+    await mutateStorage<Card>(cardsStorage(api, board), cardsKey(board.id), (cards) => {
       const idx = cards.findIndex((c) => c.id === card.id);
       if (idx !== -1) {
         cards[idx].automationAttempts++;
@@ -181,7 +177,7 @@ async function onAgentCompleted(api: PluginAPI, agentId: string, outcome: 'succe
   const cardSnapshot = (await loadCards(api, board)).find((c) => c.id === run.cardId);
   if (!cardSnapshot) return;
 
-  const stor = cardsStor(api, board);
+  const stor = cardsStorage(api, board);
   const key = cardsKey(board.id);
 
   if (run.phase === 'executing') {
