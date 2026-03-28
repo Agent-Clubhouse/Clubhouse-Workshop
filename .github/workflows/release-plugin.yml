@@ -164,6 +164,4 @@ jobs:
             --base main \
             --head "$BRANCH")
           echo "Created PR: $PR_URL"
-
-          # Immediately merge (0 approvals required, CODEOWNER review disabled)
-          gh pr merge "$PR_URL" --squash --delete-branch
+          echo "Registry PR requires human review before merging."
