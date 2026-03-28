@@ -121,11 +121,12 @@ describe('wiki plugin API assumptions', () => {
       expect(typeof api.files.forRoot).toBe('function');
     });
 
-    it('returns a scoped files API', () => {
-      // The workshop mock returns a scoped API object (does not throw)
+    it('returns a scoped files API with callable readTree', async () => {
       const scoped = api.files.forRoot('wiki');
       expect(scoped).toBeDefined();
-      expect(typeof scoped.readTree).toBe('function');
+      // Actually call readTree and verify it returns a result (not just check typeof)
+      const tree = await scoped.readTree('.', { depth: 1 });
+      expect(tree).toBeDefined();
     });
 
     it('scoped API has readTree, readFile, writeFile, stat, rename, copy, mkdir, delete methods', () => {
