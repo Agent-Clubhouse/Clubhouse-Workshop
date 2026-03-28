@@ -455,6 +455,9 @@ export function BoardView({ api }: { api: PluginAPI }) {
     )
   );
 
+  const allAgents = api.agents.list();
+  const allAgentsSummary = allAgents.map((a) => ({ id: a.id, name: a.name }));
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: S.color.bg, fontFamily: S.font.family }}>
       {/* Inject keyframe animation */}
@@ -666,9 +669,8 @@ export function BoardView({ api }: { api: PluginAPI }) {
 
             {/* Swimlane rows */}
             {sortedLanes.flatMap((lane, laneIndex) => {
-              const laneAgents = api.agents.list();
               const managerAgent = lane.managerAgentId
-                ? laneAgents.find((a) => a.id === lane.managerAgentId)
+                ? allAgents.find((a) => a.id === lane.managerAgentId)
                 : null;
 
               const evenBg = S.color.bgSecondary;
@@ -715,7 +717,7 @@ export function BoardView({ api }: { api: PluginAPI }) {
                         isLastState={state.id === lastStateId}
                         allStates={sortedStates}
                         boardLabels={board.labels || []}
-                        agents={api.agents.list().map((a) => ({ id: a.id, name: a.name }))}
+                        agents={allAgentsSummary}
                         wipLimit={state.wipLimit}
                         selectedCardIds={selectedCardIds}
                         allCardIds={allCardIds}
