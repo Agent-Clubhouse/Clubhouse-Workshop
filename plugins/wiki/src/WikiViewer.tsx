@@ -268,7 +268,7 @@ export function WikiViewer({ api }: { api: PluginAPI }) {
   // Load page names on mount
   useEffect(() => {
     loadPageNames();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [loadPageNames]);
 
   // Reload page names on refreshCount changes
   useEffect(() => {
@@ -277,12 +277,12 @@ export function WikiViewer({ api }: { api: PluginAPI }) {
     });
   }, [loadPageNames]);
 
-  // Load initial file if selectedPath is already set on mount
+  // Load file when selectedPath changes (including initial mount)
   useEffect(() => {
     if (selectedPath) {
       loadFile(selectedPath);
     }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [loadFile, selectedPath]);
 
   // Handle file selection with unsaved changes check
   const switchToFile = useCallback((newPath: string | null) => {
