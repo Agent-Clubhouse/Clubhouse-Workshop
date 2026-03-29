@@ -29,7 +29,6 @@ jobs:
     if: >-
       contains(github.event.pull_request.changed_files_url, 'plugins/')
       || contains(github.event.pull_request.changed_files_url, 'sdk/')
-      || true
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
