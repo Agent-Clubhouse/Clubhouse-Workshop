@@ -2,11 +2,15 @@ import type { PluginModule, PluginAPI, PluginContext } from "@clubhouse/plugin-t
 import { createMockAPI } from "./mock-api";
 import { createMockContext } from "./mock-context";
 
+type PanelName = 'MainPanel' | 'SidebarPanel' | 'HubPanel' | 'SettingsPanel';
+
 interface RenderPluginOptions {
   pluginId?: string;
   projectId?: string;
   projectPath?: string;
   apiOverrides?: Parameters<typeof createMockAPI>[0];
+  /** Which panel to render. Defaults to 'MainPanel'. */
+  panel?: PanelName;
 }
 
 interface RenderResult {
@@ -28,7 +32,7 @@ interface RenderResult {
 }
 
 /**
- * Activates a plugin module and prepares its MainPanel for rendering.
+ * Activates a plugin module and prepares a panel for rendering.
  *
  * This does NOT mount the component into a DOM — it returns the React element
  * so you can pass it to your preferred testing library.
@@ -58,11 +62,12 @@ export async function renderPlugin(
     await module.activate(ctx, api);
   }
 
-  // Render MainPanel if it exists — panels receive { api } only
+  // Render the requested panel (default: MainPanel)
+  const panelName = options?.panel ?? 'MainPanel';
   let element: RenderResult["element"] = null;
-  if (module.MainPanel) {
-    // Cast to function component since test harness only supports FC-style invocation
-    const Panel = module.MainPanel as (props: { api: PluginAPI }) => React.ReactNode;
+  const PanelComponent = module[panelName];
+  if (PanelComponent) {
+    const Panel = PanelComponent as (props: { api: PluginAPI }) => React.ReactNode;
     element = Panel({ api });
   }
 
