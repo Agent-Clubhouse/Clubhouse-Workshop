@@ -2,15 +2,11 @@ import type { PluginModule, PluginAPI, PluginContext } from "@clubhouse/plugin-t
 import { createMockAPI } from "./mock-api";
 import { createMockContext } from "./mock-context";
 
-type PanelName = 'MainPanel' | 'SidebarPanel' | 'HubPanel' | 'SettingsPanel';
-
 interface RenderPluginOptions {
   pluginId?: string;
   projectId?: string;
   projectPath?: string;
   apiOverrides?: Parameters<typeof createMockAPI>[0];
-  /** Which panel to render. Defaults to 'MainPanel'. */
-  panel?: PanelName;
 }
 
 interface RenderResult {
@@ -62,12 +58,10 @@ export async function renderPlugin(
     await module.activate(ctx, api);
   }
 
-  // Render the requested panel (default: MainPanel)
-  const panelName = options?.panel ?? 'MainPanel';
+  // Render MainPanel if it exists — panels receive { api } only
   let element: RenderResult["element"] = null;
-  const PanelComponent = module[panelName];
-  if (PanelComponent) {
-    const Panel = PanelComponent as (props: { api: PluginAPI }) => React.ReactNode;
+  if (module.MainPanel) {
+    const Panel = module.MainPanel as (props: { api: PluginAPI }) => React.ReactNode;
     element = Panel({ api });
   }
 

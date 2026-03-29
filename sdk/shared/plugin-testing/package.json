@@ -1,0 +1,13 @@
+{
+  "name": "@clubhouse/plugin-testing-shared",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Shared testing utilities for Clubhouse plugin SDK versions",
+  "exports": {
+    "./mock-context": "./src/mock-context.ts",
+    "./mock-agents": "./src/mock-agents.ts"
+  },
+  "peerDependencies": {
+    "@clubhouse/plugin-types": ">=0.6.0"
+  }
+}
