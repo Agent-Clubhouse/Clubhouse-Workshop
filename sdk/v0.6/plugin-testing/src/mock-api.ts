@@ -132,6 +132,7 @@ function createMockFiles(): FilesAPI {
     delete: createMockFn().mockResolvedValue(undefined) as unknown as FilesAPI["delete"],
     showInFolder: createMockFn().mockResolvedValue(undefined) as unknown as FilesAPI["showInFolder"],
     forRoot: createMockFn().mockReturnValue(null) as unknown as FilesAPI["forRoot"],
+    watch: createMockFn().mockReturnValue(noop) as unknown as FilesAPI["watch"],
   };
   // forRoot returns another FilesAPI — wire it up to return itself by default
   (filesApi.forRoot as MockFn).mockReturnValue(filesApi);
