@@ -1412,6 +1412,11 @@ export function MainPanel({ api }: PanelProps) {
     setEditing(true);
   }, [detail]);
 
+  const parsedTags = useMemo(() => {
+    if (!detail?.tags) return [];
+    return detail.tags.split(";").map(tag => tag.trim()).filter(Boolean);
+  }, [detail?.tags]);
+
   const saveEdit = useCallback(async () => {
     if (!detail) return;
     const args: string[] = [
@@ -1856,8 +1861,8 @@ export function MainPanel({ api }: PanelProps) {
             placeholder="Tags (semicolon separated)"
             style={{ fontSize: "10px", padding: "2px 6px", background: "var(--bg-secondary, #27272a)", border: "1px solid var(--border-primary, #3f3f46)", borderRadius: "4px", color: "var(--text-primary, #e4e4e7)", fontFamily: "var(--font-family, system-ui, -apple-system, sans-serif)", outline: "none" }}
           />
-        ) : detail.tags ? (
-          detail.tags.split(";").map(tag => tag.trim()).filter(Boolean).map(tag => (
+        ) : parsedTags.length > 0 ? (
+          parsedTags.map(tag => (
             <span
               key={tag}
               style={{
