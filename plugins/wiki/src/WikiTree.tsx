@@ -554,41 +554,45 @@ export function WikiTree({ api }: { api: PluginAPI }) {
       ? node.path
       : node.path.replace(/\/[^/]+$/, '') || '.';
 
-    switch (action) {
-      case 'newFile': {
-        const name = await api.ui.showInput('File name');
-        if (!name) return;
-        const newPath = parentDir === '.' ? name : `${node.isDirectory ? node.path : parentDir}/${name}`;
-        await scoped.writeFile(newPath, '');
-        break;
+    try {
+      switch (action) {
+        case 'newFile': {
+          const name = await api.ui.showInput('File name');
+          if (!name) return;
+          const newPath = parentDir === '.' ? name : `${node.isDirectory ? node.path : parentDir}/${name}`;
+          await scoped.writeFile(newPath, '');
+          break;
+        }
+        case 'newFolder': {
+          const name = await api.ui.showInput('Folder name');
+          if (!name) return;
+          const newPath = parentDir === '.' ? name : `${node.isDirectory ? node.path : parentDir}/${name}`;
+          await scoped.mkdir(newPath);
+          break;
+        }
+        case 'rename': {
+          const newName = await api.ui.showInput('New name', node.name);
+          if (!newName || newName === node.name) return;
+          const newPath = node.path.replace(/[^/]+$/, newName);
+          await scoped.rename(node.path, newPath);
+          break;
+        }
+        case 'copy': {
+          const copyName = await api.ui.showInput('Copy name', node.name + ' copy');
+          if (!copyName) return;
+          const destPath = node.path.replace(/[^/]+$/, copyName);
+          await scoped.copy(node.path, destPath);
+          break;
+        }
+        case 'delete': {
+          const confirmed = await api.ui.showConfirm(`Delete "${node.name}"? This cannot be undone.`);
+          if (!confirmed) return;
+          await scoped.delete(node.path);
+          break;
+        }
       }
-      case 'newFolder': {
-        const name = await api.ui.showInput('Folder name');
-        if (!name) return;
-        const newPath = parentDir === '.' ? name : `${node.isDirectory ? node.path : parentDir}/${name}`;
-        await scoped.mkdir(newPath);
-        break;
-      }
-      case 'rename': {
-        const newName = await api.ui.showInput('New name', node.name);
-        if (!newName || newName === node.name) return;
-        const newPath = node.path.replace(/[^/]+$/, newName);
-        await scoped.rename(node.path, newPath);
-        break;
-      }
-      case 'copy': {
-        const copyName = await api.ui.showInput('Copy name', node.name + ' copy');
-        if (!copyName) return;
-        const destPath = node.path.replace(/[^/]+$/, copyName);
-        await scoped.copy(node.path, destPath);
-        break;
-      }
-      case 'delete': {
-        const confirmed = await api.ui.showConfirm(`Delete "${node.name}"? This cannot be undone.`);
-        if (!confirmed) return;
-        await scoped.delete(node.path);
-        break;
-      }
+    } catch (err) {
+      api.ui.showError(`File operation failed: ${err}`);
     }
 
     loadTree();
