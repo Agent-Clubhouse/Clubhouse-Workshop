@@ -5,7 +5,8 @@
   "description": "Shared utilities for Clubhouse plugins",
   "main": "./src/use-theme.ts",
   "exports": {
-    "./use-theme": "./src/use-theme.ts"
+    "./use-theme": "./src/use-theme.ts",
+    "./helpers": "./src/helpers.ts"
   },
   "peerDependencies": {
     "@clubhouse/plugin-types": ">=0.6.0"
