@@ -1,3 +1,5 @@
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import type { PluginContext, PluginScope } from "@clubhouse/plugin-types";
 
 interface MockContextOptions {
@@ -21,9 +23,9 @@ interface MockContextOptions {
 export function createMockContext(options?: MockContextOptions): PluginContext {
   return {
     pluginId: options?.pluginId ?? "test-plugin",
-    pluginPath: options?.pluginPath ?? "/tmp/plugins/test-plugin",
+    pluginPath: options?.pluginPath ?? join(tmpdir(), "plugins", "test-plugin"),
     projectId: options?.projectId ?? "test-project",
-    projectPath: options?.projectPath ?? "/tmp/test-project",
+    projectPath: options?.projectPath ?? join(tmpdir(), "test-project"),
     scope: options?.scope ?? "project",
     subscriptions: [],
     settings: options?.settings ?? {},
