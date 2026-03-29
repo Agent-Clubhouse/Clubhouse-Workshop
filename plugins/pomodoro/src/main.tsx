@@ -225,18 +225,6 @@ function SessionDots({
 export function activate(ctx: PluginContext, api: PluginAPI): void {
   api.logging.info("Pomodoro plugin activated");
 
-  ctx.subscriptions.push(
-    api.commands.register("pomodoro.start", () => {
-      api.ui.showNotice("Open the Pomodoro panel to start a timer");
-    }),
-  );
-
-  ctx.subscriptions.push(
-    api.commands.register("pomodoro.stop", () => {
-      api.ui.showNotice("Open the Pomodoro panel to manage timers");
-    }),
-  );
-
   if (api.canvas) {
     ctx.subscriptions.push(
       api.canvas.registerWidgetType({
