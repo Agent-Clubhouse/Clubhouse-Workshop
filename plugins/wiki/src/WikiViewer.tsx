@@ -345,12 +345,14 @@ export function WikiViewer({ api }: { api: PluginAPI }) {
     if (!selectedPath) return;
     const scoped = wikiFilesRef.current;
     if (!scoped) return;
+    const previousContent = contentRef.current;
     try {
       setContent(newContent);
       await scoped.writeFile(selectedPath, newContent);
       setIsDirty(false);
       wikiState.setDirty(false);
     } catch (err) {
+      setContent(previousContent);
       api.ui.showError(`Failed to save: ${err}`);
     }
   }, [api, selectedPath]);
