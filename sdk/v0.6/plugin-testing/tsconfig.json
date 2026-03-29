@@ -10,7 +10,10 @@
     "declaration": true,
     "outDir": "dist",
     "noEmit": true,
-    "jsx": "react-jsx"
+    "jsx": "react-jsx",
+    "paths": {
+      "@clubhouse/plugin-types": ["../plugin-types/index.d.ts"]
+    }
   },
-  "include": ["src"]
+  "include": ["src", "../../shared/plugin-testing/src"]
 }
