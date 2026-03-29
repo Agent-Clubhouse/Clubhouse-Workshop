@@ -31,12 +31,12 @@ describe('toId', () => {
     expect(toId('plugin')).toBe('plugin');
   });
 
-  it('returns empty string for empty input', () => {
-    expect(toId('')).toBe('');
+  it('throws for empty input', () => {
+    expect(() => toId('')).toThrow('Plugin name must not be empty');
   });
 
-  it('returns empty string for whitespace-only input', () => {
-    expect(toId('   ')).toBe('');
+  it('throws for whitespace-only input', () => {
+    expect(() => toId('   ')).toThrow('Plugin name must not be empty');
   });
 
   it('returns empty string for special-chars-only input', () => {
