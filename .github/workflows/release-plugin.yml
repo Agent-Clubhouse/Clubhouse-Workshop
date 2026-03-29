@@ -31,9 +31,11 @@ jobs:
 
       - name: Parse tag
         id: tag
+        env:
+          INPUT_TAG: ${{ github.event.inputs.tag }}
         run: |
-          if [ -n "${{ github.event.inputs.tag }}" ]; then
-            TAG="${{ github.event.inputs.tag }}"
+          if [ -n "$INPUT_TAG" ]; then
+            TAG="$INPUT_TAG"
             git fetch --tags
             git checkout "$TAG"
           else
@@ -55,9 +57,11 @@ jobs:
           echo "channel=$CHANNEL" >> "$GITHUB_OUTPUT"
 
       - name: Verify plugin directory exists
+        env:
+          PLUGIN_DIR: ${{ steps.tag.outputs.plugin_dir }}
         run: |
-          if [ ! -d "${{ steps.tag.outputs.plugin_dir }}" ]; then
-            echo "Error: Plugin directory ${{ steps.tag.outputs.plugin_dir }} not found"
+          if [ ! -d "$PLUGIN_DIR" ]; then
+            echo "Error: Plugin directory $PLUGIN_DIR not found"
             exit 1
           fi
 
@@ -68,8 +72,11 @@ jobs:
 
       - name: Build, validate, and zip
         id: release
+        env:
+          PLUGIN_DIR: ${{ steps.tag.outputs.plugin_dir }}
+          PLUGIN_VERSION: ${{ steps.tag.outputs.version }}
         run: |
-          node scripts/release-plugin.mjs "${{ steps.tag.outputs.plugin_dir }}" "${{ steps.tag.outputs.version }}" > /tmp/release-output.json
+          node scripts/release-plugin.mjs "$PLUGIN_DIR" "$PLUGIN_VERSION" > /tmp/release-output.json
 
           cat /tmp/release-output.json
 
@@ -100,13 +107,23 @@ jobs:
           files: ${{ steps.release.outputs.zip_path }}
 
       - name: Update registry and create PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PLUGIN_DIR: ${{ steps.tag.outputs.plugin_dir }}
+          PLUGIN_ID: ${{ steps.tag.outputs.plugin_id }}
+          PLUGIN_VERSION: ${{ steps.tag.outputs.version }}
+          RELEASE_TAG: ${{ steps.tag.outputs.tag }}
+          RELEASE_SHA256: ${{ steps.release.outputs.sha256 }}
+          RELEASE_SIZE: ${{ steps.release.outputs.size }}
+          REPO_URL: ${{ github.repository }}
+          CHANNEL: ${{ steps.tag.outputs.channel }}
         run: |
           # Save manifest before switching branches (tag checkout may differ from main)
-          cp ${{ steps.tag.outputs.plugin_dir }}/manifest.json /tmp/manifest.json
+          cp "$PLUGIN_DIR/manifest.json" /tmp/manifest.json
 
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          BRANCH="registry-update/${{ steps.tag.outputs.tag }}"
+          BRANCH="registry-update/$RELEASE_TAG"
 
           git fetch origin main
           git checkout -b "$BRANCH" origin/main
@@ -116,40 +133,37 @@ jobs:
             const fs = require('fs');
             const manifest = JSON.parse(fs.readFileSync('/tmp/manifest.json', 'utf8'));
             const releases = [{
-              pluginId: '${{ steps.tag.outputs.plugin_id }}',
-              version: '${{ steps.tag.outputs.version }}',
-              tag: '${{ steps.tag.outputs.tag }}',
-              sha256: '${{ steps.release.outputs.sha256 }}',
-              size: parseInt('${{ steps.release.outputs.size }}', 10),
+              pluginId: process.env.PLUGIN_ID,
+              version: process.env.PLUGIN_VERSION,
+              tag: process.env.RELEASE_TAG,
+              sha256: process.env.RELEASE_SHA256,
+              size: parseInt(process.env.RELEASE_SIZE, 10),
               manifest: manifest
             }];
             fs.writeFileSync('/tmp/registry-releases.json', JSON.stringify(releases, null, 2));
           "
 
           node scripts/update-registry.mjs /tmp/registry-releases.json \
-            --repo "https://github.com/${{ github.repository }}" \
-            --channel "${{ steps.tag.outputs.channel }}"
+            --repo "https://github.com/$REPO_URL" \
+            --channel "$CHANNEL"
 
           git add registry/registry.json registry/preview-registry.json
           git diff --cached --quiet && echo "No registry changes" && exit 0
 
-          CHANNEL="${{ steps.tag.outputs.channel }}"
           if [ "$CHANNEL" = "preview" ]; then
-            COMMIT_MSG="preview-registry: update ${{ steps.tag.outputs.plugin_id }} to v${{ steps.tag.outputs.version }}"
+            COMMIT_MSG="preview-registry: update $PLUGIN_ID to v$PLUGIN_VERSION"
           else
-            COMMIT_MSG="registry: update ${{ steps.tag.outputs.plugin_id }} to v${{ steps.tag.outputs.version }}"
+            COMMIT_MSG="registry: update $PLUGIN_ID to v$PLUGIN_VERSION"
           fi
           git commit -m "$COMMIT_MSG"
           git push --force origin "$BRANCH"
 
           PR_URL=$(gh pr create \
             --title "$COMMIT_MSG" \
-            --body "Automated registry update from release pipeline. Channel: ${{ steps.tag.outputs.channel }}" \
+            --body "Automated registry update from release pipeline. Channel: $CHANNEL" \
             --base main \
             --head "$BRANCH")
           echo "Created PR: $PR_URL"
 
           # Immediately merge (0 approvals required, CODEOWNER review disabled)
           gh pr merge "$PR_URL" --squash --delete-branch
-        env:
-          GH_TOKEN: ${{ github.token }}
