@@ -41,9 +41,9 @@ jobs:
           else
             TAG="${GITHUB_REF#refs/tags/}"
           fi
-          # Extract plugin ID and version from tag like "code-review-v0.1.0" or "pomodoro-v1.2.0-beta.1"
-          PLUGIN_ID=$(echo "$TAG" | sed 's/-v[0-9].*//')
-          VERSION=$(echo "$TAG" | sed 's/.*-v//')
+          # Extract plugin ID and version from tag like "code-review-v0.1.0" or "my-v2-plugin-v1.2.0-beta.1"
+          PLUGIN_ID=$(echo "$TAG" | sed 's/-v[0-9][0-9]*\.[0-9][0-9]*\.[0-9].*//')
+          VERSION=$(echo "$TAG" | sed 's/.*-v\([0-9][0-9]*\.[0-9][0-9]*\.[0-9].*\)/\1/')
           # Detect channel: beta tags (version contains -beta.) go to preview registry
           if echo "$VERSION" | grep -q '\-beta\.'; then
             CHANNEL="preview"
