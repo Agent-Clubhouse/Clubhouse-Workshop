@@ -13,15 +13,7 @@ function getFileName(path: string): string {
   return path.split('/').pop() || path;
 }
 
-function prettifyName(name: string, wikiStyle: string = 'github'): string {
-  let base = name.replace(/\.md$/i, '');
-  if (wikiStyle === 'ado') {
-    base = base.replace(/%2D/gi, '\x00').replace(/-/g, ' ').replace(/\x00/g, '-');
-  } else {
-    base = base.replace(/[-_]/g, ' ');
-  }
-  return base.replace(/\b\w/g, (c) => c.toUpperCase());
-}
+import { prettifyName } from './utils';
 
 function getBreadcrumb(path: string): string {
   return path.replace(/\//g, ' / ');
