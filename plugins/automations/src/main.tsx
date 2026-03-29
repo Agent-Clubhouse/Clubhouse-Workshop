@@ -185,62 +185,69 @@ export function activate(ctx: PluginContext, api: PluginAPI): void {
   }
 
   // 3. Cron tick — every 30 seconds
+  let cronRunning = false;
   const tickInterval = setInterval(async () => {
-    // Reconcile any stale 'running' records before processing new cron fires.
-    // This handles the case where the plugin was restarted and pendingRuns was lost.
-    await reconcileStaleRuns();
+    if (cronRunning) return;
+    cronRunning = true;
+    try {
+      // Reconcile any stale 'running' records before processing new cron fires.
+      // This handles the case where the plugin was restarted and pendingRuns was lost.
+      await reconcileStaleRuns();
 
-    const now = new Date();
-    const raw = await storage.read(AUTOMATIONS_KEY);
-    const automations: Automation[] = Array.isArray(raw) ? raw : [];
+      const now = new Date();
+      const raw = await storage.read(AUTOMATIONS_KEY);
+      const automations: Automation[] = Array.isArray(raw) ? raw : [];
 
-    for (const auto of automations) {
-      if (!auto.enabled) continue;
+      for (const auto of automations) {
+        if (!auto.enabled) continue;
 
-      const policy = auto.missedRunPolicy || 'ignore';
+        const policy = auto.missedRunPolicy || 'ignore';
 
-      // ── Missed-run catch-up ──
-      if (policy !== 'ignore' && auto.lastRunAt) {
-        const lastRun = new Date(auto.lastRunAt);
-        const missed = countMissedFireTimes(auto.cronExpression, lastRun, now);
+        // ── Missed-run catch-up ──
+        if (policy !== 'ignore' && auto.lastRunAt) {
+          const lastRun = new Date(auto.lastRunAt);
+          const missed = countMissedFireTimes(auto.cronExpression, lastRun, now);
 
-        if (missed > 0) {
-          const timesToFire = policy === 'run-once' ? 1 : Math.min(missed, MAX_CATCHUP);
-          for (let i = 0; i < timesToFire; i++) {
-            try {
-              await fireAutomation(auto, automations);
-            } catch {
-              // spawn failed — skip
+          if (missed > 0) {
+            const timesToFire = policy === 'run-once' ? 1 : Math.min(missed, MAX_CATCHUP);
+            for (let i = 0; i < timesToFire; i++) {
+              try {
+                await fireAutomation(auto, automations);
+              } catch {
+                // spawn failed — skip
+              }
             }
+            // Already handled this tick (including the current-time match if any)
+            continue;
           }
-          // Already handled this tick (including the current-time match if any)
-          continue;
+        }
+
+        // ── Normal current-time matching ──
+        if (!matchesCron(auto.cronExpression, now)) continue;
+
+        // Prevent re-firing within the same minute
+        if (auto.lastRunAt) {
+          const lastRun = new Date(auto.lastRunAt);
+          if (
+            lastRun.getMinutes() === now.getMinutes() &&
+            lastRun.getHours() === now.getHours() &&
+            lastRun.getDate() === now.getDate() &&
+            lastRun.getMonth() === now.getMonth() &&
+            lastRun.getFullYear() === now.getFullYear()
+          ) {
+            continue;
+          }
+        }
+
+        // Fire the agent
+        try {
+          await fireAutomation(auto, automations);
+        } catch {
+          // Agent spawn failed — skip silently
         }
       }
-
-      // ── Normal current-time matching ──
-      if (!matchesCron(auto.cronExpression, now)) continue;
-
-      // Prevent re-firing within the same minute
-      if (auto.lastRunAt) {
-        const lastRun = new Date(auto.lastRunAt);
-        if (
-          lastRun.getMinutes() === now.getMinutes() &&
-          lastRun.getHours() === now.getHours() &&
-          lastRun.getDate() === now.getDate() &&
-          lastRun.getMonth() === now.getMonth() &&
-          lastRun.getFullYear() === now.getFullYear()
-        ) {
-          continue;
-        }
-      }
-
-      // Fire the agent
-      try {
-        await fireAutomation(auto, automations);
-      } catch {
-        // Agent spawn failed — skip silently
-      }
+    } finally {
+      cronRunning = false;
     }
   }, 30_000);
 
