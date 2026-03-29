@@ -259,7 +259,11 @@ function createMockWidgets(): WidgetsAPI {
 }
 
 function createMockHub(): HubAPI {
-  return {};
+  return {
+    refresh() {
+      console.warn("HubAPI.refresh() was removed in v0.7. Remove this call from your plugin.");
+    },
+  } as HubAPI;
 }
 
 function createMockBadges(): BadgesAPI {
