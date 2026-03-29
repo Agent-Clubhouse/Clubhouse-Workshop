@@ -20,13 +20,6 @@ export function activate(ctx: PluginContext, api: PluginAPI): void {
   });
   ctx.subscriptions.push(refreshCmd);
 
-  const newBoardCmd = api.commands.register('new-board', async () => {
-    const name = await api.ui.showInput('Board name', 'New Board');
-    if (!name) return;
-    kanBossState.triggerRefresh();
-  });
-  ctx.subscriptions.push(newBoardCmd);
-
   // Initialize automation engine
   const automationSub = initAutomationEngine(api);
   ctx.subscriptions.push(automationSub);
