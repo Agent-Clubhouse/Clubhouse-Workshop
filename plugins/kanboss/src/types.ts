@@ -121,6 +121,11 @@ export interface RunHistoryEntry {
 
 export const BOARDS_KEY = 'boards';
 export const cardsKey = (boardId: string): string => `cards:${boardId}`;
+
+/** Select the correct storage backend for card data based on board config. */
+export function cardsStorage(api: import('@clubhouse/plugin-types').PluginAPI, board: Board): import('@clubhouse/plugin-types').ScopedStorage {
+  return board.config.gitHistory ? api.storage.project : api.storage.projectLocal;
+}
 export const AUTOMATION_RUNS_KEY = 'automation-runs';
 export const RUN_HISTORY_KEY = 'run-history';
 

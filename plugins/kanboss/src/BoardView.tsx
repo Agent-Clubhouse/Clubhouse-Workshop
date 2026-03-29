@@ -3,7 +3,7 @@ const { useEffect, useState, useCallback, useRef } = React;
 
 import type { PluginAPI } from '@clubhouse/plugin-types';
 import type { Board, Card, Priority } from './types';
-import { BOARDS_KEY, cardsKey, isCardStuck, PRIORITY_RANK } from './types';
+import { BOARDS_KEY, cardsKey, cardsStorage, isCardStuck, PRIORITY_RANK } from './types';
 import { kanBossState, filtersEqual, type FilterState } from './state';
 import { CardCell } from './CardCell';
 import { CardDialog } from './CardDialog';
@@ -16,10 +16,6 @@ import { triggerAutomation } from './AutomationEngine';
 import { mutateStorage } from './storageQueue';
 import { ShortcutsHelp } from './ShortcutsHelp';
 import * as S from './styles';
-
-function cardsStorage(api: PluginAPI, board: Board) {
-  return board.config.gitHistory ? api.storage.project : api.storage.projectLocal;
-}
 
 function applyFilter(cards: Card[], filter: FilterState): Card[] {
   let result = cards;

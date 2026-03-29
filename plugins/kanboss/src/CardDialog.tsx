@@ -2,7 +2,7 @@ const React = globalThis.React;
 const { useState, useCallback, useEffect } = React;
 
 import type { Card, Priority, HistoryEntry, Label, Subtask } from './types';
-import { cardsKey, generateId, PRIORITY_CONFIG } from './types';
+import { cardsKey, cardsStorage, generateId, PRIORITY_CONFIG } from './types';
 import { kanBossState } from './state';
 import { mutateStorage } from './storageQueue';
 import * as S from './styles';
@@ -34,7 +34,7 @@ function HistoryItem({ entry }: { entry: HistoryEntry }) {
 
 export function CardDialog({ api, boardId, boardLabels }: CardDialogProps) {
   const currentBoard = kanBossState.boards.find((b) => b.id === boardId);
-  const storage = currentBoard?.config.gitHistory ? api.storage.project : api.storage.projectLocal;
+  const storage = currentBoard ? cardsStorage(api, currentBoard) : api.storage.projectLocal;
   const isNew = kanBossState.editingCardId === 'new';
   const cardId = isNew ? null : kanBossState.editingCardId;
 
