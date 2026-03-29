@@ -1,5 +1,5 @@
-import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { tmpdir } from "os";
+import { join } from "path";
 import type { PluginContext, PluginScope } from "@clubhouse/plugin-types";
 
 interface MockContextOptions {
