@@ -299,7 +299,10 @@ async function onAgentCompleted(api: PluginAPI, agentId: string, outcome: 'succe
         if (nextState.isAutomatic) {
           const freshCard = updatedCards.find((c) => c.id === run.cardId);
           if (freshCard) {
-            await triggerAutomation(api, freshCard, board);
+            const freshBoard = await loadBoard(api, run.boardId);
+            if (freshBoard) {
+              await triggerAutomation(api, freshCard, freshBoard);
+            }
           }
         }
       } else {
