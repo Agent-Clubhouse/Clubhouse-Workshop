@@ -1343,3 +1343,101 @@ describe('automations stale run reconciliation (Fix A)', () => {
     expect(runs[0].completedAt).toBe(999);
   });
 });
+
+// ── Storage failure error paths ─────────────────────────────────────
+
+describe('automations storage failure resilience', () => {
+  let ctx: PluginContext;
+  let storage: ReturnType<typeof createMapStorage>;
+  let runQuickSpy: ReturnType<typeof vi.fn>;
+  let statusChangeCallback: (agentId: string, status: string, prevStatus: string) => void;
+  let api: PluginAPI;
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    ctx = createMockContext({ pluginId: 'automations' });
+    storage = createMapStorage();
+    runQuickSpy = vi.fn().mockResolvedValue('spawned-agent-1');
+
+    api = createMockAPI({
+      commands: { register: vi.fn(() => ({ dispose: vi.fn() })), execute: vi.fn() },
+      agents: {
+        ...createMockAPI().agents,
+        runQuick: runQuickSpy,
+        listCompleted: vi.fn().mockReturnValue([]),
+        onStatusChange: vi.fn((cb) => {
+          statusChangeCallback = cb;
+          return { dispose: vi.fn() };
+        }),
+      },
+      storage: {
+        ...createMockAPI().storage,
+        projectLocal: storage,
+      },
+    });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('survives storage.read rejection during cron tick', async () => {
+    storage._data.set('automations', [makeAutomation()]);
+    activate(ctx, api);
+
+    // Make storage.read reject on the next cron tick
+    (storage.read as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error('quota exceeded'));
+
+    // Should not throw unhandled rejection
+    await expect(vi.advanceTimersByTimeAsync(30_000)).resolves.not.toThrow();
+  });
+
+  it('survives storage.write rejection during fireAutomation', async () => {
+    vi.setSystemTime(new Date(2026, 1, 15, 10, 0, 0));
+    storage._data.set('automations', [makeAutomation({ cronExpression: '0 * * * *' })]);
+    activate(ctx, api);
+
+    // Let read succeed but write reject
+    (storage.write as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error('disk full'));
+
+    await expect(vi.advanceTimersByTimeAsync(30_000)).resolves.not.toThrow();
+  });
+
+  it('survives storage.read rejection during onStatusChange', async () => {
+    const auto = makeAutomation();
+    storage._data.set('automations', [auto]);
+    storage._data.set('runs:auto-1', [makeRunRecord({ agentId: 'spawned-agent-1' })]);
+    activate(ctx, api);
+
+    // Fire cron to populate pendingRuns
+    vi.setSystemTime(new Date(2026, 1, 15, 10, 0, 0));
+    await vi.advanceTimersByTimeAsync(30_000);
+
+    // Now make storage.read reject when onStatusChange tries to update runs
+    (storage.read as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('corrupted'));
+
+    // Should not throw unhandled rejection
+    expect(() => {
+      statusChangeCallback('spawned-agent-1', 'sleeping', 'running');
+    }).not.toThrow();
+
+    // Let microtasks settle
+    await vi.advanceTimersByTimeAsync(0);
+  });
+
+  it('continues processing after a storage failure on one tick', async () => {
+    vi.setSystemTime(new Date(2026, 1, 15, 10, 0, 0));
+    storage._data.set('automations', [makeAutomation({ cronExpression: '0 * * * *' })]);
+    activate(ctx, api);
+
+    // First tick: storage.read rejects
+    (storage.read as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error('transient'));
+    await vi.advanceTimersByTimeAsync(30_000);
+    expect(runQuickSpy).not.toHaveBeenCalled();
+
+    // Second tick: storage works again, automation should fire
+    vi.setSystemTime(new Date(2026, 1, 15, 11, 0, 0));
+    await vi.advanceTimersByTimeAsync(30_000);
+    expect(runQuickSpy).toHaveBeenCalledTimes(1);
+  });
+});
