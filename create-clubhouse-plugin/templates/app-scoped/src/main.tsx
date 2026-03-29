@@ -14,7 +14,7 @@ export function MainPanel({ api }: PanelProps) {
 
   useEffect(() => {
     setProjects(api.projects.list());
-  }, []);
+  }, [api]);
 
   return (
     <div style={{ padding: 24 }}>

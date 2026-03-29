@@ -29,11 +29,12 @@ export function MainPanel({ api }: PanelProps) {
       setOutput(result);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      api.ui.showNotice(`Agent failed: ${msg}`);
+      api.logging.error("Agent run failed", { error: msg });
+      api.ui.showError(`Agent failed: ${msg}`);
     } finally {
       setRunning(false);
     }
-  }, [prompt, running]);
+  }, [api, prompt, running]);
 
   return (
     <div style={{ padding: 24, fontFamily: "var(--font-family, sans-serif)" }}>
