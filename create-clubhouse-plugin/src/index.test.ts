@@ -106,7 +106,7 @@ describe('manifest generation', () => {
       version: '0.1.0',
       description: '',
       author: '',
-      engine: { api: 0.5 },
+      engine: { api: 0.7 },
       scope: answers.scope,
       main: './dist/main.js',
       permissions: answers.permissions.length > 0 ? answers.permissions : ['logging'],
@@ -135,19 +135,13 @@ describe('manifest generation', () => {
     };
   }
 
-  it('generates correct API version (should be 0.7 after QS-006 fix)', () => {
-    // NOTE: This test documents the EXPECTED value after QS-006 lands.
-    // The generation logic in index.ts has been fixed to use 0.7.
-    // This test uses the local copy of the logic which still says 0.5
-    // to show what the old behavior was. The real assertion is below.
+  it('generates correct API version (0.7)', () => {
     const manifest = generateManifest({
       name: 'Test Plugin',
       scope: 'project',
       permissions: ['logging'],
     });
-    // The replicated logic above still says 0.5 — that's the bug QS-006 fixed.
-    // The actual index.ts should now produce 0.7.
-    expect(manifest.engine.api).toBe(0.5); // documents old behavior
+    expect(manifest.engine.api).toBe(0.7);
   });
 
   it('generates correct id from name', () => {
@@ -226,12 +220,12 @@ describe('package.json generation', () => {
         test: 'vitest run',
       },
       devDependencies: {
-        '@clubhouse/plugin-types': '^0.5.0',
+        '@clubhouse/plugin-types': '^0.7.0',
         '@types/react': '^19.0.0',
         esbuild: '^0.24.0',
         typescript: '^5.7.0',
         vitest: '^3.0.0',
-        '@clubhouse/plugin-testing': '^0.5.0',
+        '@clubhouse/plugin-testing': '^0.7.0',
       },
     };
   }
@@ -254,11 +248,9 @@ describe('package.json generation', () => {
     expect(pkg.devDependencies['@clubhouse/plugin-testing']).toBeDefined();
   });
 
-  it('documents that deps should be ^0.7.0 after QS-006 fix', () => {
-    // This replicates the OLD logic (^0.5.0). After QS-006 merges,
-    // the actual index.ts will produce ^0.7.0.
+  it('uses correct SDK dependency versions (^0.7.0)', () => {
     const pkg = generatePackageJson('Test');
-    expect(pkg.devDependencies['@clubhouse/plugin-types']).toBe('^0.5.0');
-    expect(pkg.devDependencies['@clubhouse/plugin-testing']).toBe('^0.5.0');
+    expect(pkg.devDependencies['@clubhouse/plugin-types']).toBe('^0.7.0');
+    expect(pkg.devDependencies['@clubhouse/plugin-testing']).toBe('^0.7.0');
   });
 });
