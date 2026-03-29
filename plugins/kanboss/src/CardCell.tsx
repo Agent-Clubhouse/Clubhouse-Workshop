@@ -1,5 +1,5 @@
 const React = globalThis.React;
-const { useState, useCallback, useRef } = React;
+const { useState, useCallback, useRef, useMemo } = React;
 
 import type { Card, BoardState, Label } from './types';
 import { PRIORITY_CONFIG, PRIORITY_RANK, isCardStuck, isCardAutomating, subtaskProgress, dueDateStatus, formatDueDate } from './types';
@@ -130,8 +130,12 @@ function CardTile({ card, allStates, boardLabels, agents, isSelected, selectedCo
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
   const config = PRIORITY_CONFIG[card.priority];
 
+  const labelById = useMemo(
+    () => new Map(boardLabels.map((l) => [l.id, l])),
+    [boardLabels]
+  );
   const cardLabels = card.labels
-    .map((lid) => boardLabels.find((l) => l.id === lid))
+    .map((lid) => labelById.get(lid))
     .filter(Boolean) as Label[];
 
   const handleClick = useCallback((e: React.MouseEvent) => {
