@@ -1,4 +1,4 @@
-// src/use-theme.ts
+// ../../sdk/shared/plugin-utils/src/use-theme.ts
 function hexToRgba(hex, alpha) {
   const r = parseInt(hex.slice(1, 3), 16);
   const g = parseInt(hex.slice(3, 5), 16);
@@ -99,7 +99,8 @@ function formatTime(seconds) {
   return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
 }
 function todayKey() {
-  return (/* @__PURE__ */ new Date()).toISOString().split("T")[0];
+  const d = /* @__PURE__ */ new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 function isTimerState(val) {
   if (typeof val !== "object" || val === null) return false;
@@ -240,16 +241,6 @@ function SessionDots({
 }
 function activate(ctx, api) {
   api.logging.info("Pomodoro plugin activated");
-  ctx.subscriptions.push(
-    api.commands.register("pomodoro.start", () => {
-      api.ui.showNotice("Open the Pomodoro panel to start a timer");
-    })
-  );
-  ctx.subscriptions.push(
-    api.commands.register("pomodoro.stop", () => {
-      api.ui.showNotice("Open the Pomodoro panel to manage timers");
-    })
-  );
   if (api.canvas) {
     ctx.subscriptions.push(
       api.canvas.registerWidgetType({
