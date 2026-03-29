@@ -1,5 +1,19 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { kanBossState, filtersEqual } from './state';
+import type { Board } from './types';
+
+function makeBoard(id: string, updatedAt: number, name?: string): Board {
+  return {
+    id,
+    name: name ?? `Board ${id}`,
+    states: [],
+    swimlanes: [],
+    labels: [],
+    config: { maxRetries: 3, zoomLevel: 1, gitHistory: false },
+    createdAt: 1000,
+    updatedAt,
+  };
+}
 
 describe('kanBossState', () => {
   beforeEach(() => {
@@ -120,46 +134,34 @@ describe('kanBossState', () => {
   });
 
   it('setBoards skips notify when boards are unchanged', () => {
-    const boards = [
-      { id: 'b1', name: 'Board 1', updatedAt: 1000 },
-      { id: 'b2', name: 'Board 2', updatedAt: 2000 },
-    ] as any[];
+    const boards = [makeBoard('b1', 1000, 'Board 1'), makeBoard('b2', 2000, 'Board 2')];
     kanBossState.setBoards(boards);
 
     let callCount = 0;
     kanBossState.subscribe(() => { callCount++; });
 
     // Same boards again — should not notify
-    kanBossState.setBoards([
-      { id: 'b1', name: 'Board 1', updatedAt: 1000 },
-      { id: 'b2', name: 'Board 2', updatedAt: 2000 },
-    ] as any[]);
+    kanBossState.setBoards([makeBoard('b1', 1000, 'Board 1'), makeBoard('b2', 2000, 'Board 2')]);
     expect(callCount).toBe(0);
 
     // Different boards — should notify
-    kanBossState.setBoards([
-      { id: 'b1', name: 'Board 1', updatedAt: 3000 },
-      { id: 'b2', name: 'Board 2', updatedAt: 2000 },
-    ] as any[]);
+    kanBossState.setBoards([makeBoard('b1', 3000, 'Board 1'), makeBoard('b2', 2000, 'Board 2')]);
     expect(callCount).toBe(1);
   });
 
   it('setBoards notifies when board count changes', () => {
-    kanBossState.setBoards([{ id: 'b1', updatedAt: 1000 }] as any[]);
+    kanBossState.setBoards([makeBoard('b1', 1000)]);
 
     let callCount = 0;
     kanBossState.subscribe(() => { callCount++; });
 
-    kanBossState.setBoards([
-      { id: 'b1', updatedAt: 1000 },
-      { id: 'b2', updatedAt: 2000 },
-    ] as any[]);
+    kanBossState.setBoards([makeBoard('b1', 1000), makeBoard('b2', 2000)]);
     expect(callCount).toBe(1);
   });
 
   it('switchProject resets all state', () => {
     kanBossState.selectBoard('b1');
-    kanBossState.setBoards([{ id: 'b1', updatedAt: 1 }] as any[]);
+    kanBossState.setBoards([makeBoard('b1', 1)]);
     kanBossState.triggerRefresh();
     const listener = () => {};
     kanBossState.subscribe(listener);
