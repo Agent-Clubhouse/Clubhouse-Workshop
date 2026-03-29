@@ -1225,7 +1225,12 @@ export function MainPanel({ api }: PanelProps) {
       .then(r => {
         if (cancelled) return;
         if (r.exitCode === 0 && r.stdout.trim()) {
-          setDetail(JSON.parse(r.stdout) as IssueDetail);
+          try {
+            setDetail(JSON.parse(r.stdout) as IssueDetail);
+          } catch {
+            api.ui.showError("Failed to parse issue details — unexpected response from GitHub CLI");
+            setDetail(null);
+          }
         } else {
           setDetail(null);
         }
