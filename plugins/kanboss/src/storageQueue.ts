@@ -66,6 +66,11 @@ export async function mutateStorage<T>(
     return next;
   } finally {
     resolve();
+    // Prune the mutex entry if no further mutations are queued
+    if (mutex.tail === gate) {
+      const compositeKey = `${(storage as any).__id ?? 'default'}::${key}`;
+      mutexes.delete(compositeKey);
+    }
   }
 }
 
