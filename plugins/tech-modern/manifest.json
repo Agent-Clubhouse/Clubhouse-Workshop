@@ -30,7 +30,9 @@
           "warning": "#fce100",
           "error": "#ff99a4",
           "info": "#60cdff",
-          "success": "#6ccb5f"
+          "success": "#6ccb5f",
+          "accent2": "#6ccb5f",
+          "overlay": "#5e5e5e"
         },
         "hljs": {
           "keyword": "#60cdff",
@@ -98,7 +100,9 @@
           "warning": "#e8a000",
           "error": "#d93025",
           "info": "#4285f4",
-          "success": "#1e8e3e"
+          "success": "#1e8e3e",
+          "accent2": "#1e8e3e",
+          "overlay": "#8997ac"
         },
         "hljs": {
           "keyword": "#d93025",
@@ -165,7 +169,9 @@
           "warning": "#ff9500",
           "error": "#ff3b30",
           "info": "#5856d6",
-          "success": "#34c759"
+          "success": "#34c759",
+          "accent2": "#5856d6",
+          "overlay": "#aaaaaf"
         },
         "hljs": {
           "keyword": "#007aff",
@@ -233,7 +239,9 @@
           "warning": "#c89030",
           "error": "#c44d5e",
           "info": "#5888b0",
-          "success": "#5a8a58"
+          "success": "#5a8a58",
+          "accent2": "#1a6dd2",
+          "overlay": "#b0a394"
         },
         "hljs": {
           "keyword": "#d97757",
@@ -297,7 +305,9 @@
           "warning": "#ff9900",
           "error": "#f05050",
           "info": "#48a8d8",
-          "success": "#48c078"
+          "success": "#48c078",
+          "accent2": "#48a8d8",
+          "overlay": "#65768c"
         },
         "hljs": {
           "keyword": "#ff9900",
