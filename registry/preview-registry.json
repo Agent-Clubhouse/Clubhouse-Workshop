@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated": "2026-03-28T02:04:05.987Z",
+  "updated": "2026-04-04T21:18:15.881Z",
   "supportedApis": {
     "latest": "0.9",
     "minimum": "0.6",
@@ -52,6 +52,26 @@
             "canvas"
           ],
           "size": 9036
+        }
+      }
+    },
+    {
+      "id": "spring-themes",
+      "name": "Spring Themes",
+      "description": "A collection of spring-inspired color themes — cherry blossoms, meadows, wisteria, daffodils, and a moonlit garden.",
+      "author": "Clubhouse Workshop",
+      "official": true,
+      "repo": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop",
+      "path": "plugins/spring-themes",
+      "tags": [],
+      "latest": "1.1.0-beta.1",
+      "releases": {
+        "1.1.0-beta.1": {
+          "api": 0.7,
+          "asset": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop/releases/download/spring-themes-v1.1.0-beta.1/spring-themes-v1.1.0-beta.1.zip",
+          "sha256": "f363b155e11debc84b148817d8ae2a2fd91037a47a4cb4c438311ca24ec9f66d",
+          "permissions": [],
+          "size": 2939
         }
       }
     }
