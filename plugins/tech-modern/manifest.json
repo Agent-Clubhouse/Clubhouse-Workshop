@@ -1,8 +1,8 @@
 {
   "id": "tech-modern",
   "name": "Tech Modern",
-  "version": "1.0.0",
-  "description": "Color themes inspired by iconic tech companies — Redmond, Mountain View, Cupertino, AI Lab, and Seattle.",
+  "version": "1.1.0-beta.1",
+  "description": "Color themes inspired by iconic tech companies \u2014 Redmond, Mountain View, Cupertino, AI Lab, and Seattle.",
   "author": "Clubhouse Workshop",
   "engine": {
     "api": 0.7
@@ -362,7 +362,7 @@
         {
           "id": "overview",
           "title": "Tech Modern",
-          "content": "# Tech Modern\n\nColor themes inspired by iconic technology companies.\n\n## Themes\n\n### Redmond (Dark)\nWindows 11 dark mode with Mica-style surfaces. Cool cyan-blue accents and soft pastel highlights on smooth, layered darks. Uses Segoe UI and Cascadia Code fonts.\n\n### Mountain View (Light)\nGoogle's Material You in full color. Bold red, green, yellow, and blue primaries pop against a tinted blue surface — playful and unmistakably Google. Features a Google Blue accent gradient.\n\n### Cupertino (Light)\nApple's refined minimalism. Pure whites, careful grays, and restrained system accent colors from the Human Interface Guidelines. Uses Apple system fonts including SF Mono.\n\n### AI Lab (Light)\nWarm cream backgrounds with burnt-sienna orange accents, inspired by the thoughtful, human-centered aesthetic of modern AI research labs.\n\n### Seattle (Dark)\nBold orange on dark navy — an e-commerce giant's signature palette reimagined for code, with cloud-blue accents. Features a navy background gradient and an orange accent gradient.\n\n## Usage\n\nInstall the plugin and select any Tech Modern theme from **Settings > Appearance > Theme**."
+          "content": "# Tech Modern\n\nColor themes inspired by iconic technology companies.\n\n## Themes\n\n### Redmond (Dark)\nWindows 11 dark mode with Mica-style surfaces. Cool cyan-blue accents and soft pastel highlights on smooth, layered darks. Uses Segoe UI and Cascadia Code fonts.\n\n### Mountain View (Light)\nGoogle's Material You in full color. Bold red, green, yellow, and blue primaries pop against a tinted blue surface \u2014 playful and unmistakably Google. Features a Google Blue accent gradient.\n\n### Cupertino (Light)\nApple's refined minimalism. Pure whites, careful grays, and restrained system accent colors from the Human Interface Guidelines. Uses Apple system fonts including SF Mono.\n\n### AI Lab (Light)\nWarm cream backgrounds with burnt-sienna orange accents, inspired by the thoughtful, human-centered aesthetic of modern AI research labs.\n\n### Seattle (Dark)\nBold orange on dark navy \u2014 an e-commerce giant's signature palette reimagined for code, with cloud-blue accents. Features a navy background gradient and an orange accent gradient.\n\n## Usage\n\nInstall the plugin and select any Tech Modern theme from **Settings > Appearance > Theme**."
         }
       ]
     }

@@ -1,8 +1,8 @@
 {
   "id": "ocean-themes",
   "name": "Ocean Themes",
-  "version": "1.0.0",
-  "description": "A collection of ocean-inspired color themes — coral reef, tide pool, pacific, deep sea, and abyssal.",
+  "version": "1.1.0-beta.1",
+  "description": "A collection of ocean-inspired color themes \u2014 coral reef, tide pool, pacific, deep sea, and abyssal.",
   "author": "Clubhouse Workshop",
   "engine": {
     "api": 0.7
@@ -357,7 +357,7 @@
         {
           "id": "overview",
           "title": "Ocean Themes",
-          "content": "# Ocean Themes\n\nA collection of five ocean-inspired color themes for Clubhouse.\n\n## Themes\n\n### Coral Reef (Light)\nWarm sandy whites with vibrant coral and turquoise accents — the colorful life of a tropical reef.\n\n### Tide Pool (Light)\nSea-glass greens and soft coastal tones. A tranquil palette inspired by sheltered rocky pools.\n\n### Pacific (Light)\nCool blue-grays stretching to the horizon. A calm, expansive palette like the open Pacific under overcast skies. Uses a clean, modern sans-serif font.\n\n### Deep Sea (Dark)\nDescend into the deep blue. Rich navy backgrounds with luminous bioluminescent accents of cyan and aqua. Enhanced with a deep ocean background gradient and a cyan-to-green accent gradient.\n\n### Abyssal (Dark)\nThe darkest depths of the ocean. Near-black backgrounds with sparse, muted light — mysterious and immersive. Features a dark gradient that fades into the void.\n\n## Usage\n\nInstall the plugin and select any Ocean Theme from **Settings > Appearance > Theme**."
+          "content": "# Ocean Themes\n\nA collection of five ocean-inspired color themes for Clubhouse.\n\n## Themes\n\n### Coral Reef (Light)\nWarm sandy whites with vibrant coral and turquoise accents \u2014 the colorful life of a tropical reef.\n\n### Tide Pool (Light)\nSea-glass greens and soft coastal tones. A tranquil palette inspired by sheltered rocky pools.\n\n### Pacific (Light)\nCool blue-grays stretching to the horizon. A calm, expansive palette like the open Pacific under overcast skies. Uses a clean, modern sans-serif font.\n\n### Deep Sea (Dark)\nDescend into the deep blue. Rich navy backgrounds with luminous bioluminescent accents of cyan and aqua. Enhanced with a deep ocean background gradient and a cyan-to-green accent gradient.\n\n### Abyssal (Dark)\nThe darkest depths of the ocean. Near-black backgrounds with sparse, muted light \u2014 mysterious and immersive. Features a dark gradient that fades into the void.\n\n## Usage\n\nInstall the plugin and select any Ocean Theme from **Settings > Appearance > Theme**."
         }
       ]
     }
