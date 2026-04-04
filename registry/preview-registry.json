@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated": "2026-04-04T21:26:39.724Z",
+  "updated": "2026-04-04T21:45:00.000Z",
   "supportedApis": {
     "latest": "0.9",
     "minimum": "0.6",
@@ -58,7 +58,7 @@
     {
       "id": "spring-themes",
       "name": "Spring Themes",
-      "description": "A collection of spring-inspired color themes — cherry blossoms, meadows, wisteria, daffodils, and a moonlit garden.",
+      "description": "A collection of spring-inspired color themes \u2014 cherry blossoms, meadows, wisteria, daffodils, and a moonlit garden.",
       "author": "Clubhouse Workshop",
       "official": true,
       "repo": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop",
@@ -76,9 +76,109 @@
       }
     },
     {
+      "id": "neon-themes",
+      "name": "Neon Themes",
+      "description": "A collection of neon and cyberpunk-inspired color themes \u2014 cyberpunk, synthwave, neon tokyo, electric, and vaporwave.",
+      "author": "Clubhouse Workshop",
+      "official": true,
+      "repo": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop",
+      "path": "plugins/neon-themes",
+      "tags": [],
+      "latest": "1.1.0-beta.1",
+      "releases": {
+        "1.1.0-beta.1": {
+          "api": 0.7,
+          "asset": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop/releases/download/neon-themes-v1.1.0-beta.1/neon-themes-v1.1.0-beta.1.zip",
+          "sha256": "9b41ff4bf0ea1c529f4586b9e9498826bc615cf17004327b5cfeee585b90617b",
+          "permissions": [],
+          "size": 2943
+        }
+      }
+    },
+    {
+      "id": "winter-themes",
+      "name": "Winter Themes",
+      "description": "A collection of winter-inspired color themes \u2014 frost, evergreen forests, northern lights, snowfall, and polar night.",
+      "author": "Clubhouse Workshop",
+      "official": true,
+      "repo": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop",
+      "path": "plugins/winter-themes",
+      "tags": [],
+      "latest": "1.1.0-beta.1",
+      "releases": {
+        "1.1.0-beta.1": {
+          "api": 0.7,
+          "asset": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop/releases/download/winter-themes-v1.1.0-beta.1/winter-themes-v1.1.0-beta.1.zip",
+          "sha256": "8be039e76a5142e209c0b4ef1e51e7d88d401dff20669c4bfce56c315c76b3a1",
+          "permissions": [],
+          "size": 2955
+        }
+      }
+    },
+    {
+      "id": "fall-themes",
+      "name": "Fall Themes",
+      "description": "A collection of autumn-inspired color themes \u2014 maple, harvest, pumpkin spice, amber forest, and twilight ember.",
+      "author": "Clubhouse Workshop",
+      "official": true,
+      "repo": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop",
+      "path": "plugins/fall-themes",
+      "tags": [],
+      "latest": "1.1.0-beta.1",
+      "releases": {
+        "1.1.0-beta.1": {
+          "api": 0.7,
+          "asset": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop/releases/download/fall-themes-v1.1.0-beta.1/fall-themes-v1.1.0-beta.1.zip",
+          "sha256": "896191ebbda2dbcb9e729c95ebaefae803d835d5941732029635e120be3a766a",
+          "permissions": [],
+          "size": 2875
+        }
+      }
+    },
+    {
+      "id": "ocean-themes",
+      "name": "Ocean Themes",
+      "description": "A collection of ocean-inspired color themes \u2014 coral reef, tide pool, pacific, deep sea, and abyssal.",
+      "author": "Clubhouse Workshop",
+      "official": true,
+      "repo": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop",
+      "path": "plugins/ocean-themes",
+      "tags": [],
+      "latest": "1.1.0-beta.1",
+      "releases": {
+        "1.1.0-beta.1": {
+          "api": 0.7,
+          "asset": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop/releases/download/ocean-themes-v1.1.0-beta.1/ocean-themes-v1.1.0-beta.1.zip",
+          "sha256": "7043a88808db72102fcff7603464dc835aaeabd5710db86c8982f1eaf8ae82cf",
+          "permissions": [],
+          "size": 2907
+        }
+      }
+    },
+    {
+      "id": "tech-modern",
+      "name": "Tech Modern",
+      "description": "Color themes inspired by iconic tech companies \u2014 Redmond, Mountain View, Cupertino, AI Lab, and Seattle.",
+      "author": "Clubhouse Workshop",
+      "official": true,
+      "repo": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop",
+      "path": "plugins/tech-modern",
+      "tags": [],
+      "latest": "1.1.0-beta.1",
+      "releases": {
+        "1.1.0-beta.1": {
+          "api": 0.7,
+          "asset": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop/releases/download/tech-modern-v1.1.0-beta.1/tech-modern-v1.1.0-beta.1.zip",
+          "sha256": "ec4efbee683a7e7514546f897849cc7d4871175d7d5585fe8bef79202a3c4316",
+          "permissions": [],
+          "size": 3121
+        }
+      }
+    },
+    {
       "id": "summer-themes",
       "name": "Summer Themes",
-      "description": "A collection of summer-inspired color themes — sunset beach, ocean breeze, tropical, golden hour, and midnight swim.",
+      "description": "A collection of summer-inspired color themes \u2014 sunset beach, ocean breeze, tropical, golden hour, and midnight swim.",
       "author": "Clubhouse Workshop",
       "official": true,
       "repo": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop",
