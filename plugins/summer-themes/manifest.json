@@ -1,8 +1,8 @@
 {
   "id": "summer-themes",
   "name": "Summer Themes",
-  "version": "1.0.0",
-  "description": "A collection of summer-inspired color themes — sunset beach, ocean breeze, tropical, golden hour, and midnight swim.",
+  "version": "1.1.0-beta.1",
+  "description": "A collection of summer-inspired color themes \u2014 sunset beach, ocean breeze, tropical, golden hour, and midnight swim.",
   "author": "Clubhouse Workshop",
   "engine": {
     "api": 0.7
@@ -358,7 +358,7 @@
         {
           "id": "overview",
           "title": "Summer Themes",
-          "content": "# Summer Themes\n\nA collection of five summer-inspired color themes for Clubhouse.\n\n## Themes\n\n### Sunset Beach (Light)\nWarm coral and sandy tones, like watching the sun dip below the ocean from a quiet beach. Enhanced with a warm sunset background gradient and a coral-to-rose accent gradient.\n\n### Ocean Breeze (Light)\nCool teals and aquas. A refreshing palette inspired by gentle seaside winds and sparkling water.\n\n### Tropical (Light)\nLush, vivid greens with bold pink hibiscus accents — a walk through a tropical rainforest canopy. Uses a playful sans-serif font.\n\n### Golden Hour (Light)\nRich amber and honey tones bathed in the warm glow of late-afternoon sunlight.\n\n### Midnight Swim (Dark)\nDeep ocean blues with luminous teal and coral accents — a warm night swim under the stars. Features a deep ocean background gradient and a teal-to-rose accent gradient.\n\n## Usage\n\nInstall the plugin and select any Summer Theme from **Settings > Appearance > Theme**."
+          "content": "# Summer Themes\n\nA collection of five summer-inspired color themes for Clubhouse.\n\n## Themes\n\n### Sunset Beach (Light)\nWarm coral and sandy tones, like watching the sun dip below the ocean from a quiet beach. Enhanced with a warm sunset background gradient and a coral-to-rose accent gradient.\n\n### Ocean Breeze (Light)\nCool teals and aquas. A refreshing palette inspired by gentle seaside winds and sparkling water.\n\n### Tropical (Light)\nLush, vivid greens with bold pink hibiscus accents \u2014 a walk through a tropical rainforest canopy. Uses a playful sans-serif font.\n\n### Golden Hour (Light)\nRich amber and honey tones bathed in the warm glow of late-afternoon sunlight.\n\n### Midnight Swim (Dark)\nDeep ocean blues with luminous teal and coral accents \u2014 a warm night swim under the stars. Features a deep ocean background gradient and a teal-to-rose accent gradient.\n\n## Usage\n\nInstall the plugin and select any Summer Theme from **Settings > Appearance > Theme**."
         }
       ]
     }

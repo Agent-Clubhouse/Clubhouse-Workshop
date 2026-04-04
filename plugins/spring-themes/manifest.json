@@ -1,8 +1,8 @@
 {
   "id": "spring-themes",
   "name": "Spring Themes",
-  "version": "1.0.0",
-  "description": "A collection of spring-inspired color themes — cherry blossoms, meadows, wisteria, daffodils, and a moonlit garden.",
+  "version": "1.1.0-beta.1",
+  "description": "A collection of spring-inspired color themes \u2014 cherry blossoms, meadows, wisteria, daffodils, and a moonlit garden.",
   "author": "Clubhouse Workshop",
   "engine": {
     "api": 0.7
@@ -361,7 +361,7 @@
         {
           "id": "overview",
           "title": "Spring Themes",
-          "content": "# Spring Themes\n\nA collection of five spring-inspired color themes for Clubhouse.\n\n## Themes\n\n### Cherry Blossom (Light)\nSoft sakura pinks with cream backgrounds and sage green accents. A gentle, floral theme inspired by Japanese cherry blossom season. Features an elegant serif font and a subtle pink background gradient.\n\n### Spring Meadow (Light)\nFresh greens and cornflower blues, like a walk through a wildflower meadow on a sunny morning.\n\n### Wisteria (Light)\nDreamy lavender and purple tones, inspired by cascading wisteria blossoms on a garden arbor. Enhanced with a lavender background gradient and purple-to-rose accent gradient.\n\n### Daffodil (Light)\nWarm, sunny yellows and golds — cheerful and bright, like fields of daffodils in bloom.\n\n### Moonlit Garden (Dark)\nA spring garden under moonlight. Deep night-blue backgrounds with luminous wisteria, rose, and mint accents. Features twilight gradients on the background and accent elements.\n\n## Usage\n\nInstall the plugin and select any Spring Theme from **Settings > Appearance > Theme**."
+          "content": "# Spring Themes\n\nA collection of five spring-inspired color themes for Clubhouse.\n\n## Themes\n\n### Cherry Blossom (Light)\nSoft sakura pinks with cream backgrounds and sage green accents. A gentle, floral theme inspired by Japanese cherry blossom season. Features an elegant serif font and a subtle pink background gradient.\n\n### Spring Meadow (Light)\nFresh greens and cornflower blues, like a walk through a wildflower meadow on a sunny morning.\n\n### Wisteria (Light)\nDreamy lavender and purple tones, inspired by cascading wisteria blossoms on a garden arbor. Enhanced with a lavender background gradient and purple-to-rose accent gradient.\n\n### Daffodil (Light)\nWarm, sunny yellows and golds \u2014 cheerful and bright, like fields of daffodils in bloom.\n\n### Moonlit Garden (Dark)\nA spring garden under moonlight. Deep night-blue backgrounds with luminous wisteria, rose, and mint accents. Features twilight gradients on the background and accent elements.\n\n## Usage\n\nInstall the plugin and select any Spring Theme from **Settings > Appearance > Theme**."
         }
       ]
     }

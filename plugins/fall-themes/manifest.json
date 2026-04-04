@@ -1,8 +1,8 @@
 {
   "id": "fall-themes",
   "name": "Fall Themes",
-  "version": "1.0.0",
-  "description": "A collection of autumn-inspired color themes — maple, harvest, pumpkin spice, amber forest, and twilight ember.",
+  "version": "1.1.0-beta.1",
+  "description": "A collection of autumn-inspired color themes \u2014 maple, harvest, pumpkin spice, amber forest, and twilight ember.",
   "author": "Clubhouse Workshop",
   "engine": {
     "api": 0.7
@@ -357,7 +357,7 @@
         {
           "id": "overview",
           "title": "Fall Themes",
-          "content": "# Fall Themes\n\nA collection of five autumn-inspired color themes for Clubhouse.\n\n## Themes\n\n### Maple (Light)\nRich reds and burnt oranges on warm cream — the bold, fiery palette of maple leaves at peak color. Features a fiery red-to-orange accent gradient.\n\n### Harvest (Light)\nEarthy wheat and warm browns. A rustic, grounded theme inspired by golden fields and harvest baskets. Uses a classic serif font for a warm, editorial feel.\n\n### Pumpkin Spice (Light)\nWarm orange and cinnamon tones. A cozy, inviting palette that wraps your editor in autumn warmth.\n\n### Amber Forest (Light)\nGolden amber light filtering through a forest canopy. Warm yellows meet deep greens on a sunny fall afternoon.\n\n### Twilight Ember (Dark)\nGlowing embers against a dusky sky. Deep, warm darks with vivid orange and coral accents, like the last light of an autumn bonfire. Enhanced with a smoldering background gradient and ember-to-rose accent gradient.\n\n## Usage\n\nInstall the plugin and select any Fall Theme from **Settings > Appearance > Theme**."
+          "content": "# Fall Themes\n\nA collection of five autumn-inspired color themes for Clubhouse.\n\n## Themes\n\n### Maple (Light)\nRich reds and burnt oranges on warm cream \u2014 the bold, fiery palette of maple leaves at peak color. Features a fiery red-to-orange accent gradient.\n\n### Harvest (Light)\nEarthy wheat and warm browns. A rustic, grounded theme inspired by golden fields and harvest baskets. Uses a classic serif font for a warm, editorial feel.\n\n### Pumpkin Spice (Light)\nWarm orange and cinnamon tones. A cozy, inviting palette that wraps your editor in autumn warmth.\n\n### Amber Forest (Light)\nGolden amber light filtering through a forest canopy. Warm yellows meet deep greens on a sunny fall afternoon.\n\n### Twilight Ember (Dark)\nGlowing embers against a dusky sky. Deep, warm darks with vivid orange and coral accents, like the last light of an autumn bonfire. Enhanced with a smoldering background gradient and ember-to-rose accent gradient.\n\n## Usage\n\nInstall the plugin and select any Fall Theme from **Settings > Appearance > Theme**."
         }
       ]
     }

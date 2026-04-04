@@ -1,8 +1,8 @@
 {
   "id": "neon-themes",
   "name": "Neon Themes",
-  "version": "1.0.0",
-  "description": "A collection of neon and cyberpunk-inspired color themes — cyberpunk, synthwave, neon tokyo, electric, and vaporwave.",
+  "version": "1.1.0-beta.1",
+  "description": "A collection of neon and cyberpunk-inspired color themes \u2014 cyberpunk, synthwave, neon tokyo, electric, and vaporwave.",
   "author": "Clubhouse Workshop",
   "engine": {
     "api": 0.7
@@ -369,7 +369,7 @@
         {
           "id": "overview",
           "title": "Neon Themes",
-          "content": "# Neon Themes\n\nA collection of five neon and cyberpunk-inspired color themes for Clubhouse.\n\n## Themes\n\n### Cyberpunk (Dark)\nHot pink and electric cyan on a near-black canvas. High-contrast, high-energy, pure cyberpunk aesthetic. Features a stylized monospace font and a pink-to-cyan neon accent gradient.\n\n### Synthwave (Dark)\nRetro-futuristic purples and pinks with mint green highlights. A love letter to '80s neon and analog synths. Enhanced with a deep purple background gradient and a pink-to-cyan accent gradient.\n\n### Neon Tokyo (Dark)\nNeon red and electric green on deep purple-black — late-night streets in a rain-soaked metropolis. Features a red-to-purple accent gradient.\n\n### Electric (Dark)\nBright electric blue and vivid yellow on deep navy. Clean, modern, and crackling with energy. Enhanced with a deep blue background gradient and a blue-to-green accent gradient.\n\n### Vaporwave (Light)\nSoft pastel pinks, purples, and blues. A dreamy, nostalgic aesthetic from the retrowave art movement. Features pastel gradients on the background and accent elements.\n\n## Usage\n\nInstall the plugin and select any Neon Theme from **Settings > Appearance > Theme**."
+          "content": "# Neon Themes\n\nA collection of five neon and cyberpunk-inspired color themes for Clubhouse.\n\n## Themes\n\n### Cyberpunk (Dark)\nHot pink and electric cyan on a near-black canvas. High-contrast, high-energy, pure cyberpunk aesthetic. Features a stylized monospace font and a pink-to-cyan neon accent gradient.\n\n### Synthwave (Dark)\nRetro-futuristic purples and pinks with mint green highlights. A love letter to '80s neon and analog synths. Enhanced with a deep purple background gradient and a pink-to-cyan accent gradient.\n\n### Neon Tokyo (Dark)\nNeon red and electric green on deep purple-black \u2014 late-night streets in a rain-soaked metropolis. Features a red-to-purple accent gradient.\n\n### Electric (Dark)\nBright electric blue and vivid yellow on deep navy. Clean, modern, and crackling with energy. Enhanced with a deep blue background gradient and a blue-to-green accent gradient.\n\n### Vaporwave (Light)\nSoft pastel pinks, purples, and blues. A dreamy, nostalgic aesthetic from the retrowave art movement. Features pastel gradients on the background and accent elements.\n\n## Usage\n\nInstall the plugin and select any Neon Theme from **Settings > Appearance > Theme**."
         }
       ]
     }
