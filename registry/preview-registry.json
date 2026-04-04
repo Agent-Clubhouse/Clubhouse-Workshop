@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated": "2026-04-04T21:18:15.881Z",
+  "updated": "2026-04-04T21:28:11.182Z",
   "supportedApis": {
     "latest": "0.9",
     "minimum": "0.6",
@@ -72,6 +72,26 @@
           "sha256": "f363b155e11debc84b148817d8ae2a2fd91037a47a4cb4c438311ca24ec9f66d",
           "permissions": [],
           "size": 2939
+        }
+      }
+    },
+    {
+      "id": "winter-themes",
+      "name": "Winter Themes",
+      "description": "A collection of winter-inspired color themes — frost, evergreen forests, northern lights, snowfall, and polar night.",
+      "author": "Clubhouse Workshop",
+      "official": true,
+      "repo": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop",
+      "path": "plugins/winter-themes",
+      "tags": [],
+      "latest": "1.1.0-beta.1",
+      "releases": {
+        "1.1.0-beta.1": {
+          "api": 0.7,
+          "asset": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop/releases/download/winter-themes-v1.1.0-beta.1/winter-themes-v1.1.0-beta.1.zip",
+          "sha256": "aa8ecd50ea67bec1769a18015f476f289ac2ba0eb694b364c5abf0e4042ed429",
+          "permissions": [],
+          "size": 2955
         }
       }
     }
