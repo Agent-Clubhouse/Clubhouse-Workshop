@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated": "2026-03-28T02:04:05.987Z",
+  "updated": "2026-04-04T21:19:19.360Z",
   "supportedApis": {
     "latest": "0.9",
     "minimum": "0.6",
@@ -52,6 +52,26 @@
             "canvas"
           ],
           "size": 9036
+        }
+      }
+    },
+    {
+      "id": "tech-modern",
+      "name": "Tech Modern",
+      "description": "Color themes inspired by iconic tech companies — Redmond, Mountain View, Cupertino, AI Lab, and Seattle.",
+      "author": "Clubhouse Workshop",
+      "official": true,
+      "repo": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop",
+      "path": "plugins/tech-modern",
+      "tags": [],
+      "latest": "1.1.0-beta.1",
+      "releases": {
+        "1.1.0-beta.1": {
+          "api": 0.7,
+          "asset": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop/releases/download/tech-modern-v1.1.0-beta.1/tech-modern-v1.1.0-beta.1.zip",
+          "sha256": "ec4efbee683a7e7514546f897849cc7d4871175d7d5585fe8bef79202a3c4316",
+          "permissions": [],
+          "size": 3121
         }
       }
     }
