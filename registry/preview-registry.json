@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated": "2026-04-04T21:18:15.881Z",
+  "updated": "2026-04-04T21:26:39.724Z",
   "supportedApis": {
     "latest": "0.9",
     "minimum": "0.6",
@@ -72,6 +72,26 @@
           "sha256": "f363b155e11debc84b148817d8ae2a2fd91037a47a4cb4c438311ca24ec9f66d",
           "permissions": [],
           "size": 2939
+        }
+      }
+    },
+    {
+      "id": "summer-themes",
+      "name": "Summer Themes",
+      "description": "A collection of summer-inspired color themes — sunset beach, ocean breeze, tropical, golden hour, and midnight swim.",
+      "author": "Clubhouse Workshop",
+      "official": true,
+      "repo": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop",
+      "path": "plugins/summer-themes",
+      "tags": [],
+      "latest": "1.1.0-beta.1",
+      "releases": {
+        "1.1.0-beta.1": {
+          "api": 0.7,
+          "asset": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop/releases/download/summer-themes-v1.1.0-beta.1/summer-themes-v1.1.0-beta.1.zip",
+          "sha256": "61598d1a07b289ec81d3fe9e33b76b3f1620227847fdb7b4ed4da64aa34261e6",
+          "permissions": [],
+          "size": 2901
         }
       }
     }
