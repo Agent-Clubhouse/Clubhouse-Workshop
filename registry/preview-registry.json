@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated": "2026-03-28T02:04:05.987Z",
+  "updated": "2026-04-04T21:18:57.262Z",
   "supportedApis": {
     "latest": "0.9",
     "minimum": "0.6",
@@ -52,6 +52,26 @@
             "canvas"
           ],
           "size": 9036
+        }
+      }
+    },
+    {
+      "id": "neon-themes",
+      "name": "Neon Themes",
+      "description": "A collection of neon and cyberpunk-inspired color themes — cyberpunk, synthwave, neon tokyo, electric, and vaporwave.",
+      "author": "Clubhouse Workshop",
+      "official": true,
+      "repo": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop",
+      "path": "plugins/neon-themes",
+      "tags": [],
+      "latest": "1.1.0-beta.1",
+      "releases": {
+        "1.1.0-beta.1": {
+          "api": 0.7,
+          "asset": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop/releases/download/neon-themes-v1.1.0-beta.1/neon-themes-v1.1.0-beta.1.zip",
+          "sha256": "9b41ff4bf0ea1c529f4586b9e9498826bc615cf17004327b5cfeee585b90617b",
+          "permissions": [],
+          "size": 2943
         }
       }
     }
