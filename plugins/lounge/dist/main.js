@@ -1069,6 +1069,18 @@ function EmptyState() {
 function AgentContent({ api, agentId }) {
   const agents = api.agents.list();
   const agent = agents.find((a) => a.id === agentId);
+  const [terminalFocused, setTerminalFocused] = useState(false);
+  const prevAgentIdRef = useRef(agentId);
+  useEffect(() => {
+    const agentChanged = prevAgentIdRef.current !== agentId;
+    prevAgentIdRef.current = agentId;
+    if (agentChanged) {
+      setTerminalFocused(false);
+      const raf = requestAnimationFrame(() => setTerminalFocused(true));
+      return () => cancelAnimationFrame(raf);
+    }
+    setTerminalFocused(true);
+  }, [agentId]);
   if (!agent) {
     return React2.createElement("div", {
       className: "flex items-center justify-center h-full text-ctp-subtext0 text-sm"
@@ -1078,7 +1090,7 @@ function AgentContent({ api, agentId }) {
   if (agent.status === "sleeping" || agent.status === "error") {
     return React2.createElement(SleepingAgent, { agentId: agent.id });
   }
-  return React2.createElement(AgentTerminal, { agentId: agent.id, focused: true });
+  return React2.createElement(AgentTerminal, { agentId: agent.id, focused: terminalFocused });
 }
 function NoSelection() {
   return React2.createElement(

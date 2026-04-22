@@ -699,6 +699,23 @@ function AgentContent({ api, agentId }: { api: PluginAPI; agentId: string }) {
   const agents = api.agents.list();
   const agent = agents.find((a) => a.id === agentId);
 
+  // Track focus with false→true transition on agent switch (mirrors MainContentView pattern)
+  const [terminalFocused, setTerminalFocused] = useState(false);
+  const prevAgentIdRef = useRef(agentId);
+
+  useEffect(() => {
+    const agentChanged = prevAgentIdRef.current !== agentId;
+    prevAgentIdRef.current = agentId;
+
+    if (agentChanged) {
+      setTerminalFocused(false);
+      const raf = requestAnimationFrame(() => setTerminalFocused(true));
+      return () => cancelAnimationFrame(raf);
+    }
+
+    setTerminalFocused(true);
+  }, [agentId]);
+
   if (!agent) {
     return React.createElement('div', {
       className: 'flex items-center justify-center h-full text-ctp-subtext0 text-sm',
@@ -711,7 +728,7 @@ function AgentContent({ api, agentId }: { api: PluginAPI; agentId: string }) {
     return React.createElement(SleepingAgent, { agentId: agent.id });
   }
 
-  return React.createElement(AgentTerminal, { agentId: agent.id, focused: true });
+  return React.createElement(AgentTerminal, { agentId: agent.id, focused: terminalFocused });
 }
 
 // ── No Selection Placeholder ───────────────────────────────────────────
