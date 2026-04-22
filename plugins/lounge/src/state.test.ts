@@ -608,6 +608,93 @@ describe('hydration guard', () => {
   });
 });
 
+describe('circle persistence race condition', () => {
+  it('deriveCategories before loadPersistedState loses overrides (documents the bug)', () => {
+    const store = createLoungeStore();
+    const projects = [makeProject({ id: 'p1', name: 'P1' })];
+
+    // Simulate the race: derive runs before persisted state is loaded
+    store.getState().deriveCategories(projects);
+
+    // At this point, agentCategoryOverrides is empty — agents in default circles
+    expect(store.getState().agentCategoryOverrides).toEqual({});
+
+    // Now load persisted state (too late for the first derive)
+    store.getState().loadPersistedState({
+      agentCategoryOverrides: { 'a1': 'circle:1' },
+      customCircles: [{ id: 'circle:1', label: 'Favorites', emoji: '⭐' }],
+      nextCircleId: 2,
+      categoryOrder: ['circle:1', 'project:p1', 'circle:general'],
+      categoryEmojis: {},
+      renamedLabels: {},
+      collapsed: [],
+    });
+
+    // Overrides are loaded but categories haven't been re-derived yet
+    expect(store.getState().agentCategoryOverrides['a1']).toBe('circle:1');
+    // Custom circle is in state but not in categories until next derive
+    expect(store.getState().customCircles).toHaveLength(1);
+  });
+
+  it('loadPersistedState then deriveCategories preserves overrides (the fix)', () => {
+    const store = createLoungeStore();
+    const projects = [makeProject({ id: 'p1', name: 'P1' })];
+
+    // Fix: load persisted state FIRST
+    store.getState().loadPersistedState({
+      agentCategoryOverrides: { 'a1': 'circle:1' },
+      customCircles: [{ id: 'circle:1', label: 'Favorites', emoji: '⭐' }],
+      nextCircleId: 2,
+      categoryOrder: ['circle:1', 'project:p1', 'circle:general'],
+      categoryEmojis: {},
+      renamedLabels: {},
+      collapsed: [],
+    });
+
+    expect(store.getState().hydrated).toBe(true);
+
+    // Now derive — custom circles and overrides are already in state
+    store.getState().deriveCategories(projects);
+
+    const state = store.getState();
+    // Override survives
+    expect(state.agentCategoryOverrides['a1']).toBe('circle:1');
+    // Custom circle appears in categories
+    expect(state.categories.find((c: LoungeCategory) => c.id === 'circle:1')?.label).toBe('Favorites');
+    // Project category also present
+    expect(state.categories.find((c: LoungeCategory) => c.id === 'project:p1')).toBeDefined();
+    // Order is preserved
+    expect(state.categoryOrder).toEqual(['circle:1', 'project:p1', 'circle:general']);
+  });
+
+  it('groupAgentsByCategory respects overrides when loaded before derive', () => {
+    const store = createLoungeStore();
+
+    store.getState().loadPersistedState({
+      agentCategoryOverrides: { 'a1': 'circle:1' },
+      customCircles: [{ id: 'circle:1', label: 'Favorites', emoji: '⭐' }],
+      nextCircleId: 2,
+      categoryOrder: [],
+      categoryEmojis: {},
+      renamedLabels: {},
+      collapsed: [],
+    });
+
+    store.getState().deriveCategories([makeProject({ id: 'p1', name: 'P1' })]);
+
+    const agents = [makeAgent({ id: 'a1', projectId: 'p1', name: 'Agent One' })];
+    const { categories, agentCategoryOverrides } = store.getState();
+    const grouped = groupAgentsByCategory(agents, categories, agentCategoryOverrides);
+
+    // Agent should be in Favorites circle, not project circle
+    expect(grouped.get('circle:1')).toHaveLength(1);
+    expect(grouped.get('circle:1')![0].id).toBe('a1');
+
+    // Project circle should be empty
+    expect(grouped.get('project:p1') ?? []).toHaveLength(0);
+  });
+});
+
 describe('General project name collision', () => {
   it('disambiguates project named General', () => {
     const store = createHydratedStore();
