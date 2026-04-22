@@ -70,6 +70,7 @@ function getPersistedState(state) {
     nextCircleId: state.nextCircleId,
     categoryOrder: state.categoryOrder,
     categoryEmojis: state.categoryEmojis,
+    agentOrder: state.agentOrder,
     collapsed: Array.from(state.collapsed)
   };
 }
@@ -95,6 +96,21 @@ function groupAgentsByCategory(agents, categories, overrides = {}) {
     }
   }
   return groups;
+}
+function sortAgentsByOrder(agents, order) {
+  if (!order || order.length === 0) return agents;
+  const posMap = new Map(order.map((id, i) => [id, i]));
+  const ordered = [];
+  const unordered = [];
+  for (const agent of agents) {
+    if (posMap.has(agent.id)) {
+      ordered.push(agent);
+    } else {
+      unordered.push(agent);
+    }
+  }
+  ordered.sort((a, b) => posMap.get(a.id) - posMap.get(b.id));
+  return [...ordered, ...unordered];
 }
 function disambiguateAgentName(agent, allAgents, projects) {
   const sameNameAgents = allAgents.filter((a) => a.name === agent.name);
@@ -137,6 +153,7 @@ var createLoungeStore = () => create((set, get) => ({
   nextCircleId: 1,
   categoryOrder: [],
   categoryEmojis: {},
+  agentOrder: {},
   hydrated: false,
   deriveCategories(projects) {
     set((state) => {
@@ -201,9 +218,52 @@ var createLoungeStore = () => create((set, get) => ({
   },
   moveAgent(agentId, targetCategoryId) {
     if (!get().hydrated) return;
-    set((state) => ({
-      agentCategoryOverrides: { ...state.agentCategoryOverrides, [agentId]: targetCategoryId }
-    }));
+    set((state) => {
+      const newAgentOrder = { ...state.agentOrder };
+      for (const [catId, order] of Object.entries(newAgentOrder)) {
+        if (order.includes(agentId)) {
+          newAgentOrder[catId] = order.filter((id) => id !== agentId);
+        }
+      }
+      const targetOrder = newAgentOrder[targetCategoryId] ?? [];
+      newAgentOrder[targetCategoryId] = [...targetOrder, agentId];
+      return {
+        agentCategoryOverrides: { ...state.agentCategoryOverrides, [agentId]: targetCategoryId },
+        agentOrder: newAgentOrder
+      };
+    });
+  },
+  placeAgent(agentId, targetCategoryId, beforeAgentId, currentAgentIds) {
+    if (!get().hydrated) return;
+    set((state) => {
+      const newAgentOrder = { ...state.agentOrder };
+      for (const [catId, order] of Object.entries(newAgentOrder)) {
+        if (order.includes(agentId)) {
+          newAgentOrder[catId] = order.filter((id) => id !== agentId);
+        }
+      }
+      let targetOrder;
+      if (currentAgentIds) {
+        targetOrder = currentAgentIds.filter((id) => id !== agentId);
+      } else {
+        targetOrder = [...newAgentOrder[targetCategoryId] ?? []];
+      }
+      if (beforeAgentId) {
+        const idx = targetOrder.indexOf(beforeAgentId);
+        if (idx >= 0) {
+          targetOrder.splice(idx, 0, agentId);
+        } else {
+          targetOrder.push(agentId);
+        }
+      } else {
+        targetOrder.push(agentId);
+      }
+      newAgentOrder[targetCategoryId] = targetOrder;
+      return {
+        agentCategoryOverrides: { ...state.agentCategoryOverrides, [agentId]: targetCategoryId },
+        agentOrder: newAgentOrder
+      };
+    });
   },
   addCircle(label) {
     if (!label.trim()) return "";
@@ -239,6 +299,7 @@ var createLoungeStore = () => create((set, get) => ({
       const newOrder = state.categoryOrder.filter((id) => id !== circleId);
       const { [circleId]: _emoji, ...newEmojis } = state.categoryEmojis;
       const { [circleId]: _label, ...newLabels } = state.renamedLabels;
+      const { [circleId]: _agentOrder, ...newAgentOrder } = state.agentOrder;
       const newCollapsed = new Set(state.collapsed);
       newCollapsed.delete(circleId);
       return {
@@ -248,6 +309,7 @@ var createLoungeStore = () => create((set, get) => ({
         categoryOrder: newOrder,
         categoryEmojis: newEmojis,
         renamedLabels: newLabels,
+        agentOrder: newAgentOrder,
         collapsed: newCollapsed
       };
     });
@@ -292,6 +354,7 @@ var createLoungeStore = () => create((set, get) => ({
       nextCircleId: data.nextCircleId ?? 1,
       categoryOrder: data.categoryOrder ?? [],
       categoryEmojis: data.categoryEmojis ?? {},
+      agentOrder: data.agentOrder ?? {},
       collapsed: new Set(data.collapsed ?? []),
       hydrated: true
     });
@@ -449,7 +512,7 @@ function CategoryContextMenu({ position, categoryId, onRename, onDelete, onClose
     )
   );
 }
-function AgentContextMenu({ position, categories, currentCategoryId, onMoveTo, onCreateCircle, onClose }) {
+function AgentContextMenu({ position, agent, api, categories, currentCategoryId, onMoveTo, onCreateCircle, onClose }) {
   const menuRef = useRef(null);
   const [showSubmenu, setShowSubmenu] = useState(false);
   const moveToRef = useRef(null);
@@ -484,6 +547,9 @@ function AgentContextMenu({ position, categories, currentCategoryId, onMoveTo, o
     const y = Math.min(0, window.innerHeight - rect.top - submenuHeight - 8);
     return { left: x, top: y };
   }, [showSubmenu, categories.length]);
+  const isRunning = agent.status === "running" || agent.status === "waking" || agent.status === "creating";
+  const isSleeping = agent.status === "sleeping";
+  const menuItemClass = "w-full flex items-center gap-2 px-3 py-1.5 text-xs text-ctp-subtext0 hover:bg-surface-1 hover:text-ctp-text transition-colors cursor-pointer";
   return React2.createElement(
     "div",
     {
@@ -492,6 +558,85 @@ function AgentContextMenu({ position, categories, currentCategoryId, onMoveTo, o
       style,
       "data-testid": "lounge-agent-context-menu"
     },
+    // ── Agent lifecycle actions ──
+    isRunning && React2.createElement(
+      "button",
+      {
+        className: menuItemClass,
+        onClick: () => {
+          api.agents.kill(agent.id).catch(() => {
+          });
+          onClose();
+        },
+        "data-testid": "lounge-ctx-stop"
+      },
+      React2.createElement("svg", {
+        width: 12,
+        height: 12,
+        viewBox: "0 0 24 24",
+        fill: "none",
+        stroke: "currentColor",
+        strokeWidth: 2,
+        strokeLinecap: "round",
+        strokeLinejoin: "round"
+      }, React2.createElement("rect", { x: "6", y: "6", width: "12", height: "12", rx: "1" })),
+      React2.createElement("span", null, "Stop")
+    ),
+    isSleeping && React2.createElement(
+      "button",
+      {
+        className: menuItemClass,
+        onClick: () => {
+          api.agents.resume(agent.id).catch(() => {
+          });
+          onClose();
+        },
+        "data-testid": "lounge-ctx-wake"
+      },
+      React2.createElement("svg", {
+        width: 12,
+        height: 12,
+        viewBox: "0 0 24 24",
+        fill: "none",
+        stroke: "currentColor",
+        strokeWidth: 2,
+        strokeLinecap: "round",
+        strokeLinejoin: "round"
+      }, React2.createElement("polygon", { points: "5 3 19 12 5 21 5 3" })),
+      React2.createElement("span", null, "Wake")
+    ),
+    // Pop Out
+    React2.createElement(
+      "button",
+      {
+        className: menuItemClass,
+        onClick: () => {
+          api.navigation.popOutAgent(agent.id).catch(() => {
+          });
+          onClose();
+        },
+        "data-testid": "lounge-ctx-popout"
+      },
+      React2.createElement(
+        "svg",
+        {
+          width: 12,
+          height: 12,
+          viewBox: "0 0 24 24",
+          fill: "none",
+          stroke: "currentColor",
+          strokeWidth: 2,
+          strokeLinecap: "round",
+          strokeLinejoin: "round"
+        },
+        React2.createElement("path", { d: "M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" }),
+        React2.createElement("polyline", { points: "15 3 21 3 21 9" }),
+        React2.createElement("line", { x1: "10", y1: "14", x2: "21", y2: "3" })
+      ),
+      React2.createElement("span", null, "Pop Out")
+    ),
+    // Divider between lifecycle and circle actions
+    React2.createElement("div", { className: "mx-2 my-1 border-t border-surface-1" }),
     // "Move to" with submenu
     React2.createElement(
       "div",
@@ -764,7 +909,7 @@ function CircleDialog({ mode, onConfirm, onCancel, existingCategories, initialNa
     )
   );
 }
-function CategorySection({ category, agents, allAgents, allCategories, projects, isCollapsed, selectedAgentId, onToggle, onSelectAgent, onEditCircle, onDelete, onMoveAgent, onCreateCircle, onReorderCategory }) {
+function CategorySection({ category, agents, allAgents, allCategories, projects, isCollapsed, selectedAgentId, api, onToggle, onSelectAgent, onEditCircle, onDelete, onMoveAgent, onPlaceAgent, onCreateCircle, onReorderCategory }) {
   const [contextMenu, setContextMenu] = useState(null);
   const [agentContextMenu, setAgentContextMenu] = useState(null);
   const [dragOver, setDragOver] = useState(false);
@@ -799,14 +944,14 @@ function CategorySection({ category, agents, allAgents, allCategories, projects,
     setDragOver(false);
     const agentId = e.dataTransfer.getData("application/x-lounge-agent");
     if (agentId) {
-      onMoveAgent(agentId, category.id);
+      onPlaceAgent(agentId, category.id, null, agents.map((a) => a.id));
       return;
     }
     const fromCategoryId = e.dataTransfer.getData("application/x-lounge-category");
     if (fromCategoryId && fromCategoryId !== category.id && !isGeneralCircle) {
       onReorderCategory(fromCategoryId, category.id);
     }
-  }, [category.id, onMoveAgent, onReorderCategory, isGeneralCircle]);
+  }, [category.id, onPlaceAgent, onReorderCategory, isGeneralCircle]);
   return React2.createElement(
     "div",
     {
@@ -843,33 +988,61 @@ function CategorySection({ category, agents, allAgents, allCategories, projects,
       onClose: () => setContextMenu(null)
     }),
     // Agent rows (hidden when collapsed)
-    !isCollapsed && agents.length > 0 && agents.map((agent) => {
+    !isCollapsed && agents.length > 0 && agents.map((agent, idx) => {
       const displayName = disambiguateAgentName(agent, allAgents, projects);
-      return React2.createElement(AgentRow, {
-        key: agent.id,
-        agent,
-        displayName,
-        isSelected: selectedAgentId === agent.id,
-        onClick: () => onSelectAgent(agent.id, agent.projectId),
-        onContextMenu: (e) => {
-          e.preventDefault();
-          setAgentContextMenu({ agentId: agent.id, x: e.clientX, y: e.clientY });
-        }
-      });
+      const nextAgentId = idx < agents.length - 1 ? agents[idx + 1].id : null;
+      return React2.createElement(
+        "div",
+        {
+          key: agent.id,
+          onDragOver: (e) => {
+            if (!e.dataTransfer.types.includes("application/x-lounge-agent")) return;
+            e.preventDefault();
+            e.stopPropagation();
+            e.dataTransfer.dropEffect = "move";
+          },
+          onDrop: (e) => {
+            const draggedId = e.dataTransfer.getData("application/x-lounge-agent");
+            if (!draggedId || draggedId === agent.id) return;
+            e.preventDefault();
+            e.stopPropagation();
+            const rect = e.currentTarget.getBoundingClientRect();
+            const isUpperHalf = e.clientY < rect.top + rect.height / 2;
+            const beforeId = isUpperHalf ? agent.id : nextAgentId;
+            onPlaceAgent(draggedId, category.id, beforeId, agents.map((a) => a.id));
+          }
+        },
+        React2.createElement(AgentRow, {
+          agent,
+          displayName,
+          isSelected: selectedAgentId === agent.id,
+          onClick: () => onSelectAgent(agent.id, agent.projectId),
+          onContextMenu: (e) => {
+            e.preventDefault();
+            setAgentContextMenu({ agentId: agent.id, x: e.clientX, y: e.clientY });
+          }
+        })
+      );
     }),
     // Empty custom circle hint
     !isCollapsed && agents.length === 0 && React2.createElement("div", {
       className: "px-8 py-2 text-[11px] text-ctp-overlay0 italic"
     }, "Move agents here via right-click"),
     // Agent context menu
-    agentContextMenu && React2.createElement(AgentContextMenu, {
-      position: agentContextMenu,
-      categories: allCategories,
-      currentCategoryId: category.id,
-      onMoveTo: (targetCategoryId) => onMoveAgent(agentContextMenu.agentId, targetCategoryId),
-      onCreateCircle: () => onCreateCircle(agentContextMenu.agentId),
-      onClose: () => setAgentContextMenu(null)
-    })
+    agentContextMenu && (() => {
+      const ctxAgent = agents.find((a) => a.id === agentContextMenu.agentId) ?? allAgents.find((a) => a.id === agentContextMenu.agentId);
+      if (!ctxAgent) return null;
+      return React2.createElement(AgentContextMenu, {
+        position: agentContextMenu,
+        agent: ctxAgent,
+        api,
+        categories: allCategories,
+        currentCategoryId: category.id,
+        onMoveTo: (targetCategoryId) => onMoveAgent(agentContextMenu.agentId, targetCategoryId),
+        onCreateCircle: () => onCreateCircle(agentContextMenu.agentId),
+        onClose: () => setAgentContextMenu(null)
+      });
+    })()
   );
 }
 function EmptyState() {
@@ -929,6 +1102,8 @@ function MainPanel({ api }) {
   const deleteCircle = useLoungeStore((s) => s.deleteCircle);
   const reorderCategory = useLoungeStore((s) => s.reorderCategory);
   const setCategoryEmoji = useLoungeStore((s) => s.setCategoryEmoji);
+  const placeAgent = useLoungeStore((s) => s.placeAgent);
+  const agentOrder = useLoungeStore((s) => s.agentOrder);
   const loadPersistedState = useLoungeStore((s) => s.loadPersistedState);
   const [loaded, setLoaded] = useState(false);
   useEffect(() => {
@@ -963,7 +1138,7 @@ function MainPanel({ api }) {
         });
       }
     };
-  }, [api, loaded, renamedLabels, agentCategoryOverrides, customCircles, nextCircleId, categoryOrder, categoryEmojis, collapsed]);
+  }, [api, loaded, renamedLabels, agentCategoryOverrides, customCircles, nextCircleId, categoryOrder, categoryEmojis, agentOrder, collapsed]);
   const [agentTick, setAgentTick] = useState(0);
   useEffect(() => {
     const sub = api.agents.onAnyChange(() => setAgentTick((n) => n + 1));
@@ -971,8 +1146,9 @@ function MainPanel({ api }) {
   }, [api]);
   const projects = useMemo(() => api.projects.list(), [api, agentTick]);
   useEffect(() => {
+    if (!loaded) return;
     deriveCategories(projects);
-  }, [projects, deriveCategories]);
+  }, [projects, deriveCategories, loaded]);
   const agents = useMemo(() => api.agents.list(), [api, agentTick]);
   const grouped = useMemo(
     () => groupAgentsByCategory(agents, categories, agentCategoryOverrides),
@@ -1071,7 +1247,7 @@ function MainPanel({ api }) {
           "data-testid": "lounge-category-list"
         },
         hasAgents || categories.some((c) => !c.projectId) ? visibleCategories.map((cat) => {
-          const catAgents = grouped.get(cat.id) ?? [];
+          const catAgents = sortAgentsByOrder(grouped.get(cat.id) ?? [], agentOrder[cat.id]);
           return React2.createElement(CategorySection, {
             key: cat.id,
             category: cat,
@@ -1081,11 +1257,13 @@ function MainPanel({ api }) {
             projects,
             isCollapsed: collapsed.has(cat.id),
             selectedAgentId,
+            api,
             onToggle: () => toggleCollapsed(cat.id),
             onSelectAgent: handleSelectAgent,
             onEditCircle: handleEditCircle,
             onDelete: deleteCircle,
             onMoveAgent: moveAgent,
+            onPlaceAgent: placeAgent,
             onCreateCircle: handleCreateCircle,
             onReorderCategory: reorderCategory
           });

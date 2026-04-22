@@ -921,6 +921,34 @@ describe('placeAgent', () => {
     store.getState().placeAgent('a1', 'circle:general', null);
     expect(store.getState().agentOrder).toEqual({});
   });
+
+  it('reorders correctly with empty agentOrder when currentAgentIds provided', () => {
+    const store = createHydratedStore();
+    // Simulate first-ever reorder: agentOrder is empty, but UI knows display order
+    store.getState().placeAgent('a3', 'project:p1', 'a1', ['a1', 'a2', 'a3']);
+    expect(store.getState().agentOrder['project:p1']).toEqual(['a3', 'a1', 'a2']);
+  });
+
+  it('reorders correctly with sparse agentOrder when currentAgentIds provided', () => {
+    const store = createHydratedStore();
+    // Partially populated order — only some agents tracked
+    store.getState().placeAgent('b', 'project:p1', null);
+    store.getState().placeAgent('d', 'project:p1', null);
+    expect(store.getState().agentOrder['project:p1']).toEqual(['b', 'd']);
+
+    // Move e before d; UI knows the full display order [b, d, a, c, e]
+    store.getState().placeAgent('e', 'project:p1', 'd', ['b', 'd', 'a', 'c', 'e']);
+    expect(store.getState().agentOrder['project:p1']).toEqual(['b', 'e', 'd', 'a', 'c']);
+  });
+
+  it('cross-circle move with currentAgentIds populates full target order', () => {
+    const store = createHydratedStore();
+    store.getState().addCircle('Favs');
+    // Target circle has agents [x, y] in display but empty agentOrder
+    store.getState().placeAgent('a1', 'circle:1', 'x', ['x', 'y']);
+    expect(store.getState().agentOrder['circle:1']).toEqual(['a1', 'x', 'y']);
+    expect(store.getState().agentCategoryOverrides['a1']).toBe('circle:1');
+  });
 });
 
 describe('moveAgent with agentOrder', () => {

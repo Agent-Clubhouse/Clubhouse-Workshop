@@ -533,7 +533,7 @@ function CategorySection({ category, agents, allAgents, allCategories, projects,
   onEditCircle: (categoryId: string) => void;
   onDelete: (categoryId: string) => void;
   onMoveAgent: (agentId: string, targetCategoryId: string) => void;
-  onPlaceAgent: (agentId: string, targetCategoryId: string, beforeAgentId: string | null) => void;
+  onPlaceAgent: (agentId: string, targetCategoryId: string, beforeAgentId: string | null, currentAgentIds?: string[]) => void;
   onCreateCircle: (agentId?: string) => void;
   onReorderCategory: (fromId: string, toId: string) => void;
 }) {
@@ -578,7 +578,7 @@ function CategorySection({ category, agents, allAgents, allCategories, projects,
     const agentId = e.dataTransfer.getData('application/x-lounge-agent');
     if (agentId) {
       // Agent dropped on category header/whitespace — move to end of this circle
-      onPlaceAgent(agentId, category.id, null);
+      onPlaceAgent(agentId, category.id, null, agents.map((a) => a.id));
       return;
     }
     const fromCategoryId = e.dataTransfer.getData('application/x-lounge-category');
@@ -638,7 +638,7 @@ function CategorySection({ category, agents, allAgents, allCategories, projects,
           const rect = e.currentTarget.getBoundingClientRect();
           const isUpperHalf = e.clientY < rect.top + rect.height / 2;
           const beforeId = isUpperHalf ? agent.id : nextAgentId;
-          onPlaceAgent(draggedId, category.id, beforeId);
+          onPlaceAgent(draggedId, category.id, beforeId, agents.map((a) => a.id));
         },
       },
         React.createElement(AgentRow, {

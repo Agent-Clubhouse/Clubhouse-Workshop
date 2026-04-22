@@ -71,7 +71,7 @@ export interface LoungeState {
   selectAgent(agentId: string | null, projectId?: string | null): void;
   renameCategory(categoryId: string, label: string): void;
   moveAgent(agentId: string, targetCategoryId: string): void;
-  placeAgent(agentId: string, targetCategoryId: string, beforeAgentId: string | null): void;
+  placeAgent(agentId: string, targetCategoryId: string, beforeAgentId: string | null, currentAgentIds?: string[]): void;
   addCircle(label: string): string;
   deleteCircle(circleId: string): void;
   reorderCategory(fromId: string, toId: string): void;
@@ -341,7 +341,7 @@ export const createLoungeStore = () =>
       });
     },
 
-    placeAgent(agentId: string, targetCategoryId: string, beforeAgentId: string | null) {
+    placeAgent(agentId: string, targetCategoryId: string, beforeAgentId: string | null, currentAgentIds?: string[]) {
       if (!get().hydrated) return;
       set((state) => {
         const newAgentOrder = { ...state.agentOrder };
@@ -351,8 +351,14 @@ export const createLoungeStore = () =>
             newAgentOrder[catId] = order.filter((id) => id !== agentId);
           }
         }
-        // Insert into target category at position
-        const targetOrder = [...(newAgentOrder[targetCategoryId] ?? [])];
+        // Build full target order: use currentAgentIds (display order) when
+        // available so the splice anchor is always found, avoiding sparse-order bugs.
+        let targetOrder: string[];
+        if (currentAgentIds) {
+          targetOrder = currentAgentIds.filter((id) => id !== agentId);
+        } else {
+          targetOrder = [...(newAgentOrder[targetCategoryId] ?? [])];
+        }
         if (beforeAgentId) {
           const idx = targetOrder.indexOf(beforeAgentId);
           if (idx >= 0) {
