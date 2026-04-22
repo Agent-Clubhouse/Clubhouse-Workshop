@@ -974,7 +974,14 @@ function CategorySection({ category, agents, allAgents, allCategories, projects,
       isCollapsed ? CHEVRON_RIGHT : CHEVRON_DOWN,
       React2.createElement("span", { className: "text-sm flex-shrink-0" }, category.emoji || "\u{1F4C1}"),
       React2.createElement("span", { className: "flex-1 text-left truncate" }, category.label),
-      React2.createElement("span", { className: "text-[10px] text-ctp-overlay0 tabular-nums" }, String(agents.length))
+      React2.createElement(
+        "span",
+        { className: "text-[10px] text-ctp-overlay0 tabular-nums" },
+        (() => {
+          const active = agents.filter((a) => a.status === "running" || a.status === "waking" || a.status === "creating").length;
+          return active > 0 ? `${active}/${agents.length}` : String(agents.length);
+        })()
+      )
     ),
     // Context menu
     contextMenu && React2.createElement(CategoryContextMenu, {

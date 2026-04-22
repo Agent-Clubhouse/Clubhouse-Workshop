@@ -607,7 +607,12 @@ function CategorySection({ category, agents, allAgents, allCategories, projects,
       isCollapsed ? CHEVRON_RIGHT : CHEVRON_DOWN,
       React.createElement('span', { className: 'text-sm flex-shrink-0' }, category.emoji || '📁'),
       React.createElement('span', { className: 'flex-1 text-left truncate' }, category.label),
-      React.createElement('span', { className: 'text-[10px] text-ctp-overlay0 tabular-nums' }, String(agents.length)),
+      React.createElement('span', { className: 'text-[10px] text-ctp-overlay0 tabular-nums' },
+        (() => {
+          const active = agents.filter((a) => a.status === 'running' || a.status === 'waking' || a.status === 'creating').length;
+          return active > 0 ? `${active}/${agents.length}` : String(agents.length);
+        })(),
+      ),
     ),
     // Context menu
     contextMenu && React.createElement(CategoryContextMenu, {
