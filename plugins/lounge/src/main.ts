@@ -708,11 +708,13 @@ export function MainPanel({ api }: { api: PluginAPI }) {
     return () => sub.dispose();
   }, [api]);
 
-  // Derive categories from projects
+  // Derive categories from projects (only after persisted state is loaded
+  // to avoid overriding circle assignments with default project grouping)
   const projects = useMemo(() => api.projects.list(), [api, agentTick]);
   useEffect(() => {
+    if (!loaded) return;
     deriveCategories(projects);
-  }, [projects, deriveCategories]);
+  }, [projects, deriveCategories, loaded]);
 
   // Get all agents across projects
   const agents = useMemo(() => api.agents.list(), [api, agentTick]);
