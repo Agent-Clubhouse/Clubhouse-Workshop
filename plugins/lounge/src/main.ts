@@ -150,8 +150,10 @@ function CategoryContextMenu({ position, categoryId, onRename, onDelete, onClose
 
 // ── Agent Context Menu ──────────────────────────────────────────────────
 
-function AgentContextMenu({ position, categories, currentCategoryId, onMoveTo, onCreateCircle, onClose }: {
+function AgentContextMenu({ position, agent, api, categories, currentCategoryId, onMoveTo, onCreateCircle, onClose }: {
   position: { x: number; y: number };
+  agent: AgentInfo;
+  api: PluginAPI;
   categories: LoungeCategory[];
   currentCategoryId: string;
   onMoveTo: (categoryId: string) => void;
@@ -198,12 +200,58 @@ function AgentContextMenu({ position, categories, currentCategoryId, onMoveTo, o
     return { left: x, top: y };
   }, [showSubmenu, categories.length]);
 
+  const isRunning = agent.status === 'running' || agent.status === 'waking' || agent.status === 'creating';
+  const isSleeping = agent.status === 'sleeping';
+
+  const menuItemClass = 'w-full flex items-center gap-2 px-3 py-1.5 text-xs text-ctp-subtext0 hover:bg-surface-1 hover:text-ctp-text transition-colors cursor-pointer';
+
   return React.createElement('div', {
     ref: menuRef,
     className: 'fixed z-50 min-w-[160px] py-1 rounded-lg shadow-xl border border-surface-1 bg-ctp-mantle',
     style,
     'data-testid': 'lounge-agent-context-menu',
   },
+    // ── Agent lifecycle actions ──
+    isRunning && React.createElement('button', {
+      className: menuItemClass,
+      onClick: () => { api.agents.kill(agent.id).catch(() => {}); onClose(); },
+      'data-testid': 'lounge-ctx-stop',
+    },
+      React.createElement('svg', {
+        width: 12, height: 12, viewBox: '0 0 24 24', fill: 'none',
+        stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round',
+      }, React.createElement('rect', { x: '6', y: '6', width: '12', height: '12', rx: '1' })),
+      React.createElement('span', null, 'Stop'),
+    ),
+    isSleeping && React.createElement('button', {
+      className: menuItemClass,
+      onClick: () => { api.agents.resume(agent.id).catch(() => {}); onClose(); },
+      'data-testid': 'lounge-ctx-wake',
+    },
+      React.createElement('svg', {
+        width: 12, height: 12, viewBox: '0 0 24 24', fill: 'none',
+        stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round',
+      }, React.createElement('polygon', { points: '5 3 19 12 5 21 5 3' })),
+      React.createElement('span', null, 'Wake'),
+    ),
+    // Pop Out
+    React.createElement('button', {
+      className: menuItemClass,
+      onClick: () => { api.navigation.popOutAgent(agent.id).catch(() => {}); onClose(); },
+      'data-testid': 'lounge-ctx-popout',
+    },
+      React.createElement('svg', {
+        width: 12, height: 12, viewBox: '0 0 24 24', fill: 'none',
+        stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round',
+      },
+        React.createElement('path', { d: 'M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6' }),
+        React.createElement('polyline', { points: '15 3 21 3 21 9' }),
+        React.createElement('line', { x1: '10', y1: '14', x2: '21', y2: '3' }),
+      ),
+      React.createElement('span', null, 'Pop Out'),
+    ),
+    // Divider between lifecycle and circle actions
+    React.createElement('div', { className: 'mx-2 my-1 border-t border-surface-1' }),
     // "Move to" with submenu
     React.createElement('div', { className: 'relative' },
       React.createElement('button', {
@@ -471,7 +519,7 @@ function CircleDialog({ mode, onConfirm, onCancel, existingCategories, initialNa
   );
 }
 
-function CategorySection({ category, agents, allAgents, allCategories, projects, isCollapsed, selectedAgentId, onToggle, onSelectAgent, onEditCircle, onDelete, onMoveAgent, onPlaceAgent, onCreateCircle, onReorderCategory }: {
+function CategorySection({ category, agents, allAgents, allCategories, projects, isCollapsed, selectedAgentId, api, onToggle, onSelectAgent, onEditCircle, onDelete, onMoveAgent, onPlaceAgent, onCreateCircle, onReorderCategory }: {
   category: LoungeCategory;
   agents: AgentInfo[];
   allAgents: AgentInfo[];
@@ -479,6 +527,7 @@ function CategorySection({ category, agents, allAgents, allCategories, projects,
   projects: { id: string; name: string; path: string }[];
   isCollapsed: boolean;
   selectedAgentId: string | null;
+  api: PluginAPI;
   onToggle: () => void;
   onSelectAgent: (agentId: string, projectId: string) => void;
   onEditCircle: (categoryId: string) => void;
@@ -609,14 +658,20 @@ function CategorySection({ category, agents, allAgents, allCategories, projects,
       className: 'px-8 py-2 text-[11px] text-ctp-overlay0 italic',
     }, 'Move agents here via right-click'),
     // Agent context menu
-    agentContextMenu && React.createElement(AgentContextMenu, {
-      position: agentContextMenu,
-      categories: allCategories,
-      currentCategoryId: category.id,
-      onMoveTo: (targetCategoryId: string) => onMoveAgent(agentContextMenu.agentId, targetCategoryId),
-      onCreateCircle: () => onCreateCircle(agentContextMenu.agentId),
-      onClose: () => setAgentContextMenu(null),
-    }),
+    agentContextMenu && (() => {
+      const ctxAgent = agents.find((a) => a.id === agentContextMenu.agentId) ?? allAgents.find((a) => a.id === agentContextMenu.agentId);
+      if (!ctxAgent) return null;
+      return React.createElement(AgentContextMenu, {
+        position: agentContextMenu,
+        agent: ctxAgent,
+        api,
+        categories: allCategories,
+        currentCategoryId: category.id,
+        onMoveTo: (targetCategoryId: string) => onMoveAgent(agentContextMenu.agentId, targetCategoryId),
+        onCreateCircle: () => onCreateCircle(agentContextMenu.agentId),
+        onClose: () => setAgentContextMenu(null),
+      });
+    })(),
   );
 }
 
@@ -860,6 +915,7 @@ export function MainPanel({ api }: { api: PluginAPI }) {
                 projects,
                 isCollapsed: collapsed.has(cat.id),
                 selectedAgentId,
+                api,
                 onToggle: () => toggleCollapsed(cat.id),
                 onSelectAgent: handleSelectAgent,
                 onEditCircle: handleEditCircle,
