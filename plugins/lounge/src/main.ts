@@ -333,7 +333,8 @@ function EmojiPicker({ currentEmoji, onSelect, onClose }: {
 
   return React.createElement('div', {
     ref,
-    className: 'ml-8 mr-3 mb-1 p-2 rounded-lg bg-ctp-mantle border border-surface-1 shadow-lg grid grid-cols-8 gap-1',
+    className: 'ml-8 mr-3 mb-1 p-2 rounded-lg bg-ctp-mantle border border-surface-1 shadow-lg',
+    style: { display: 'grid', gridTemplateColumns: 'repeat(8, 1fr)', gap: '4px' },
     'data-testid': 'lounge-emoji-picker',
   },
     ...EMOJI_OPTIONS.map((emoji) =>
@@ -427,7 +428,8 @@ function CircleDialog({ mode, onConfirm, onCancel, existingCategories, initialNa
       ),
       // Inline emoji picker
       showEmojis && React.createElement('div', {
-        className: 'mt-2 p-2 rounded-lg bg-ctp-base border border-surface-1 grid grid-cols-8 gap-1',
+        className: 'mt-2 p-2 rounded-lg bg-ctp-base border border-surface-1',
+        style: { display: 'grid', gridTemplateColumns: 'repeat(8, 1fr)', gap: '4px' },
         'data-testid': 'lounge-circle-dialog-emoji-picker',
       },
         ...EMOJI_OPTIONS.map((e) =>

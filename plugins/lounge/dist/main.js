@@ -723,7 +723,8 @@ function CircleDialog({ mode, onConfirm, onCancel, existingCategories, initialNa
       showEmojis && React2.createElement(
         "div",
         {
-          className: "mt-2 p-2 rounded-lg bg-ctp-base border border-surface-1 grid grid-cols-8 gap-1",
+          className: "mt-2 p-2 rounded-lg bg-ctp-base border border-surface-1",
+          style: { display: "grid", gridTemplateColumns: "repeat(8, 1fr)", gap: "4px" },
           "data-testid": "lounge-circle-dialog-emoji-picker"
         },
         ...EMOJI_OPTIONS.map(
