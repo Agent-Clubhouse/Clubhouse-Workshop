@@ -60,6 +60,8 @@ export interface LoungeState {
   categoryOrder: string[];
   /** User-defined emoji overrides keyed by category ID. */
   categoryEmojis: Record<string, string>;
+  /** Per-circle agent ordering: categoryId → ordered agentId array. */
+  agentOrder: Record<string, string[]>;
   /** Whether persisted state has been loaded (blocks mutations until true). */
   hydrated: boolean;
 
@@ -69,6 +71,7 @@ export interface LoungeState {
   selectAgent(agentId: string | null, projectId?: string | null): void;
   renameCategory(categoryId: string, label: string): void;
   moveAgent(agentId: string, targetCategoryId: string): void;
+  placeAgent(agentId: string, targetCategoryId: string, beforeAgentId: string | null): void;
   addCircle(label: string): string;
   deleteCircle(circleId: string): void;
   reorderCategory(fromId: string, toId: string): void;
@@ -85,6 +88,7 @@ export interface LoungePersistedState {
   nextCircleId: number;
   categoryOrder: string[];
   categoryEmojis: Record<string, string>;
+  agentOrder: Record<string, string[]>;
   collapsed: string[];
 }
 
@@ -97,6 +101,7 @@ export function getPersistedState(state: LoungeState): LoungePersistedState {
     nextCircleId: state.nextCircleId,
     categoryOrder: state.categoryOrder,
     categoryEmojis: state.categoryEmojis,
+    agentOrder: state.agentOrder,
     collapsed: Array.from(state.collapsed),
   };
 }
@@ -140,6 +145,26 @@ export function groupAgentsByCategory(
   }
 
   return groups;
+}
+
+/**
+ * Sort agents within a category according to a persisted order array.
+ * Agents in the order come first (in that order); the rest append in their original order.
+ */
+export function sortAgentsByOrder(agents: AgentInfo[], order: string[] | undefined): AgentInfo[] {
+  if (!order || order.length === 0) return agents;
+  const posMap = new Map(order.map((id, i) => [id, i]));
+  const ordered: AgentInfo[] = [];
+  const unordered: AgentInfo[] = [];
+  for (const agent of agents) {
+    if (posMap.has(agent.id)) {
+      ordered.push(agent);
+    } else {
+      unordered.push(agent);
+    }
+  }
+  ordered.sort((a, b) => posMap.get(a.id)! - posMap.get(b.id)!);
+  return [...ordered, ...unordered];
 }
 
 /**
@@ -212,6 +237,7 @@ export const createLoungeStore = () =>
     nextCircleId: 1,
     categoryOrder: [],
     categoryEmojis: {},
+    agentOrder: {},
     hydrated: false,
 
     deriveCategories(projects: ProjectInfo[]) {
@@ -297,9 +323,52 @@ export const createLoungeStore = () =>
 
     moveAgent(agentId: string, targetCategoryId: string) {
       if (!get().hydrated) return;
-      set((state) => ({
-        agentCategoryOverrides: { ...state.agentCategoryOverrides, [agentId]: targetCategoryId },
-      }));
+      set((state) => {
+        // Remove from old category's agent order
+        const newAgentOrder = { ...state.agentOrder };
+        for (const [catId, order] of Object.entries(newAgentOrder)) {
+          if (order.includes(agentId)) {
+            newAgentOrder[catId] = order.filter((id) => id !== agentId);
+          }
+        }
+        // Append to new category's agent order
+        const targetOrder = newAgentOrder[targetCategoryId] ?? [];
+        newAgentOrder[targetCategoryId] = [...targetOrder, agentId];
+        return {
+          agentCategoryOverrides: { ...state.agentCategoryOverrides, [agentId]: targetCategoryId },
+          agentOrder: newAgentOrder,
+        };
+      });
+    },
+
+    placeAgent(agentId: string, targetCategoryId: string, beforeAgentId: string | null) {
+      if (!get().hydrated) return;
+      set((state) => {
+        const newAgentOrder = { ...state.agentOrder };
+        // Remove from all category orders
+        for (const [catId, order] of Object.entries(newAgentOrder)) {
+          if (order.includes(agentId)) {
+            newAgentOrder[catId] = order.filter((id) => id !== agentId);
+          }
+        }
+        // Insert into target category at position
+        const targetOrder = [...(newAgentOrder[targetCategoryId] ?? [])];
+        if (beforeAgentId) {
+          const idx = targetOrder.indexOf(beforeAgentId);
+          if (idx >= 0) {
+            targetOrder.splice(idx, 0, agentId);
+          } else {
+            targetOrder.push(agentId);
+          }
+        } else {
+          targetOrder.push(agentId);
+        }
+        newAgentOrder[targetCategoryId] = targetOrder;
+        return {
+          agentCategoryOverrides: { ...state.agentCategoryOverrides, [agentId]: targetCategoryId },
+          agentOrder: newAgentOrder,
+        };
+      });
     },
 
     addCircle(label: string): string {
@@ -343,6 +412,7 @@ export const createLoungeStore = () =>
         const newOrder = state.categoryOrder.filter((id) => id !== circleId);
         const { [circleId]: _emoji, ...newEmojis } = state.categoryEmojis;
         const { [circleId]: _label, ...newLabels } = state.renamedLabels;
+        const { [circleId]: _agentOrder, ...newAgentOrder } = state.agentOrder;
         const newCollapsed = new Set(state.collapsed);
         newCollapsed.delete(circleId);
         return {
@@ -352,6 +422,7 @@ export const createLoungeStore = () =>
           categoryOrder: newOrder,
           categoryEmojis: newEmojis,
           renamedLabels: newLabels,
+          agentOrder: newAgentOrder,
           collapsed: newCollapsed,
         };
       });
@@ -403,6 +474,7 @@ export const createLoungeStore = () =>
         nextCircleId: data.nextCircleId ?? 1,
         categoryOrder: data.categoryOrder ?? [],
         categoryEmojis: data.categoryEmojis ?? {},
+        agentOrder: data.agentOrder ?? {},
         collapsed: new Set(data.collapsed ?? []),
         hydrated: true,
       });

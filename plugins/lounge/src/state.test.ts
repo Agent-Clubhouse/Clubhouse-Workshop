@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { createLoungeStore, groupAgentsByCategory, disambiguateAgentName, DEFAULT_CIRCLE_ID, DEFAULT_CIRCLE_LABEL, isReservedCircleName, isDefaultCircle, isDuplicateCircleName, getPersistedState } from './state';
+import { createLoungeStore, groupAgentsByCategory, sortAgentsByOrder, disambiguateAgentName, DEFAULT_CIRCLE_ID, DEFAULT_CIRCLE_LABEL, isReservedCircleName, isDefaultCircle, isDuplicateCircleName, getPersistedState } from './state';
 import type { LoungeCategory, LoungePersistedState } from './state';
 import type { AgentInfo, ProjectInfo } from '@clubhouse/plugin-types';
 
@@ -815,5 +815,166 @@ describe('duplicate name validation', () => {
     expect(store.getState().addCircle('')).toBe('');
     expect(store.getState().addCircle('   ')).toBe('');
     expect(store.getState().customCircles).toHaveLength(0);
+  });
+});
+
+describe('sortAgentsByOrder', () => {
+  it('returns agents in order array sequence', () => {
+    const agents = [
+      makeAgent({ id: 'a1', projectId: 'p1' }),
+      makeAgent({ id: 'a2', projectId: 'p1' }),
+      makeAgent({ id: 'a3', projectId: 'p1' }),
+    ];
+    const sorted = sortAgentsByOrder(agents, ['a3', 'a1', 'a2']);
+    expect(sorted.map((a) => a.id)).toEqual(['a3', 'a1', 'a2']);
+  });
+
+  it('appends agents not in order array at the end', () => {
+    const agents = [
+      makeAgent({ id: 'a1', projectId: 'p1' }),
+      makeAgent({ id: 'a2', projectId: 'p1' }),
+      makeAgent({ id: 'a3', projectId: 'p1' }),
+    ];
+    const sorted = sortAgentsByOrder(agents, ['a3']);
+    expect(sorted.map((a) => a.id)).toEqual(['a3', 'a1', 'a2']);
+  });
+
+  it('returns original order when order is undefined', () => {
+    const agents = [
+      makeAgent({ id: 'a1', projectId: 'p1' }),
+      makeAgent({ id: 'a2', projectId: 'p1' }),
+    ];
+    expect(sortAgentsByOrder(agents, undefined)).toEqual(agents);
+  });
+
+  it('returns original order when order is empty', () => {
+    const agents = [
+      makeAgent({ id: 'a1', projectId: 'p1' }),
+      makeAgent({ id: 'a2', projectId: 'p1' }),
+    ];
+    expect(sortAgentsByOrder(agents, [])).toEqual(agents);
+  });
+
+  it('ignores order entries for agents not in the list', () => {
+    const agents = [makeAgent({ id: 'a1', projectId: 'p1' })];
+    const sorted = sortAgentsByOrder(agents, ['a99', 'a1', 'a50']);
+    expect(sorted.map((a) => a.id)).toEqual(['a1']);
+  });
+});
+
+describe('placeAgent', () => {
+  it('places agent before a target agent in the same circle', () => {
+    const store = createHydratedStore();
+    store.getState().deriveCategories([makeProject({ id: 'p1', name: 'P1' })]);
+    // Set up initial order
+    store.getState().placeAgent('a1', 'project:p1', null);
+    store.getState().placeAgent('a2', 'project:p1', null);
+    store.getState().placeAgent('a3', 'project:p1', null);
+    expect(store.getState().agentOrder['project:p1']).toEqual(['a1', 'a2', 'a3']);
+
+    // Move a3 before a1
+    store.getState().placeAgent('a3', 'project:p1', 'a1');
+    expect(store.getState().agentOrder['project:p1']).toEqual(['a3', 'a1', 'a2']);
+  });
+
+  it('appends agent to end when beforeAgentId is null', () => {
+    const store = createHydratedStore();
+    store.getState().placeAgent('a1', 'circle:general', null);
+    store.getState().placeAgent('a2', 'circle:general', null);
+    expect(store.getState().agentOrder['circle:general']).toEqual(['a1', 'a2']);
+  });
+
+  it('moves agent between circles with position', () => {
+    const store = createHydratedStore();
+    store.getState().deriveCategories([makeProject({ id: 'p1', name: 'P1' })]);
+    store.getState().addCircle('Favorites');
+
+    // Place agents in project circle
+    store.getState().placeAgent('a1', 'project:p1', null);
+    store.getState().placeAgent('a2', 'project:p1', null);
+
+    // Place a3 in Favorites
+    store.getState().placeAgent('a3', 'circle:1', null);
+
+    // Move a1 from project to Favorites, before a3
+    store.getState().placeAgent('a1', 'circle:1', 'a3');
+
+    expect(store.getState().agentOrder['circle:1']).toEqual(['a1', 'a3']);
+    expect(store.getState().agentOrder['project:p1']).toEqual(['a2']);
+    expect(store.getState().agentCategoryOverrides['a1']).toBe('circle:1');
+  });
+
+  it('removes agent from old category order on cross-circle move', () => {
+    const store = createHydratedStore();
+    store.getState().placeAgent('a1', 'circle:general', null);
+    store.getState().placeAgent('a2', 'circle:general', null);
+
+    store.getState().addCircle('Test');
+    store.getState().placeAgent('a1', 'circle:1', null);
+
+    expect(store.getState().agentOrder['circle:general']).toEqual(['a2']);
+    expect(store.getState().agentOrder['circle:1']).toEqual(['a1']);
+  });
+
+  it('is blocked before hydration', () => {
+    const store = createLoungeStore();
+    store.getState().placeAgent('a1', 'circle:general', null);
+    expect(store.getState().agentOrder).toEqual({});
+  });
+});
+
+describe('moveAgent with agentOrder', () => {
+  it('appends to target circle order and removes from source', () => {
+    const store = createHydratedStore();
+    store.getState().placeAgent('a1', 'circle:general', null);
+    store.getState().placeAgent('a2', 'circle:general', null);
+
+    store.getState().addCircle('New');
+    store.getState().moveAgent('a1', 'circle:1');
+
+    expect(store.getState().agentOrder['circle:general']).toEqual(['a2']);
+    expect(store.getState().agentOrder['circle:1']).toEqual(['a1']);
+  });
+});
+
+describe('deleteCircle cleans up agentOrder', () => {
+  it('removes the deleted circle from agentOrder', () => {
+    const store = createHydratedStore();
+    store.getState().addCircle('Temp');
+    store.getState().placeAgent('a1', 'circle:1', null);
+    expect(store.getState().agentOrder['circle:1']).toEqual(['a1']);
+
+    store.getState().deleteCircle('circle:1');
+    expect(store.getState().agentOrder['circle:1']).toBeUndefined();
+  });
+});
+
+describe('persistence round-trip with agentOrder', () => {
+  it('persists and restores agentOrder', () => {
+    const store = createHydratedStore();
+    store.getState().placeAgent('a1', 'circle:general', null);
+    store.getState().placeAgent('a2', 'circle:general', null);
+    store.getState().placeAgent('a2', 'circle:general', 'a1');
+
+    const snapshot = getPersistedState(store.getState());
+    expect(snapshot.agentOrder['circle:general']).toEqual(['a2', 'a1']);
+
+    const store2 = createLoungeStore();
+    store2.getState().loadPersistedState(snapshot);
+    expect(store2.getState().agentOrder['circle:general']).toEqual(['a2', 'a1']);
+  });
+
+  it('loadPersistedState handles missing agentOrder gracefully', () => {
+    const store = createLoungeStore();
+    store.getState().loadPersistedState({
+      renamedLabels: {},
+      agentCategoryOverrides: {},
+      customCircles: [],
+      nextCircleId: 1,
+      categoryOrder: [],
+      categoryEmojis: {},
+      collapsed: [],
+    } as LoungePersistedState);
+    expect(store.getState().agentOrder).toEqual({});
   });
 });

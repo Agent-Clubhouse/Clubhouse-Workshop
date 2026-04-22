@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import type { PluginContext, PluginAPI, PluginModule, AgentInfo } from '@clubhouse/plugin-types';
-import { createLoungeStore, groupAgentsByCategory, disambiguateAgentName, isDefaultCircle, isReservedCircleName, isDuplicateCircleName, getPersistedState, DEFAULT_CUSTOM_EMOJI } from './state';
+import { createLoungeStore, groupAgentsByCategory, sortAgentsByOrder, disambiguateAgentName, isDefaultCircle, isReservedCircleName, isDuplicateCircleName, getPersistedState, DEFAULT_CUSTOM_EMOJI } from './state';
 import type { LoungeCategory, LoungePersistedState } from './state';
 
 const useLoungeStore = createLoungeStore();
@@ -471,7 +471,7 @@ function CircleDialog({ mode, onConfirm, onCancel, existingCategories, initialNa
   );
 }
 
-function CategorySection({ category, agents, allAgents, allCategories, projects, isCollapsed, selectedAgentId, onToggle, onSelectAgent, onEditCircle, onDelete, onMoveAgent, onCreateCircle, onReorderCategory }: {
+function CategorySection({ category, agents, allAgents, allCategories, projects, isCollapsed, selectedAgentId, onToggle, onSelectAgent, onEditCircle, onDelete, onMoveAgent, onPlaceAgent, onCreateCircle, onReorderCategory }: {
   category: LoungeCategory;
   agents: AgentInfo[];
   allAgents: AgentInfo[];
@@ -484,6 +484,7 @@ function CategorySection({ category, agents, allAgents, allCategories, projects,
   onEditCircle: (categoryId: string) => void;
   onDelete: (categoryId: string) => void;
   onMoveAgent: (agentId: string, targetCategoryId: string) => void;
+  onPlaceAgent: (agentId: string, targetCategoryId: string, beforeAgentId: string | null) => void;
   onCreateCircle: (agentId?: string) => void;
   onReorderCategory: (fromId: string, toId: string) => void;
 }) {
@@ -527,14 +528,15 @@ function CategorySection({ category, agents, allAgents, allCategories, projects,
     setDragOver(false);
     const agentId = e.dataTransfer.getData('application/x-lounge-agent');
     if (agentId) {
-      onMoveAgent(agentId, category.id);
+      // Agent dropped on category header/whitespace — move to end of this circle
+      onPlaceAgent(agentId, category.id, null);
       return;
     }
     const fromCategoryId = e.dataTransfer.getData('application/x-lounge-category');
     if (fromCategoryId && fromCategoryId !== category.id && !isGeneralCircle) {
       onReorderCategory(fromCategoryId, category.id);
     }
-  }, [category.id, onMoveAgent, onReorderCategory, isGeneralCircle]);
+  }, [category.id, onPlaceAgent, onReorderCategory, isGeneralCircle]);
 
   return React.createElement('div', {
     'data-testid': `lounge-category-${category.id}`,
@@ -567,19 +569,40 @@ function CategorySection({ category, agents, allAgents, allCategories, projects,
       onClose: () => setContextMenu(null),
     }),
     // Agent rows (hidden when collapsed)
-    !isCollapsed && agents.length > 0 && agents.map((agent) => {
+    !isCollapsed && agents.length > 0 && agents.map((agent, idx) => {
       const displayName = disambiguateAgentName(agent, allAgents, projects);
-      return React.createElement(AgentRow, {
+      const nextAgentId = idx < agents.length - 1 ? agents[idx + 1].id : null;
+      return React.createElement('div', {
         key: agent.id,
-        agent,
-        displayName,
-        isSelected: selectedAgentId === agent.id,
-        onClick: () => onSelectAgent(agent.id, agent.projectId),
-        onContextMenu: (e: React.MouseEvent) => {
+        onDragOver: (e: React.DragEvent) => {
+          if (!e.dataTransfer.types.includes('application/x-lounge-agent')) return;
           e.preventDefault();
-          setAgentContextMenu({ agentId: agent.id, x: e.clientX, y: e.clientY });
+          e.stopPropagation();
+          e.dataTransfer.dropEffect = 'move';
         },
-      });
+        onDrop: (e: React.DragEvent) => {
+          const draggedId = e.dataTransfer.getData('application/x-lounge-agent');
+          if (!draggedId || draggedId === agent.id) return;
+          e.preventDefault();
+          e.stopPropagation();
+          // Determine insert position based on mouse Y relative to element midpoint
+          const rect = e.currentTarget.getBoundingClientRect();
+          const isUpperHalf = e.clientY < rect.top + rect.height / 2;
+          const beforeId = isUpperHalf ? agent.id : nextAgentId;
+          onPlaceAgent(draggedId, category.id, beforeId);
+        },
+      },
+        React.createElement(AgentRow, {
+          agent,
+          displayName,
+          isSelected: selectedAgentId === agent.id,
+          onClick: () => onSelectAgent(agent.id, agent.projectId),
+          onContextMenu: (e: React.MouseEvent) => {
+            e.preventDefault();
+            setAgentContextMenu({ agentId: agent.id, x: e.clientX, y: e.clientY });
+          },
+        }),
+      );
     }),
     // Empty custom circle hint
     !isCollapsed && agents.length === 0 && React.createElement('div', {
@@ -661,6 +684,8 @@ export function MainPanel({ api }: { api: PluginAPI }) {
   const deleteCircle = useLoungeStore((s) => s.deleteCircle);
   const reorderCategory = useLoungeStore((s) => s.reorderCategory);
   const setCategoryEmoji = useLoungeStore((s) => s.setCategoryEmoji);
+  const placeAgent = useLoungeStore((s) => s.placeAgent);
+  const agentOrder = useLoungeStore((s) => s.agentOrder);
   const loadPersistedState = useLoungeStore((s) => s.loadPersistedState);
 
   // Load persisted state on mount
@@ -699,7 +724,7 @@ export function MainPanel({ api }: { api: PluginAPI }) {
         api.storage.global.write(STORAGE_KEY, getPersistedState(state)).catch(() => {});
       }
     };
-  }, [api, loaded, renamedLabels, agentCategoryOverrides, customCircles, nextCircleId, categoryOrder, categoryEmojis, collapsed]);
+  }, [api, loaded, renamedLabels, agentCategoryOverrides, customCircles, nextCircleId, categoryOrder, categoryEmojis, agentOrder, collapsed]);
 
   // Force re-render when agents change
   const [agentTick, setAgentTick] = useState(0);
@@ -825,7 +850,7 @@ export function MainPanel({ api }: { api: PluginAPI }) {
       },
         hasAgents || categories.some((c) => !c.projectId)
           ? visibleCategories.map((cat) => {
-              const catAgents = grouped.get(cat.id) ?? [];
+              const catAgents = sortAgentsByOrder(grouped.get(cat.id) ?? [], agentOrder[cat.id]);
               return React.createElement(CategorySection, {
                 key: cat.id,
                 category: cat,
@@ -840,6 +865,7 @@ export function MainPanel({ api }: { api: PluginAPI }) {
                 onEditCircle: handleEditCircle,
                 onDelete: deleteCircle,
                 onMoveAgent: moveAgent,
+                onPlaceAgent: placeAgent,
                 onCreateCircle: handleCreateCircle,
                 onReorderCategory: reorderCategory,
               });
