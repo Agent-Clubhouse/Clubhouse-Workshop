@@ -71,7 +71,10 @@ function getPersistedState(state) {
     categoryOrder: state.categoryOrder,
     categoryEmojis: state.categoryEmojis,
     agentOrder: state.agentOrder,
-    collapsed: Array.from(state.collapsed)
+    collapsed: Array.from(state.collapsed),
+    showTags: state.showTags,
+    sidebarCollapsed: state.sidebarCollapsed,
+    sidebarWidth: state.sidebarWidth
   };
 }
 function groupAgentsByCategory(agents, categories, overrides = {}) {
@@ -155,6 +158,9 @@ var createLoungeStore = () => create((set, get) => ({
   categoryEmojis: {},
   agentOrder: {},
   hydrated: false,
+  showTags: true,
+  sidebarCollapsed: false,
+  sidebarWidth: 256,
   deriveCategories(projects) {
     set((state) => {
       const projectCategories = projects.map((p) => {
@@ -346,6 +352,16 @@ var createLoungeStore = () => create((set, get) => ({
       return { categoryEmojis: newEmojis, categories: newCategories, customCircles: newCustomCircles };
     });
   },
+  toggleShowTags() {
+    set((state) => ({ showTags: !state.showTags }));
+  },
+  toggleSidebar() {
+    set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed }));
+  },
+  setSidebarWidth(width) {
+    const clamped = Math.max(160, Math.min(480, width));
+    set({ sidebarWidth: clamped });
+  },
   loadPersistedState(data) {
     set({
       renamedLabels: data.renamedLabels ?? {},
@@ -356,10 +372,63 @@ var createLoungeStore = () => create((set, get) => ({
       categoryEmojis: data.categoryEmojis ?? {},
       agentOrder: data.agentOrder ?? {},
       collapsed: new Set(data.collapsed ?? []),
+      showTags: data.showTags ?? true,
+      sidebarCollapsed: data.sidebarCollapsed ?? false,
+      sidebarWidth: data.sidebarWidth ?? 256,
       hydrated: true
     });
   }
 }));
+
+// src/tag-helpers.ts
+var ORCHESTRATOR_COLORS = {
+  "claude-code": { bg: "rgba(249,115,22,0.2)", text: "#fb923c" },
+  "copilot-cli": { bg: "rgba(59,130,246,0.2)", text: "#60a5fa" }
+};
+var DEFAULT_ORCH_COLOR = { bg: "rgba(148,163,184,0.2)", text: "#94a3b8" };
+function getOrchestratorColor(id) {
+  return ORCHESTRATOR_COLORS[id] || DEFAULT_ORCH_COLOR;
+}
+var ORCHESTRATOR_DISPLAY_NAMES = {
+  "claude-code": "CC",
+  "copilot-cli": "GHCP",
+  "codex-cli": "Codex"
+};
+function getOrchestratorLabel(orchId, allOrchestrators) {
+  const info = allOrchestrators?.find((o) => o.id === orchId);
+  if (info) return info.shortName || info.displayName || orchId;
+  return ORCHESTRATOR_DISPLAY_NAMES[orchId] || orchId;
+}
+var MODEL_PALETTE = [
+  { bg: "rgba(168,85,247,0.2)", text: "#c084fc" },
+  { bg: "rgba(20,184,166,0.2)", text: "#2dd4bf" },
+  { bg: "rgba(236,72,153,0.2)", text: "#f472b6" },
+  { bg: "rgba(34,197,94,0.2)", text: "#4ade80" },
+  { bg: "rgba(251,191,36,0.2)", text: "#fbbf24" },
+  { bg: "rgba(99,102,241,0.2)", text: "#818cf8" },
+  { bg: "rgba(14,165,233,0.2)", text: "#38bdf8" }
+];
+var DEFAULT_MODEL_COLOR = { bg: "rgba(148,163,184,0.15)", text: "#94a3b8" };
+var modelColorCache = /* @__PURE__ */ new Map();
+function getModelColor(model) {
+  let color = modelColorCache.get(model);
+  if (!color) {
+    let hash = 0;
+    for (let i = 0; i < model.length; i++) hash = hash * 31 + model.charCodeAt(i) | 0;
+    color = MODEL_PALETTE[(hash % MODEL_PALETTE.length + MODEL_PALETTE.length) % MODEL_PALETTE.length];
+    modelColorCache.set(model, color);
+  }
+  return color;
+}
+function formatModelLabel(model) {
+  if (!model || model === "default") return "Default";
+  return model.charAt(0).toUpperCase() + model.slice(1);
+}
+var FREE_AGENT_COLOR = { bg: "rgba(239,68,68,0.15)", text: "#f87171" };
+function getModelTagColor(model) {
+  if (!model || model === "default") return DEFAULT_MODEL_COLOR;
+  return getModelColor(model);
+}
 
 // src/main.ts
 var useLoungeStore = createLoungeStore();
@@ -396,7 +465,7 @@ function statusLabel(status) {
       return status;
   }
 }
-function AgentRow({ agent, displayName, isSelected, onClick, onContextMenu }) {
+function AgentRow({ agent, displayName, isSelected, showTags, orchestrators, onClick, onContextMenu }) {
   const handleDragStart = useCallback((e) => {
     e.dataTransfer.setData("application/x-lounge-agent", agent.id);
     e.dataTransfer.effectAllowed = "move";
@@ -416,7 +485,40 @@ function AgentRow({ agent, displayName, isSelected, onClick, onContextMenu }) {
     React2.createElement("span", {
       className: `w-2 h-2 rounded-full flex-shrink-0 ${statusColor(agent.status)}`
     }),
-    React2.createElement("span", { className: "truncate flex-1" }, displayName),
+    React2.createElement(
+      "div",
+      { className: "min-w-0 flex-1" },
+      React2.createElement("span", { className: "truncate block" }, displayName),
+      showTags && React2.createElement(
+        "div",
+        {
+          className: "flex items-center gap-1 mt-0.5 flex-wrap",
+          "data-testid": `lounge-agent-tags-${agent.id}`
+        },
+        // Provider tag
+        agent.orchestrator && (() => {
+          const c = getOrchestratorColor(agent.orchestrator);
+          return React2.createElement("span", {
+            style: { backgroundColor: c.bg, color: c.text, fontSize: "10px", padding: "1px 6px", borderRadius: "4px", lineHeight: "16px", whiteSpace: "nowrap" },
+            "data-testid": "lounge-tag-provider"
+          }, getOrchestratorLabel(agent.orchestrator, orchestrators));
+        })(),
+        // Model tag
+        (() => {
+          const label = formatModelLabel(agent.model);
+          const c = getModelTagColor(agent.model);
+          return React2.createElement("span", {
+            style: { backgroundColor: c.bg, color: c.text, fontSize: "10px", padding: "1px 6px", borderRadius: "4px", lineHeight: "16px", fontFamily: "monospace", whiteSpace: "nowrap" },
+            "data-testid": "lounge-tag-model"
+          }, label);
+        })(),
+        // Free Agent tag
+        agent.freeAgentMode && React2.createElement("span", {
+          style: { backgroundColor: FREE_AGENT_COLOR.bg, color: FREE_AGENT_COLOR.text, fontSize: "10px", padding: "1px 6px", borderRadius: "4px", lineHeight: "16px", whiteSpace: "nowrap" },
+          "data-testid": "lounge-tag-free"
+        }, "Free")
+      )
+    ),
     agent.status === "running" && React2.createElement("span", {
       className: "text-[10px] text-ctp-green flex-shrink-0"
     }, "\u25CF")
@@ -909,7 +1011,7 @@ function CircleDialog({ mode, onConfirm, onCancel, existingCategories, initialNa
     )
   );
 }
-function CategorySection({ category, agents, allAgents, allCategories, projects, isCollapsed, selectedAgentId, api, onToggle, onSelectAgent, onEditCircle, onDelete, onMoveAgent, onPlaceAgent, onCreateCircle, onReorderCategory }) {
+function CategorySection({ category, agents, allAgents, allCategories, projects, isCollapsed, selectedAgentId, showTags, orchestrators, api, onToggle, onSelectAgent, onEditCircle, onDelete, onMoveAgent, onPlaceAgent, onCreateCircle, onReorderCategory }) {
   const [contextMenu, setContextMenu] = useState(null);
   const [agentContextMenu, setAgentContextMenu] = useState(null);
   const [dragOver, setDragOver] = useState(false);
@@ -1023,6 +1125,8 @@ function CategorySection({ category, agents, allAgents, allCategories, projects,
           agent,
           displayName,
           isSelected: selectedAgentId === agent.id,
+          showTags,
+          orchestrators,
           onClick: () => onSelectAgent(agent.id, agent.projectId),
           onContextMenu: (e) => {
             e.preventDefault();
@@ -1050,6 +1154,94 @@ function CategorySection({ category, agents, allAgents, allCategories, projects,
         onClose: () => setAgentContextMenu(null)
       });
     })()
+  );
+}
+function ResizeDivider({ onResize, onToggleCollapse, collapsed }) {
+  const [hovered, setHovered] = useState(false);
+  const draggingRef = useRef(false);
+  const startXRef = useRef(0);
+  const handleMouseDown = useCallback((e) => {
+    e.preventDefault();
+    draggingRef.current = true;
+    startXRef.current = e.clientX;
+    document.body.style.userSelect = "none";
+    document.body.style.cursor = "col-resize";
+    const handleMouseMove = (ev) => {
+      const delta = ev.clientX - startXRef.current;
+      if (delta !== 0) {
+        onResize(delta);
+        startXRef.current = ev.clientX;
+      }
+    };
+    const handleMouseUp = () => {
+      draggingRef.current = false;
+      document.body.style.userSelect = "";
+      document.body.style.cursor = "";
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+    };
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
+  }, [onResize]);
+  const handleDoubleClick = useCallback(() => {
+    onToggleCollapse();
+  }, [onToggleCollapse]);
+  const chevron = collapsed ? "\u25B6" : "\u25C0";
+  return React2.createElement(
+    "div",
+    {
+      style: {
+        width: 5,
+        cursor: "col-resize",
+        position: "relative",
+        flexShrink: 0
+      },
+      onMouseDown: handleMouseDown,
+      onDoubleClick: handleDoubleClick,
+      onMouseEnter: () => setHovered(true),
+      onMouseLeave: () => setHovered(false),
+      "data-testid": "lounge-sidebar-edge"
+    },
+    // Visible center line
+    React2.createElement("div", {
+      style: {
+        position: "absolute",
+        top: 0,
+        bottom: 0,
+        left: "50%",
+        transform: "translateX(-50%)",
+        width: 1,
+        backgroundColor: hovered ? "rgba(137, 180, 250, 0.6)" : "rgba(88, 91, 112, 0.5)",
+        transition: "background-color 100ms"
+      }
+    }),
+    // Chevron button — only visible on hover
+    hovered && React2.createElement("button", {
+      onClick: (e) => {
+        e.stopPropagation();
+        onToggleCollapse();
+      },
+      style: {
+        position: "absolute",
+        top: "50%",
+        left: "50%",
+        transform: "translate(-50%, -50%)",
+        width: 16,
+        height: 16,
+        borderRadius: "50%",
+        backgroundColor: "#1e1e2e",
+        border: "1px solid rgba(88, 91, 112, 0.5)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        fontSize: "8px",
+        color: "#a6adc8",
+        cursor: "pointer",
+        padding: 0,
+        zIndex: 10
+      },
+      "data-testid": "lounge-collapse-sidebar"
+    }, chevron)
   );
 }
 function EmptyState() {
@@ -1124,6 +1316,12 @@ function MainPanel({ api }) {
   const placeAgent = useLoungeStore((s) => s.placeAgent);
   const agentOrder = useLoungeStore((s) => s.agentOrder);
   const loadPersistedState = useLoungeStore((s) => s.loadPersistedState);
+  const showTags = useLoungeStore((s) => s.showTags);
+  const toggleShowTags = useLoungeStore((s) => s.toggleShowTags);
+  const sidebarCollapsed = useLoungeStore((s) => s.sidebarCollapsed);
+  const toggleSidebar = useLoungeStore((s) => s.toggleSidebar);
+  const sidebarWidth = useLoungeStore((s) => s.sidebarWidth);
+  const setSidebarWidth = useLoungeStore((s) => s.setSidebarWidth);
   const [loaded, setLoaded] = useState(false);
   useEffect(() => {
     api.storage.global.read(STORAGE_KEY).then((data) => {
@@ -1157,7 +1355,7 @@ function MainPanel({ api }) {
         });
       }
     };
-  }, [api, loaded, renamedLabels, agentCategoryOverrides, customCircles, nextCircleId, categoryOrder, categoryEmojis, agentOrder, collapsed]);
+  }, [api, loaded, renamedLabels, agentCategoryOverrides, customCircles, nextCircleId, categoryOrder, categoryEmojis, agentOrder, collapsed, showTags, sidebarCollapsed, sidebarWidth]);
   const [agentTick, setAgentTick] = useState(0);
   useEffect(() => {
     const sub = api.agents.onAnyChange(() => setAgentTick((n) => n + 1));
@@ -1169,6 +1367,7 @@ function MainPanel({ api }) {
     deriveCategories(projects);
   }, [projects, deriveCategories, loaded]);
   const agents = useMemo(() => api.agents.list(), [api, agentTick]);
+  const orchestrators = useMemo(() => api.agents.listOrchestrators(), [api]);
   const grouped = useMemo(
     () => groupAgentsByCategory(agents, categories, agentCategoryOverrides),
     [agents, categories, agentCategoryOverrides]
@@ -1242,21 +1441,55 @@ function MainPanel({ api }) {
       className: "flex h-full w-full bg-ctp-base",
       "data-testid": "lounge-main-panel"
     },
-    // Left sidebar — agent list
+    // Left sidebar — agent list (collapsible)
     React2.createElement(
       "div",
       {
-        className: "w-64 flex-shrink-0 flex flex-col bg-ctp-mantle border-r border-surface-0 h-full min-h-0"
+        style: {
+          width: sidebarCollapsed ? "0px" : `${sidebarWidth}px`,
+          minWidth: 0,
+          transition: "width 200ms ease-in-out",
+          overflow: "hidden",
+          flexShrink: 0
+        },
+        className: "flex flex-col bg-ctp-mantle h-full min-h-0",
+        "data-testid": "lounge-sidebar"
       },
       // Header
       React2.createElement(
         "div",
         {
-          className: "px-3 py-3 border-b border-surface-0"
+          className: "px-3 py-3 border-b border-surface-0 flex items-center gap-2"
         },
         React2.createElement("h2", {
-          className: "text-xs font-semibold text-ctp-subtext0 uppercase tracking-wider"
-        }, "Lounge")
+          className: "text-xs font-semibold text-ctp-subtext0 uppercase tracking-wider flex-1"
+        }, "Lounge"),
+        // Tags toggle button
+        React2.createElement(
+          "button",
+          {
+            onClick: toggleShowTags,
+            title: showTags ? "Hide tags" : "Show tags",
+            className: "w-5 h-5 flex items-center justify-center rounded text-ctp-overlay0 hover:text-ctp-text hover:bg-surface-0 cursor-pointer transition-colors",
+            "data-testid": "lounge-toggle-tags"
+          },
+          React2.createElement(
+            "svg",
+            {
+              width: 12,
+              height: 12,
+              viewBox: "0 0 24 24",
+              fill: "none",
+              stroke: "currentColor",
+              strokeWidth: 2,
+              strokeLinecap: "round",
+              strokeLinejoin: "round",
+              style: { opacity: showTags ? 1 : 0.4 }
+            },
+            React2.createElement("path", { d: "M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" }),
+            React2.createElement("line", { x1: "7", y1: "7", x2: "7.01", y2: "7" })
+          )
+        )
       ),
       // Scrollable category list
       React2.createElement(
@@ -1276,6 +1509,8 @@ function MainPanel({ api }) {
             projects,
             isCollapsed: collapsed.has(cat.id),
             selectedAgentId,
+            showTags,
+            orchestrators,
             api,
             onToggle: () => toggleCollapsed(cat.id),
             onSelectAgent: handleSelectAgent,
@@ -1289,6 +1524,15 @@ function MainPanel({ api }) {
         }) : React2.createElement(EmptyState)
       )
     ),
+    // Sidebar resize divider (matches host ResizeDivider pattern)
+    React2.createElement(ResizeDivider, {
+      collapsed: sidebarCollapsed,
+      onToggleCollapse: toggleSidebar,
+      onResize: (delta) => {
+        const current = useLoungeStore.getState().sidebarWidth;
+        setSidebarWidth(current + delta);
+      }
+    }),
     // Right content — selected agent view
     React2.createElement(
       "div",

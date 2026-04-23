@@ -64,6 +64,12 @@ export interface LoungeState {
   agentOrder: Record<string, string[]>;
   /** Whether persisted state has been loaded (blocks mutations until true). */
   hydrated: boolean;
+  /** Whether agent tag badges are visible. */
+  showTags: boolean;
+  /** Whether the sidebar is collapsed. */
+  sidebarCollapsed: boolean;
+  /** Sidebar width in pixels (persisted). */
+  sidebarWidth: number;
 
   // Actions
   deriveCategories(projects: ProjectInfo[]): void;
@@ -76,6 +82,9 @@ export interface LoungeState {
   deleteCircle(circleId: string): void;
   reorderCategory(fromId: string, toId: string): void;
   setCategoryEmoji(categoryId: string, emoji: string): void;
+  toggleShowTags(): void;
+  toggleSidebar(): void;
+  setSidebarWidth(width: number): void;
   /** Hydrate store from persisted data. */
   loadPersistedState(data: LoungePersistedState): void;
 }
@@ -90,6 +99,9 @@ export interface LoungePersistedState {
   categoryEmojis: Record<string, string>;
   agentOrder: Record<string, string[]>;
   collapsed: string[];
+  showTags: boolean;
+  sidebarCollapsed: boolean;
+  sidebarWidth: number;
 }
 
 /** Extract the persistable subset from the store. */
@@ -103,6 +115,9 @@ export function getPersistedState(state: LoungeState): LoungePersistedState {
     categoryEmojis: state.categoryEmojis,
     agentOrder: state.agentOrder,
     collapsed: Array.from(state.collapsed),
+    showTags: state.showTags,
+    sidebarCollapsed: state.sidebarCollapsed,
+    sidebarWidth: state.sidebarWidth,
   };
 }
 
@@ -239,6 +254,9 @@ export const createLoungeStore = () =>
     categoryEmojis: {},
     agentOrder: {},
     hydrated: false,
+    showTags: true,
+    sidebarCollapsed: false,
+    sidebarWidth: 256,
 
     deriveCategories(projects: ProjectInfo[]) {
       set((state) => {
@@ -472,6 +490,19 @@ export const createLoungeStore = () =>
       });
     },
 
+    toggleShowTags() {
+      set((state) => ({ showTags: !state.showTags }));
+    },
+
+    toggleSidebar() {
+      set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed }));
+    },
+
+    setSidebarWidth(width: number) {
+      const clamped = Math.max(160, Math.min(480, width));
+      set({ sidebarWidth: clamped });
+    },
+
     loadPersistedState(data: LoungePersistedState) {
       set({
         renamedLabels: data.renamedLabels ?? {},
@@ -482,6 +513,9 @@ export const createLoungeStore = () =>
         categoryEmojis: data.categoryEmojis ?? {},
         agentOrder: data.agentOrder ?? {},
         collapsed: new Set(data.collapsed ?? []),
+        showTags: data.showTags ?? true,
+        sidebarCollapsed: data.sidebarCollapsed ?? false,
+        sidebarWidth: data.sidebarWidth ?? 256,
         hydrated: true,
       });
     },

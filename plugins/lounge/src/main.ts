@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react';
-import type { PluginContext, PluginAPI, PluginModule, AgentInfo } from '@clubhouse/plugin-types';
+import type { PluginContext, PluginAPI, PluginModule, AgentInfo, PluginOrchestratorInfo } from '@clubhouse/plugin-types';
 import { createLoungeStore, groupAgentsByCategory, sortAgentsByOrder, disambiguateAgentName, isDefaultCircle, isReservedCircleName, isDuplicateCircleName, getPersistedState, DEFAULT_CUSTOM_EMOJI } from './state';
 import type { LoungeCategory, LoungePersistedState } from './state';
+import { getOrchestratorColor, getOrchestratorLabel, formatModelLabel, getModelTagColor, FREE_AGENT_COLOR } from './tag-helpers';
 
 const useLoungeStore = createLoungeStore();
 
@@ -40,10 +41,12 @@ function statusLabel(status: AgentInfo['status']): string {
 
 // ── Agent Row ──────────────────────────────────────────────────────────
 
-function AgentRow({ agent, displayName, isSelected, onClick, onContextMenu }: {
+function AgentRow({ agent, displayName, isSelected, showTags, orchestrators, onClick, onContextMenu }: {
   agent: AgentInfo;
   displayName: string;
   isSelected: boolean;
+  showTags: boolean;
+  orchestrators: PluginOrchestratorInfo[];
   onClick: () => void;
   onContextMenu: (e: React.MouseEvent) => void;
 }) {
@@ -69,7 +72,36 @@ function AgentRow({ agent, displayName, isSelected, onClick, onContextMenu }: {
     React.createElement('span', {
       className: `w-2 h-2 rounded-full flex-shrink-0 ${statusColor(agent.status)}`,
     }),
-    React.createElement('span', { className: 'truncate flex-1' }, displayName),
+    React.createElement('div', { className: 'min-w-0 flex-1' },
+      React.createElement('span', { className: 'truncate block' }, displayName),
+      showTags && React.createElement('div', {
+        className: 'flex items-center gap-1 mt-0.5 flex-wrap',
+        'data-testid': `lounge-agent-tags-${agent.id}`,
+      },
+        // Provider tag
+        agent.orchestrator && (() => {
+          const c = getOrchestratorColor(agent.orchestrator);
+          return React.createElement('span', {
+            style: { backgroundColor: c.bg, color: c.text, fontSize: '10px', padding: '1px 6px', borderRadius: '4px', lineHeight: '16px', whiteSpace: 'nowrap' as const },
+            'data-testid': 'lounge-tag-provider',
+          }, getOrchestratorLabel(agent.orchestrator, orchestrators));
+        })(),
+        // Model tag
+        (() => {
+          const label = formatModelLabel(agent.model);
+          const c = getModelTagColor(agent.model);
+          return React.createElement('span', {
+            style: { backgroundColor: c.bg, color: c.text, fontSize: '10px', padding: '1px 6px', borderRadius: '4px', lineHeight: '16px', fontFamily: 'monospace', whiteSpace: 'nowrap' as const },
+            'data-testid': 'lounge-tag-model',
+          }, label);
+        })(),
+        // Free Agent tag
+        agent.freeAgentMode && React.createElement('span', {
+          style: { backgroundColor: FREE_AGENT_COLOR.bg, color: FREE_AGENT_COLOR.text, fontSize: '10px', padding: '1px 6px', borderRadius: '4px', lineHeight: '16px', whiteSpace: 'nowrap' as const },
+          'data-testid': 'lounge-tag-free',
+        }, 'Free'),
+      ),
+    ),
     agent.status === 'running' && React.createElement('span', {
       className: 'text-[10px] text-ctp-green flex-shrink-0',
     }, '●'),
@@ -519,7 +551,7 @@ function CircleDialog({ mode, onConfirm, onCancel, existingCategories, initialNa
   );
 }
 
-function CategorySection({ category, agents, allAgents, allCategories, projects, isCollapsed, selectedAgentId, api, onToggle, onSelectAgent, onEditCircle, onDelete, onMoveAgent, onPlaceAgent, onCreateCircle, onReorderCategory }: {
+function CategorySection({ category, agents, allAgents, allCategories, projects, isCollapsed, selectedAgentId, showTags, orchestrators, api, onToggle, onSelectAgent, onEditCircle, onDelete, onMoveAgent, onPlaceAgent, onCreateCircle, onReorderCategory }: {
   category: LoungeCategory;
   agents: AgentInfo[];
   allAgents: AgentInfo[];
@@ -527,6 +559,8 @@ function CategorySection({ category, agents, allAgents, allCategories, projects,
   projects: { id: string; name: string; path: string }[];
   isCollapsed: boolean;
   selectedAgentId: string | null;
+  showTags: boolean;
+  orchestrators: PluginOrchestratorInfo[];
   api: PluginAPI;
   onToggle: () => void;
   onSelectAgent: (agentId: string, projectId: string) => void;
@@ -650,6 +684,8 @@ function CategorySection({ category, agents, allAgents, allCategories, projects,
           agent,
           displayName,
           isSelected: selectedAgentId === agent.id,
+          showTags,
+          orchestrators,
           onClick: () => onSelectAgent(agent.id, agent.projectId),
           onContextMenu: (e: React.MouseEvent) => {
             e.preventDefault();
@@ -677,6 +713,105 @@ function CategorySection({ category, agents, allAgents, allCategories, projects,
         onClose: () => setAgentContextMenu(null),
       });
     })(),
+  );
+}
+
+// ── Resize Divider ─────────────────────────────────────────────────────
+
+interface ResizeDividerProps {
+  onResize: (delta: number) => void;
+  onToggleCollapse: () => void;
+  collapsed: boolean;
+}
+
+function ResizeDivider({ onResize, onToggleCollapse, collapsed }: ResizeDividerProps) {
+  const [hovered, setHovered] = useState(false);
+  const draggingRef = useRef(false);
+  const startXRef = useRef(0);
+
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    draggingRef.current = true;
+    startXRef.current = e.clientX;
+    document.body.style.userSelect = 'none';
+    document.body.style.cursor = 'col-resize';
+
+    const handleMouseMove = (ev: MouseEvent) => {
+      const delta = ev.clientX - startXRef.current;
+      if (delta !== 0) {
+        onResize(delta);
+        startXRef.current = ev.clientX;
+      }
+    };
+
+    const handleMouseUp = () => {
+      draggingRef.current = false;
+      document.body.style.userSelect = '';
+      document.body.style.cursor = '';
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+  }, [onResize]);
+
+  const handleDoubleClick = useCallback(() => {
+    onToggleCollapse();
+  }, [onToggleCollapse]);
+
+  const chevron = collapsed ? '\u25B6' : '\u25C0';
+
+  return React.createElement('div', {
+    style: {
+      width: 5,
+      cursor: 'col-resize',
+      position: 'relative' as const,
+      flexShrink: 0,
+    },
+    onMouseDown: handleMouseDown,
+    onDoubleClick: handleDoubleClick,
+    onMouseEnter: () => setHovered(true),
+    onMouseLeave: () => setHovered(false),
+    'data-testid': 'lounge-sidebar-edge',
+  },
+    // Visible center line
+    React.createElement('div', {
+      style: {
+        position: 'absolute' as const,
+        top: 0,
+        bottom: 0,
+        left: '50%',
+        transform: 'translateX(-50%)',
+        width: 1,
+        backgroundColor: hovered ? 'rgba(137, 180, 250, 0.6)' : 'rgba(88, 91, 112, 0.5)',
+        transition: 'background-color 100ms',
+      },
+    }),
+    // Chevron button — only visible on hover
+    hovered && React.createElement('button', {
+      onClick: (e: React.MouseEvent) => { e.stopPropagation(); onToggleCollapse(); },
+      style: {
+        position: 'absolute' as const,
+        top: '50%',
+        left: '50%',
+        transform: 'translate(-50%, -50%)',
+        width: 16,
+        height: 16,
+        borderRadius: '50%',
+        backgroundColor: '#1e1e2e',
+        border: '1px solid rgba(88, 91, 112, 0.5)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontSize: '8px',
+        color: '#a6adc8',
+        cursor: 'pointer',
+        padding: 0,
+        zIndex: 10,
+      },
+      'data-testid': 'lounge-collapse-sidebar',
+    }, chevron),
   );
 }
 
@@ -764,6 +899,12 @@ export function MainPanel({ api }: { api: PluginAPI }) {
   const placeAgent = useLoungeStore((s) => s.placeAgent);
   const agentOrder = useLoungeStore((s) => s.agentOrder);
   const loadPersistedState = useLoungeStore((s) => s.loadPersistedState);
+  const showTags = useLoungeStore((s) => s.showTags);
+  const toggleShowTags = useLoungeStore((s) => s.toggleShowTags);
+  const sidebarCollapsed = useLoungeStore((s) => s.sidebarCollapsed);
+  const toggleSidebar = useLoungeStore((s) => s.toggleSidebar);
+  const sidebarWidth = useLoungeStore((s) => s.sidebarWidth);
+  const setSidebarWidth = useLoungeStore((s) => s.setSidebarWidth);
 
   // Load persisted state on mount
   const [loaded, setLoaded] = useState(false);
@@ -801,7 +942,7 @@ export function MainPanel({ api }: { api: PluginAPI }) {
         api.storage.global.write(STORAGE_KEY, getPersistedState(state)).catch(() => {});
       }
     };
-  }, [api, loaded, renamedLabels, agentCategoryOverrides, customCircles, nextCircleId, categoryOrder, categoryEmojis, agentOrder, collapsed]);
+  }, [api, loaded, renamedLabels, agentCategoryOverrides, customCircles, nextCircleId, categoryOrder, categoryEmojis, agentOrder, collapsed, showTags, sidebarCollapsed, sidebarWidth]);
 
   // Force re-render when agents change
   const [agentTick, setAgentTick] = useState(0);
@@ -820,6 +961,9 @@ export function MainPanel({ api }: { api: PluginAPI }) {
 
   // Get all agents across projects
   const agents = useMemo(() => api.agents.list(), [api, agentTick]);
+
+  // Fetch orchestrator list once for tag labels
+  const orchestrators = useMemo(() => api.agents.listOrchestrators(), [api]);
 
   // Group agents by category (respecting overrides)
   const grouped = useMemo(
@@ -908,17 +1052,41 @@ export function MainPanel({ api }: { api: PluginAPI }) {
     className: 'flex h-full w-full bg-ctp-base',
     'data-testid': 'lounge-main-panel',
   },
-    // Left sidebar — agent list
+    // Left sidebar — agent list (collapsible)
     React.createElement('div', {
-      className: 'w-64 flex-shrink-0 flex flex-col bg-ctp-mantle border-r border-surface-0 h-full min-h-0',
+      style: {
+        width: sidebarCollapsed ? '0px' : `${sidebarWidth}px`,
+        minWidth: 0,
+        transition: 'width 200ms ease-in-out',
+        overflow: 'hidden',
+        flexShrink: 0,
+      },
+      className: 'flex flex-col bg-ctp-mantle h-full min-h-0',
+      'data-testid': 'lounge-sidebar',
     },
       // Header
       React.createElement('div', {
-        className: 'px-3 py-3 border-b border-surface-0',
+        className: 'px-3 py-3 border-b border-surface-0 flex items-center gap-2',
       },
         React.createElement('h2', {
-          className: 'text-xs font-semibold text-ctp-subtext0 uppercase tracking-wider',
+          className: 'text-xs font-semibold text-ctp-subtext0 uppercase tracking-wider flex-1',
         }, 'Lounge'),
+        // Tags toggle button
+        React.createElement('button', {
+          onClick: toggleShowTags,
+          title: showTags ? 'Hide tags' : 'Show tags',
+          className: 'w-5 h-5 flex items-center justify-center rounded text-ctp-overlay0 hover:text-ctp-text hover:bg-surface-0 cursor-pointer transition-colors',
+          'data-testid': 'lounge-toggle-tags',
+        },
+          React.createElement('svg', {
+            width: 12, height: 12, viewBox: '0 0 24 24', fill: 'none',
+            stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round',
+            style: { opacity: showTags ? 1 : 0.4 },
+          },
+            React.createElement('path', { d: 'M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z' }),
+            React.createElement('line', { x1: '7', y1: '7', x2: '7.01', y2: '7' }),
+          ),
+        ),
       ),
       // Scrollable category list
       React.createElement('div', {
@@ -937,6 +1105,8 @@ export function MainPanel({ api }: { api: PluginAPI }) {
                 projects,
                 isCollapsed: collapsed.has(cat.id),
                 selectedAgentId,
+                showTags,
+                orchestrators,
                 api,
                 onToggle: () => toggleCollapsed(cat.id),
                 onSelectAgent: handleSelectAgent,
@@ -951,6 +1121,15 @@ export function MainPanel({ api }: { api: PluginAPI }) {
           : React.createElement(EmptyState),
       ),
     ),
+    // Sidebar resize divider (matches host ResizeDivider pattern)
+    React.createElement(ResizeDivider, {
+      collapsed: sidebarCollapsed,
+      onToggleCollapse: toggleSidebar,
+      onResize: (delta: number) => {
+        const current = useLoungeStore.getState().sidebarWidth;
+        setSidebarWidth(current + delta);
+      },
+    }),
     // Right content — selected agent view
     React.createElement('div', {
       className: 'flex-1 min-w-0 h-full',

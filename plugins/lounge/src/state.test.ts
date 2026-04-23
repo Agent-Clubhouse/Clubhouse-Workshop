@@ -627,7 +627,11 @@ describe('circle persistence race condition', () => {
       categoryOrder: ['circle:1', 'project:p1', 'circle:general'],
       categoryEmojis: {},
       renamedLabels: {},
+      agentOrder: {},
       collapsed: [],
+      showTags: true,
+      sidebarCollapsed: false,
+      sidebarWidth: 256,
     });
 
     // Overrides are loaded but categories haven't been re-derived yet
@@ -648,7 +652,11 @@ describe('circle persistence race condition', () => {
       categoryOrder: ['circle:1', 'project:p1', 'circle:general'],
       categoryEmojis: {},
       renamedLabels: {},
+      agentOrder: {},
       collapsed: [],
+      showTags: true,
+      sidebarCollapsed: false,
+      sidebarWidth: 256,
     });
 
     expect(store.getState().hydrated).toBe(true);
@@ -677,7 +685,11 @@ describe('circle persistence race condition', () => {
       categoryOrder: [],
       categoryEmojis: {},
       renamedLabels: {},
+      agentOrder: {},
       collapsed: [],
+      showTags: true,
+      sidebarCollapsed: false,
+      sidebarWidth: 256,
     });
 
     store.getState().deriveCategories([makeProject({ id: 'p1', name: 'P1' })]);
@@ -862,6 +874,188 @@ describe('sortAgentsByOrder', () => {
   });
 });
 
+// ── showTags ────────────────────────────────────────────────────────────
+
+describe('showTags', () => {
+  it('defaults to true', () => {
+    const store = createHydratedStore();
+    expect(store.getState().showTags).toBe(true);
+  });
+
+  it('toggleShowTags flips the value', () => {
+    const store = createHydratedStore();
+    store.getState().toggleShowTags();
+    expect(store.getState().showTags).toBe(false);
+    store.getState().toggleShowTags();
+    expect(store.getState().showTags).toBe(true);
+  });
+
+  it('is included in getPersistedState', () => {
+    const store = createHydratedStore();
+    store.getState().toggleShowTags();
+    const persisted = getPersistedState(store.getState());
+    expect(persisted.showTags).toBe(false);
+  });
+
+  it('hydrates from persisted state', () => {
+    const store = createLoungeStore();
+    store.getState().loadPersistedState({
+      renamedLabels: {},
+      agentCategoryOverrides: {},
+      customCircles: [],
+      nextCircleId: 1,
+      categoryOrder: [],
+      categoryEmojis: {},
+      agentOrder: {},
+      collapsed: [],
+      showTags: false,
+      sidebarCollapsed: false,
+      sidebarWidth: 256,
+    });
+    expect(store.getState().showTags).toBe(false);
+  });
+
+  it('defaults to true when missing from persisted data (backward compat)', () => {
+    const store = createLoungeStore();
+    // Simulate old persisted data without showTags field
+    store.getState().loadPersistedState({
+      renamedLabels: {},
+      agentCategoryOverrides: {},
+      customCircles: [],
+      nextCircleId: 1,
+      categoryOrder: [],
+      categoryEmojis: {},
+      agentOrder: {},
+      collapsed: [],
+    } as unknown as LoungePersistedState);
+    expect(store.getState().showTags).toBe(true);
+  });
+});
+
+// ── sidebarCollapsed ────────────────────────────────────────────────────
+
+describe('sidebarCollapsed', () => {
+  it('defaults to false', () => {
+    const store = createHydratedStore();
+    expect(store.getState().sidebarCollapsed).toBe(false);
+  });
+
+  it('toggleSidebar flips the value', () => {
+    const store = createHydratedStore();
+    store.getState().toggleSidebar();
+    expect(store.getState().sidebarCollapsed).toBe(true);
+    store.getState().toggleSidebar();
+    expect(store.getState().sidebarCollapsed).toBe(false);
+  });
+
+  it('is included in getPersistedState', () => {
+    const store = createHydratedStore();
+    store.getState().toggleSidebar();
+    const persisted = getPersistedState(store.getState());
+    expect(persisted.sidebarCollapsed).toBe(true);
+  });
+
+  it('hydrates from persisted state', () => {
+    const store = createLoungeStore();
+    store.getState().loadPersistedState({
+      renamedLabels: {},
+      agentCategoryOverrides: {},
+      customCircles: [],
+      nextCircleId: 1,
+      categoryOrder: [],
+      categoryEmojis: {},
+      agentOrder: {},
+      collapsed: [],
+      showTags: true,
+      sidebarCollapsed: true,
+      sidebarWidth: 256,
+    });
+    expect(store.getState().sidebarCollapsed).toBe(true);
+  });
+
+  it('defaults to false when missing from persisted data (backward compat)', () => {
+    const store = createLoungeStore();
+    store.getState().loadPersistedState({
+      renamedLabels: {},
+      agentCategoryOverrides: {},
+      customCircles: [],
+      nextCircleId: 1,
+      categoryOrder: [],
+      categoryEmojis: {},
+      agentOrder: {},
+      collapsed: [],
+    } as unknown as LoungePersistedState);
+    expect(store.getState().sidebarCollapsed).toBe(false);
+  });
+});
+
+// ── sidebarWidth ───────────────────────────────────────────────────────
+
+describe('sidebarWidth', () => {
+  it('defaults to 256', () => {
+    const store = createLoungeStore();
+    expect(store.getState().sidebarWidth).toBe(256);
+  });
+
+  it('setSidebarWidth updates the width', () => {
+    const store = createHydratedStore();
+    store.getState().setSidebarWidth(300);
+    expect(store.getState().sidebarWidth).toBe(300);
+  });
+
+  it('clamps to minimum 160', () => {
+    const store = createHydratedStore();
+    store.getState().setSidebarWidth(50);
+    expect(store.getState().sidebarWidth).toBe(160);
+  });
+
+  it('clamps to maximum 480', () => {
+    const store = createHydratedStore();
+    store.getState().setSidebarWidth(600);
+    expect(store.getState().sidebarWidth).toBe(480);
+  });
+
+  it('is included in getPersistedState', () => {
+    const store = createHydratedStore();
+    store.getState().setSidebarWidth(320);
+    const persisted = getPersistedState(store.getState());
+    expect(persisted.sidebarWidth).toBe(320);
+  });
+
+  it('hydrates from persisted state', () => {
+    const store = createLoungeStore();
+    store.getState().loadPersistedState({
+      renamedLabels: {},
+      agentCategoryOverrides: {},
+      customCircles: [],
+      nextCircleId: 1,
+      categoryOrder: [],
+      categoryEmojis: {},
+      agentOrder: {},
+      collapsed: [],
+      showTags: true,
+      sidebarCollapsed: false,
+      sidebarWidth: 350,
+    });
+    expect(store.getState().sidebarWidth).toBe(350);
+  });
+
+  it('defaults to 256 when missing from persisted data (backward compat)', () => {
+    const store = createLoungeStore();
+    store.getState().loadPersistedState({
+      renamedLabels: {},
+      agentCategoryOverrides: {},
+      customCircles: [],
+      nextCircleId: 1,
+      categoryOrder: [],
+      categoryEmojis: {},
+      agentOrder: {},
+      collapsed: [],
+    } as unknown as LoungePersistedState);
+    expect(store.getState().sidebarWidth).toBe(256);
+  });
+});
+
 describe('placeAgent', () => {
   it('places agent before a target agent in the same circle', () => {
     const store = createHydratedStore();
@@ -1002,7 +1196,7 @@ describe('persistence round-trip with agentOrder', () => {
       categoryOrder: [],
       categoryEmojis: {},
       collapsed: [],
-    } as LoungePersistedState);
+    } as unknown as LoungePersistedState);
     expect(store.getState().agentOrder).toEqual({});
   });
 });
