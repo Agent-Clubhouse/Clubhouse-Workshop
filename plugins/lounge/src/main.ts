@@ -19,16 +19,6 @@ export function deactivate(): void {
 
 // ── Status helpers ─────────────────────────────────────────────────────
 
-function statusColor(status: AgentInfo['status']): string {
-  switch (status) {
-    case 'running': return 'bg-ctp-green';
-    case 'sleeping': return 'bg-ctp-yellow';
-    case 'error': return 'bg-ctp-red';
-    case 'creating': return 'bg-ctp-blue';
-    default: return 'bg-ctp-overlay0';
-  }
-}
-
 function statusLabel(status: AgentInfo['status']): string {
   switch (status) {
     case 'running': return 'Running';
@@ -41,12 +31,13 @@ function statusLabel(status: AgentInfo['status']): string {
 
 // ── Agent Row ──────────────────────────────────────────────────────────
 
-function AgentRow({ agent, displayName, isSelected, showTags, orchestrators, onClick, onContextMenu }: {
+function AgentRow({ agent, displayName, isSelected, showTags, orchestrators, api, onClick, onContextMenu }: {
   agent: AgentInfo;
   displayName: string;
   isSelected: boolean;
   showTags: boolean;
   orchestrators: PluginOrchestratorInfo[];
+  api: PluginAPI;
   onClick: () => void;
   onContextMenu: (e: React.MouseEvent) => void;
 }) {
@@ -54,6 +45,13 @@ function AgentRow({ agent, displayName, isSelected, showTags, orchestrators, onC
     e.dataTransfer.setData('application/x-lounge-agent', agent.id);
     e.dataTransfer.effectAllowed = 'move';
   }, [agent.id]);
+
+  const { AgentAvatar } = api.widgets;
+  const detailed = api.agents.getDetailedStatus(agent.id);
+  const statusText = detailed?.message ?? statusLabel(agent.status);
+  const statusTextColor = detailed?.state === 'needs_permission' ? 'text-ctp-peach'
+    : detailed?.state === 'tool_error' ? 'text-ctp-red'
+    : 'text-ctp-overlay0';
 
   return React.createElement('button', {
     key: agent.id,
@@ -69,9 +67,9 @@ function AgentRow({ agent, displayName, isSelected, showTags, orchestrators, onC
         : 'text-ctp-subtext1 hover:bg-surface-0 hover:text-ctp-text'
     }`,
   },
-    React.createElement('span', {
-      className: `w-2 h-2 rounded-full flex-shrink-0 ${statusColor(agent.status)}`,
-    }),
+    React.createElement('div', { className: 'flex-shrink-0' },
+      React.createElement(AgentAvatar, { agentId: agent.id, size: 'sm', showStatusRing: true }),
+    ),
     React.createElement('div', { className: 'min-w-0 flex-1' },
       React.createElement('span', { className: 'truncate block' }, displayName),
       showTags && React.createElement('div', {
@@ -101,10 +99,11 @@ function AgentRow({ agent, displayName, isSelected, showTags, orchestrators, onC
           'data-testid': 'lounge-tag-free',
         }, 'Free'),
       ),
+      React.createElement('span', {
+        className: `text-[10px] ${statusTextColor} block mt-0.5`,
+        'data-testid': `lounge-agent-status-${agent.id}`,
+      }, statusText),
     ),
-    agent.status === 'running' && React.createElement('span', {
-      className: 'text-[10px] text-ctp-green flex-shrink-0',
-    }, '●'),
   );
 }
 
@@ -686,6 +685,7 @@ function CategorySection({ category, agents, allAgents, allCategories, projects,
           isSelected: selectedAgentId === agent.id,
           showTags,
           orchestrators,
+          api,
           onClick: () => onSelectAgent(agent.id, agent.projectId),
           onContextMenu: (e: React.MouseEvent) => {
             e.preventDefault();

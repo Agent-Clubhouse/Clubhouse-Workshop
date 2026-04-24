@@ -437,20 +437,6 @@ function activate(ctx, _api) {
 }
 function deactivate() {
 }
-function statusColor(status) {
-  switch (status) {
-    case "running":
-      return "bg-ctp-green";
-    case "sleeping":
-      return "bg-ctp-yellow";
-    case "error":
-      return "bg-ctp-red";
-    case "creating":
-      return "bg-ctp-blue";
-    default:
-      return "bg-ctp-overlay0";
-  }
-}
 function statusLabel(status) {
   switch (status) {
     case "running":
@@ -465,11 +451,15 @@ function statusLabel(status) {
       return status;
   }
 }
-function AgentRow({ agent, displayName, isSelected, showTags, orchestrators, onClick, onContextMenu }) {
+function AgentRow({ agent, displayName, isSelected, showTags, orchestrators, api, onClick, onContextMenu }) {
   const handleDragStart = useCallback((e) => {
     e.dataTransfer.setData("application/x-lounge-agent", agent.id);
     e.dataTransfer.effectAllowed = "move";
   }, [agent.id]);
+  const { AgentAvatar } = api.widgets;
+  const detailed = api.agents.getDetailedStatus(agent.id);
+  const statusText = detailed?.message ?? statusLabel(agent.status);
+  const statusTextColor = detailed?.state === "needs_permission" ? "text-ctp-peach" : detailed?.state === "tool_error" ? "text-ctp-red" : "text-ctp-overlay0";
   return React2.createElement(
     "button",
     {
@@ -482,9 +472,11 @@ function AgentRow({ agent, displayName, isSelected, showTags, orchestrators, onC
       "data-testid": `lounge-agent-${agent.id}`,
       className: `w-full text-left px-3 py-2 text-sm cursor-pointer transition-colors flex items-center gap-3 ${isSelected ? "bg-surface-1 text-ctp-text" : "text-ctp-subtext1 hover:bg-surface-0 hover:text-ctp-text"}`
     },
-    React2.createElement("span", {
-      className: `w-2 h-2 rounded-full flex-shrink-0 ${statusColor(agent.status)}`
-    }),
+    React2.createElement(
+      "div",
+      { className: "flex-shrink-0" },
+      React2.createElement(AgentAvatar, { agentId: agent.id, size: "sm", showStatusRing: true })
+    ),
     React2.createElement(
       "div",
       { className: "min-w-0 flex-1" },
@@ -517,11 +509,12 @@ function AgentRow({ agent, displayName, isSelected, showTags, orchestrators, onC
           style: { backgroundColor: FREE_AGENT_COLOR.bg, color: FREE_AGENT_COLOR.text, fontSize: "10px", padding: "1px 6px", borderRadius: "4px", lineHeight: "16px", whiteSpace: "nowrap" },
           "data-testid": "lounge-tag-free"
         }, "Free")
-      )
-    ),
-    agent.status === "running" && React2.createElement("span", {
-      className: "text-[10px] text-ctp-green flex-shrink-0"
-    }, "\u25CF")
+      ),
+      React2.createElement("span", {
+        className: `text-[10px] ${statusTextColor} block mt-0.5`,
+        "data-testid": `lounge-agent-status-${agent.id}`
+      }, statusText)
+    )
   );
 }
 function CategoryContextMenu({ position, categoryId, onRename, onDelete, onClose }) {
@@ -1127,6 +1120,7 @@ function CategorySection({ category, agents, allAgents, allCategories, projects,
           isSelected: selectedAgentId === agent.id,
           showTags,
           orchestrators,
+          api,
           onClick: () => onSelectAgent(agent.id, agent.projectId),
           onContextMenu: (e) => {
             e.preventDefault();
