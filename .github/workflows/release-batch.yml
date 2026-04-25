@@ -135,10 +135,10 @@ jobs:
               echo "✓ $PLUGIN_ID v$VERSION built successfully"
               cat "/tmp/release-${PLUGIN_ID}.log" || true
               # Append to successes array using file-based accumulation
-              node -e "
+              BUILD_PLUGIN_ID="$PLUGIN_ID" node -e "
                 const fs = require('fs');
                 const s = JSON.parse(fs.readFileSync('/tmp/successful-builds.json', 'utf8'));
-                const r = JSON.parse(fs.readFileSync('/tmp/release-${PLUGIN_ID}.json', 'utf8'));
+                const r = JSON.parse(fs.readFileSync('/tmp/release-' + process.env.BUILD_PLUGIN_ID + '.json', 'utf8'));
                 s.push(r);
                 fs.writeFileSync('/tmp/successful-builds.json', JSON.stringify(s));
               "
@@ -146,10 +146,10 @@ jobs:
               echo "✗ $PLUGIN_ID v$VERSION FAILED"
               cat "/tmp/release-${PLUGIN_ID}.log" || true
               cat "/tmp/release-${PLUGIN_ID}.json" || true
-              node -e "
+              BUILD_PLUGIN_ID="$PLUGIN_ID" BUILD_VERSION="$VERSION" node -e "
                 const fs = require('fs');
                 const f = JSON.parse(fs.readFileSync('/tmp/failed-builds.json', 'utf8'));
-                f.push({pluginId:'$PLUGIN_ID',version:'$VERSION',error:'Build/validation failed'});
+                f.push({pluginId:process.env.BUILD_PLUGIN_ID,version:process.env.BUILD_VERSION,error:'Build/validation failed'});
                 fs.writeFileSync('/tmp/failed-builds.json', JSON.stringify(f));
               "
             fi
@@ -190,7 +190,7 @@ jobs:
         run: |
           node -e "
             const fs = require('fs');
-            const { execSync } = require('child_process');
+            const { execFileSync } = require('child_process');
             const builds = JSON.parse(fs.readFileSync('/tmp/successful-builds.json', 'utf8'));
 
             for (const build of builds) {
@@ -199,13 +199,12 @@ jobs:
                 '### Install\n\`\`\`bash\ncp -r plugins/' + build.pluginId + ' ~/.clubhouse/plugins/\n\`\`\`\n\n' +
                 'Or download the zip and extract to \`~/.clubhouse/plugins/' + build.pluginId + '/\`.';
 
-              execSync(
-                'gh release create ' + build.tag +
-                ' ' + build.zipPath +
-                ' --title \"' + build.pluginId + ' v' + build.version + '\"' +
-                ' --notes \"' + body.replace(/\"/g, '\\\\\"') + '\"',
-                { stdio: 'inherit' }
-              );
+              execFileSync('gh', [
+                'release', 'create', build.tag,
+                build.zipPath,
+                '--title', build.pluginId + ' v' + build.version,
+                '--notes', body
+              ], { stdio: 'inherit' });
               console.log('✓ Release created: ' + build.tag);
             }
           "
