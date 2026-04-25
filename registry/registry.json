@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated": "2026-03-23T07:20:20.811Z",
+  "updated": "2026-04-25T07:08:15.949Z",
   "supportedApis": {
     "latest": "0.9",
     "minimum": "0.6",
@@ -795,6 +795,33 @@
             "theme"
           ],
           "size": 5251
+        }
+      }
+    },
+    {
+      "id": "lounge",
+      "name": "Lounge",
+      "description": "Chat-style agent browser — hop between agents organized by project circles.",
+      "author": "Clubhouse Workshop",
+      "official": true,
+      "repo": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop",
+      "path": "plugins/lounge",
+      "tags": [],
+      "latest": "1.0.0",
+      "releases": {
+        "1.0.0": {
+          "api": 0.8,
+          "asset": "https://github.com/Agent-Clubhouse/Clubhouse-Workshop/releases/download/lounge-v1.0.0/lounge-v1.0.0.zip",
+          "sha256": "ef492ef49f691616c0a21728fa178337d1ae45c9e319531b52c62694dcf04fc8",
+          "permissions": [
+            "agents",
+            "projects",
+            "navigation",
+            "widgets",
+            "commands",
+            "storage"
+          ],
+          "size": 14940
         }
       }
     }
