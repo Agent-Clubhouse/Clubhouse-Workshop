@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { activate, deactivate, MainPanel } from './main';
+import { activate, deactivate, MainPanel, reorderAutomations } from './main';
 import * as automationsModule from './main';
 import { createMockContext, createMockAPI } from '@clubhouse/plugin-testing';
 import type { PluginAPI, PluginContext, ScopedStorage } from '@clubhouse/plugin-types';
@@ -1439,5 +1439,52 @@ describe('automations storage failure resilience', () => {
     vi.setSystemTime(new Date(2026, 1, 15, 11, 0, 0));
     await vi.advanceTimersByTimeAsync(30_000);
     expect(runQuickSpy).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('reorderAutomations helper', () => {
+  it('returns the same list when fromIdx === toIdx', () => {
+    const list = ['a', 'b', 'c'];
+    expect(reorderAutomations(list, 1, 1)).toBe(list);
+  });
+
+  it('returns the list unchanged for negative indices', () => {
+    const list = ['a', 'b', 'c'];
+    expect(reorderAutomations(list, -1, 1)).toBe(list);
+    expect(reorderAutomations(list, 0, -1)).toBe(list);
+  });
+
+  it('returns the list unchanged when indices are out of range', () => {
+    const list = ['a', 'b', 'c'];
+    expect(reorderAutomations(list, 5, 1)).toBe(list);
+    expect(reorderAutomations(list, 0, 5)).toBe(list);
+  });
+
+  it('moves the item from top to bottom', () => {
+    expect(reorderAutomations(['a', 'b', 'c'], 0, 2)).toEqual(['b', 'c', 'a']);
+  });
+
+  it('moves the item from bottom to top', () => {
+    expect(reorderAutomations(['a', 'b', 'c'], 2, 0)).toEqual(['c', 'a', 'b']);
+  });
+
+  it('swaps adjacent items', () => {
+    expect(reorderAutomations(['a', 'b', 'c'], 0, 1)).toEqual(['b', 'a', 'c']);
+    expect(reorderAutomations(['a', 'b', 'c'], 2, 1)).toEqual(['a', 'c', 'b']);
+  });
+
+  it('returns a new array instance (does not mutate input)', () => {
+    const list = ['a', 'b', 'c'];
+    const result = reorderAutomations(list, 0, 2);
+    expect(result).not.toBe(list);
+    expect(list).toEqual(['a', 'b', 'c']);
+  });
+
+  it('preserves object identity for non-moved items', () => {
+    const a = { id: 'a' }, b = { id: 'b' }, c = { id: 'c' };
+    const result = reorderAutomations([a, b, c], 0, 2);
+    expect(result[0]).toBe(b);
+    expect(result[1]).toBe(c);
+    expect(result[2]).toBe(a);
   });
 });

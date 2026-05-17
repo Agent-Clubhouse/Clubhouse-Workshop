@@ -292,6 +292,20 @@ function generateId(): string {
   return `auto_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
+/**
+ * Pure helper: move the item at `fromIdx` to `toIdx` in a new array.
+ * Returns the original list unchanged when indices are equal or out of range.
+ */
+export function reorderAutomations<T>(list: T[], fromIdx: number, toIdx: number): T[] {
+  if (fromIdx === toIdx) return list;
+  if (fromIdx < 0 || toIdx < 0) return list;
+  if (fromIdx >= list.length || toIdx >= list.length) return list;
+  const next = [...list];
+  const [moved] = next.splice(fromIdx, 1);
+  next.splice(toIdx, 0, moved);
+  return next;
+}
+
 function formatTime(ts: number): string {
   const d = new Date(ts);
   return d.toLocaleString(undefined, {
@@ -317,6 +331,8 @@ export function MainPanel({ api }: { api: PluginAPI }) {
   const [runningIds, setRunningIds] = useState<Set<string>>(new Set());
   const [expandedRunId, setExpandedRunId] = useState<string | null>(null);
   const [completedAgents, setCompletedAgents] = useState<CompletedQuickAgentInfo[]>([]);
+  const [draggingIdx, setDraggingIdx] = useState<number | null>(null);
+  const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
 
   // Editor state
   const [editName, setEditName] = useState('');
@@ -466,6 +482,14 @@ export function MainPanel({ api }: { api: PluginAPI }) {
     if (id === selectedId) setEditEnabled(!editEnabled);
   }, [automations, storage, selectedId, editEnabled]);
 
+  const handleReorder = useCallback(async (fromIdx: number, toIdx: number) => {
+    if (fromIdx === toIdx) return;
+    const next = reorderAutomations(automations, fromIdx, toIdx);
+    if (next === automations) return;
+    setAutomations(next);
+    await storage.write(AUTOMATIONS_KEY, next);
+  }, [automations, storage]);
+
   const runNow = useCallback(async (id: string) => {
     await api.commands.execute('run-now', id);
     await loadAutomations();
@@ -535,17 +559,51 @@ export function MainPanel({ api }: { api: PluginAPI }) {
             </div>
           ) : (
             <div style={{ padding: '2px 0' }}>
-              {automations.map((auto) => (
+              {automations.map((auto, idx) => (
                 <div
                   key={auto.id}
+                  draggable
+                  onDragStart={(e) => {
+                    e.dataTransfer.effectAllowed = 'move';
+                    e.dataTransfer.setData('automations/idx', String(idx));
+                    setDraggingIdx(idx);
+                  }}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'move';
+                    if (dragOverIdx !== idx) setDragOverIdx(idx);
+                  }}
+                  onDragLeave={(e) => {
+                    // Only clear when leaving the row entirely (not just moving over children)
+                    if (e.currentTarget.contains(e.relatedTarget as Node)) return;
+                    setDragOverIdx((prev) => (prev === idx ? null : prev));
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    const raw = e.dataTransfer.getData('automations/idx');
+                    setDraggingIdx(null);
+                    setDragOverIdx(null);
+                    if (raw === '') return;
+                    const from = parseInt(raw, 10);
+                    if (Number.isNaN(from)) return;
+                    handleReorder(from, idx);
+                  }}
+                  onDragEnd={() => {
+                    setDraggingIdx(null);
+                    setDragOverIdx(null);
+                  }}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
                     gap: 12,
                     padding: '12px 12px',
-                    cursor: 'pointer',
-                    transition: 'background 0.15s',
+                    cursor: draggingIdx === idx ? 'grabbing' : 'grab',
+                    transition: 'background 0.15s, opacity 0.15s',
+                    opacity: draggingIdx === idx ? 0.4 : 1,
                     background: auto.id === selectedId ? S.color.bgSurfaceHover : 'transparent',
+                    borderTop: dragOverIdx === idx && draggingIdx !== null && draggingIdx !== idx
+                      ? `2px solid ${S.color.accent}`
+                      : '2px solid transparent',
                   }}
                   onClick={() => setSelectedId(auto.id)}
                 >
