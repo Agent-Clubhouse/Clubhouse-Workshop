@@ -407,7 +407,7 @@ var badge = (variant) => ({
   color: variant === "off" ? color.textTertiary : variant === "running" ? color.success : color.blue
 });
 
-// src/use-theme.ts
+// ../../sdk/shared/plugin-utils/src/use-theme.ts
 function hexToRgba(hex, alpha) {
   const r = parseInt(hex.slice(1, 3), 16);
   const g = parseInt(hex.slice(3, 5), 16);
@@ -554,6 +554,7 @@ function activate(ctx, api) {
     auto.lastRunAt = Date.now();
     await storage.write(AUTOMATIONS_KEY, automations);
   }
+  let completionChain = Promise.resolve();
   const statusSub = api.agents.onStatusChange((agentId, status, _prevStatus) => {
     const automationId = pendingRuns.get(agentId);
     if (!automationId) return;
@@ -563,26 +564,30 @@ function activate(ctx, api) {
     const completed = api.agents.listCompleted();
     const info = completed.find((c) => c.id === agentId);
     const runStatus = status === "sleeping" ? "completed" : "failed";
-    storage.read(runsKey(automationId)).then((raw) => {
-      const runs = Array.isArray(raw) ? raw : [];
-      const idx = runs.findIndex((r) => r.agentId === agentId);
-      if (idx !== -1) {
-        runs[idx] = {
-          ...runs[idx],
-          status: runStatus,
-          summary: info?.summary ?? null,
-          exitCode: info?.exitCode ?? null,
-          completedAt: Date.now()
-        };
-      }
-      storage.write(runsKey(automationId), runs);
-    });
-    storage.read(AUTOMATIONS_KEY).then((raw) => {
-      const automations = Array.isArray(raw) ? raw : [];
-      const auto = automations.find((a) => a.id === automationId);
-      if (auto) {
-        auto.lastRunAt = Date.now();
-        storage.write(AUTOMATIONS_KEY, automations);
+    completionChain = completionChain.then(async () => {
+      try {
+        const runsRaw = await storage.read(runsKey(automationId));
+        const runs = Array.isArray(runsRaw) ? runsRaw : [];
+        const idx = runs.findIndex((r) => r.agentId === agentId);
+        if (idx !== -1) {
+          runs[idx] = {
+            ...runs[idx],
+            status: runStatus,
+            summary: info?.summary ?? null,
+            exitCode: info?.exitCode ?? null,
+            completedAt: Date.now()
+          };
+        }
+        await storage.write(runsKey(automationId), runs);
+        const autoRaw = await storage.read(AUTOMATIONS_KEY);
+        const automations = Array.isArray(autoRaw) ? autoRaw : [];
+        const auto = automations.find((a) => a.id === automationId);
+        if (auto) {
+          auto.lastRunAt = Date.now();
+          await storage.write(AUTOMATIONS_KEY, automations);
+        }
+      } catch (err) {
+        api.logging.error("Automations: failed to update storage on agent completion", { agentId, automationId, err });
       }
     });
   });
@@ -624,39 +629,46 @@ function activate(ctx, api) {
       }
     }
   }
+  let cronRunning = false;
   const tickInterval = setInterval(async () => {
-    await reconcileStaleRuns();
-    const now = /* @__PURE__ */ new Date();
-    const raw = await storage.read(AUTOMATIONS_KEY);
-    const automations = Array.isArray(raw) ? raw : [];
-    for (const auto of automations) {
-      if (!auto.enabled) continue;
-      const policy = auto.missedRunPolicy || "ignore";
-      if (policy !== "ignore" && auto.lastRunAt) {
-        const lastRun = new Date(auto.lastRunAt);
-        const missed = countMissedFireTimes(auto.cronExpression, lastRun, now);
-        if (missed > 0) {
-          const timesToFire = policy === "run-once" ? 1 : Math.min(missed, MAX_CATCHUP);
-          for (let i = 0; i < timesToFire; i++) {
-            try {
-              await fireAutomation(auto, automations);
-            } catch {
+    if (cronRunning) return;
+    cronRunning = true;
+    try {
+      await reconcileStaleRuns();
+      const now = /* @__PURE__ */ new Date();
+      const raw = await storage.read(AUTOMATIONS_KEY);
+      const automations = Array.isArray(raw) ? raw : [];
+      for (const auto of automations) {
+        if (!auto.enabled) continue;
+        const policy = auto.missedRunPolicy || "ignore";
+        if (policy !== "ignore" && auto.lastRunAt) {
+          const lastRun = new Date(auto.lastRunAt);
+          const missed = countMissedFireTimes(auto.cronExpression, lastRun, now);
+          if (missed > 0) {
+            const timesToFire = policy === "run-once" ? 1 : Math.min(missed, MAX_CATCHUP);
+            for (let i = 0; i < timesToFire; i++) {
+              try {
+                await fireAutomation(auto, automations);
+              } catch {
+              }
             }
+            continue;
           }
-          continue;
+        }
+        if (!matchesCron(auto.cronExpression, now)) continue;
+        if (auto.lastRunAt) {
+          const lastRun = new Date(auto.lastRunAt);
+          if (lastRun.getMinutes() === now.getMinutes() && lastRun.getHours() === now.getHours() && lastRun.getDate() === now.getDate() && lastRun.getMonth() === now.getMonth() && lastRun.getFullYear() === now.getFullYear()) {
+            continue;
+          }
+        }
+        try {
+          await fireAutomation(auto, automations);
+        } catch {
         }
       }
-      if (!matchesCron(auto.cronExpression, now)) continue;
-      if (auto.lastRunAt) {
-        const lastRun = new Date(auto.lastRunAt);
-        if (lastRun.getMinutes() === now.getMinutes() && lastRun.getHours() === now.getHours() && lastRun.getDate() === now.getDate() && lastRun.getMonth() === now.getMonth() && lastRun.getFullYear() === now.getFullYear()) {
-          continue;
-        }
-      }
-      try {
-        await fireAutomation(auto, automations);
-      } catch {
-      }
+    } finally {
+      cronRunning = false;
     }
   }, 3e4);
   ctx.subscriptions.push({ dispose: () => clearInterval(tickInterval) });
@@ -687,6 +699,15 @@ function deactivate() {
 function generateId() {
   return `auto_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
 }
+function reorderAutomations(list, fromIdx, toIdx) {
+  if (fromIdx === toIdx) return list;
+  if (fromIdx < 0 || toIdx < 0) return list;
+  if (fromIdx >= list.length || toIdx >= list.length) return list;
+  const next = [...list];
+  const [moved] = next.splice(fromIdx, 1);
+  next.splice(toIdx, 0, moved);
+  return next;
+}
 function formatTime(ts) {
   const d = new Date(ts);
   return d.toLocaleString(void 0, {
@@ -708,6 +729,8 @@ function MainPanel({ api }) {
   const [runningIds, setRunningIds] = useState(/* @__PURE__ */ new Set());
   const [expandedRunId, setExpandedRunId] = useState(null);
   const [completedAgents, setCompletedAgents] = useState([]);
+  const [draggingIdx, setDraggingIdx] = useState(null);
+  const [dragOverIdx, setDragOverIdx] = useState(null);
   const [editName, setEditName] = useState("");
   const [editCron, setEditCron] = useState("");
   const [editOrchestrator, setEditOrchestrator] = useState("");
@@ -837,6 +860,13 @@ function MainPanel({ api }) {
     setAutomations(next);
     if (id === selectedId) setEditEnabled(!editEnabled);
   }, [automations, storage, selectedId, editEnabled]);
+  const handleReorder = useCallback(async (fromIdx, toIdx) => {
+    if (fromIdx === toIdx) return;
+    const next = reorderAutomations(automations, fromIdx, toIdx);
+    if (next === automations) return;
+    setAutomations(next);
+    await storage.write(AUTOMATIONS_KEY, next);
+  }, [automations, storage]);
   const runNow = useCallback(async (id) => {
     await api.commands.execute("run-now", id);
     await loadAutomations();
@@ -886,17 +916,48 @@ function MainPanel({ api }) {
           }
         )
       ] }),
-      /* @__PURE__ */ jsx("div", { style: { flex: 1, overflowY: "auto" }, children: automations.length === 0 ? /* @__PURE__ */ jsx("div", { style: { padding: "16px 12px", fontSize: 12, color: color.textTertiary, textAlign: "center" }, children: "No automations yet" }) : /* @__PURE__ */ jsx("div", { style: { padding: "2px 0" }, children: automations.map((auto) => /* @__PURE__ */ jsx(
+      /* @__PURE__ */ jsx("div", { style: { flex: 1, overflowY: "auto" }, children: automations.length === 0 ? /* @__PURE__ */ jsx("div", { style: { padding: "16px 12px", fontSize: 12, color: color.textTertiary, textAlign: "center" }, children: "No automations yet" }) : /* @__PURE__ */ jsx("div", { style: { padding: "2px 0" }, children: automations.map((auto, idx) => /* @__PURE__ */ jsx(
         "div",
         {
+          draggable: true,
+          onDragStart: (e) => {
+            e.dataTransfer.effectAllowed = "move";
+            e.dataTransfer.setData("automations/idx", String(idx));
+            setDraggingIdx(idx);
+          },
+          onDragOver: (e) => {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = "move";
+            if (dragOverIdx !== idx) setDragOverIdx(idx);
+          },
+          onDragLeave: (e) => {
+            if (e.currentTarget.contains(e.relatedTarget)) return;
+            setDragOverIdx((prev) => prev === idx ? null : prev);
+          },
+          onDrop: (e) => {
+            e.preventDefault();
+            const raw = e.dataTransfer.getData("automations/idx");
+            setDraggingIdx(null);
+            setDragOverIdx(null);
+            if (raw === "") return;
+            const from = parseInt(raw, 10);
+            if (Number.isNaN(from)) return;
+            handleReorder(from, idx);
+          },
+          onDragEnd: () => {
+            setDraggingIdx(null);
+            setDragOverIdx(null);
+          },
           style: {
             display: "flex",
             alignItems: "center",
             gap: 12,
             padding: "12px 12px",
-            cursor: "pointer",
-            transition: "background 0.15s",
-            background: auto.id === selectedId ? color.bgSurfaceHover : "transparent"
+            cursor: draggingIdx === idx ? "grabbing" : "grab",
+            transition: "background 0.15s, opacity 0.15s",
+            opacity: draggingIdx === idx ? 0.4 : 1,
+            background: auto.id === selectedId ? color.bgSurfaceHover : "transparent",
+            borderTop: dragOverIdx === idx && draggingIdx !== null && draggingIdx !== idx ? `2px solid ${color.accent}` : "2px solid transparent"
           },
           onClick: () => setSelectedId(auto.id),
           children: /* @__PURE__ */ jsxs("div", { style: { flex: 1, minWidth: 0 }, children: [
@@ -1334,5 +1395,6 @@ function MainPanel({ api }) {
 export {
   MainPanel,
   activate,
-  deactivate
+  deactivate,
+  reorderAutomations
 };
