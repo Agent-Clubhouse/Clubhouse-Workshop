@@ -19,7 +19,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22.23.4'
 
       - name: Run shared script tests
         run: node --test scripts/__tests__/*.test.mjs
@@ -37,7 +37,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22.23.4'
 
       - name: Validate all plugin manifests
         run: |
@@ -100,7 +100,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22.23.4'
 
       - name: Validate registry
         run: node scripts/validate-registry.mjs

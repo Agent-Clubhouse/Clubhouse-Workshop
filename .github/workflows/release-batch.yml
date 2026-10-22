@@ -34,7 +34,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22.23.4'
 
       # ── Step 1: Detect plugins to release ──────────────────────────────
       - name: Detect plugins to release
