@@ -3,6 +3,7 @@ name: Validate SDK
 on:
   pull_request:
     paths:
+      - ".github/workflows/**"
       - 'sdk/**'
 
 jobs:
@@ -15,7 +16,12 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22.23.4'
+
+      - name: Report Node.js runtime
+        run: |
+          node --version
+          npm --version
 
       - name: Validate versions.json structure
         run: |

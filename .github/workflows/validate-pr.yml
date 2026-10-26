@@ -3,6 +3,7 @@ name: Validate PR
 on:
   pull_request:
     paths:
+      - ".github/workflows/**"
       - 'plugins/**'
       - 'sdk/**'
       - 'registry/**'
@@ -19,7 +20,12 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22.23.4'
+
+      - name: Report Node.js runtime
+        run: |
+          node --version
+          npm --version
 
       - name: Run shared script tests
         run: node --test scripts/__tests__/*.test.mjs
@@ -37,7 +43,12 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22.23.4'
+
+      - name: Report Node.js runtime
+        run: |
+          node --version
+          npm --version
 
       - name: Validate all plugin manifests
         run: |
@@ -100,7 +111,12 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22.23.4'
+
+      - name: Report Node.js runtime
+        run: |
+          node --version
+          npm --version
 
       - name: Validate registry
         run: node scripts/validate-registry.mjs
