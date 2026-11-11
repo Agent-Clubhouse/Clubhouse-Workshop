@@ -208,7 +208,7 @@ Use `@clubhouse/plugin-testing`:
 
 ## Development Workflow
 
-1. `npx create-clubhouse-plugin` — scaffold
+1. Scaffold — use the `/scaffold-plugin` skill, or copy `plugins/example-hello-world`
 2. `npm install && npm run build` — build
 3. `ln -s "$(pwd)" ~/.clubhouse/plugins/<id>` — symlink
 4. Enable in Settings > Plugins

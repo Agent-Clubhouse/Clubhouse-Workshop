@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "description": "Scaffold a new Clubhouse plugin",
   "license": "MIT",
+  "type": "module",
   "bin": {
     "create-clubhouse-plugin": "./dist/index.js"
   },
