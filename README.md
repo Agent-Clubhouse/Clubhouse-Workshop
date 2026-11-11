@@ -28,14 +28,10 @@ Then open Clubhouse, go to **Settings > Plugins**, find **Hello World**, and tog
 
 ### 3. Build your own
 
-```bash
-# Scaffold a new plugin interactively
-npx create-clubhouse-plugin
-```
-
-This walks you through naming your plugin, choosing a scope, picking permissions, and selecting a starter template. When it's done:
+Start from an example plugin, or ask Claude Code to run the `/scaffold-plugin` skill in this repo for an interactive walkthrough:
 
 ```bash
+cp -r plugins/example-hello-world my-plugin
 cd my-plugin
 npm install
 npm run build
@@ -58,7 +54,7 @@ Clubhouse-Workshop/
   sdk/
     plugin-types/         TypeScript types for the plugin API
     plugin-testing/       Mocks & test harness for unit testing
-  create-clubhouse-plugin/  Scaffolding CLI (npx create-clubhouse-plugin)
+  create-clubhouse-plugin/  Scaffolding CLI (work in progress, not published)
   plugins/
     example-hello-world/  Minimal starter — counter, storage, notifications
     code-review/          AI-powered code review via quick agents
@@ -132,7 +128,7 @@ Plugins access Clubhouse through a sandboxed `PluginAPI` — only methods you've
 
 ## Scaffolding Templates
 
-The `create-clubhouse-plugin` CLI offers four templates:
+The in-progress `create-clubhouse-plugin` CLI (not yet published) has four templates:
 
 | Template | Best for | What you get |
 |---|---|---|
@@ -176,8 +172,8 @@ cp -r plugins/pomodoro ~/.clubhouse/plugins/
 ## Development Workflow
 
 ```bash
-# Create your plugin
-npx create-clubhouse-plugin
+# Create your plugin from an example
+cp -r plugins/example-hello-world my-plugin
 
 # Install deps and build
 cd my-plugin && npm install && npm run build

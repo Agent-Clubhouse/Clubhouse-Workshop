@@ -57,12 +57,7 @@ Pre-populates the mock agents API with test data, so plugins that render agent l
 
 **Path:** `create-clubhouse-plugin/`
 
-**Usage:**
-```bash
-npm create clubhouse-plugin
-# or
-npx create-clubhouse-plugin
-```
+**Status:** Not published to npm yet. Do not document or run `npx create-clubhouse-plugin` until the package is published.
 
 **Interactive prompts:**
 1. Plugin name → generates ID (lowercased, hyphenated)
