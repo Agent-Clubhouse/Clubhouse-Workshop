@@ -2,11 +2,17 @@ import type { PluginModule, PluginAPI, PluginContext } from "@clubhouse/plugin-t
 import { createMockAPI } from "./mock-api";
 import { createMockContext } from "./mock-context";
 
+type PanelName = "MainPanel" | "SidebarPanel" | "HubPanel" | "SettingsPanel" | "DialogPanel";
+
 interface RenderPluginOptions {
   pluginId?: string;
   projectId?: string;
   projectPath?: string;
   apiOverrides?: Parameters<typeof createMockAPI>[0];
+  /** Which panel to render (default: "MainPanel"). */
+  panel?: PanelName;
+  /** Props forwarded to HubPanel (paneId, resourceId). */
+  hubPanelProps?: { paneId?: string; resourceId?: string };
 }
 
 interface RenderResult {
@@ -58,11 +64,21 @@ export async function renderPlugin(
     await module.activate(ctx, api);
   }
 
-  // Render MainPanel if it exists — panels receive { api } only
+  // Render the requested panel (default: MainPanel)
   let element: RenderResult["element"] = null;
-  if (module.MainPanel) {
-    const Panel = module.MainPanel as (props: { api: PluginAPI }) => React.ReactNode;
-    element = Panel({ api });
+  const panelName = options?.panel ?? "MainPanel";
+
+  if (panelName === "HubPanel" && module.HubPanel) {
+    const Panel = module.HubPanel as (props: { paneId: string; resourceId?: string }) => React.ReactNode;
+    element = Panel({ paneId: options?.hubPanelProps?.paneId ?? "test-pane", resourceId: options?.hubPanelProps?.resourceId });
+  } else if (panelName === "DialogPanel" && module.DialogPanel) {
+    const Panel = module.DialogPanel as (props: { api: PluginAPI; onClose: () => void }) => React.ReactNode;
+    element = Panel({ api, onClose: () => {} });
+  } else {
+    const Panel = module[panelName] as ((props: { api: PluginAPI }) => React.ReactNode) | undefined;
+    if (Panel) {
+      element = Panel({ api });
+    }
   }
 
   // Cleanup function
